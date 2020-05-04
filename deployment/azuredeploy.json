@@ -1,0 +1,741 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "projectName": {
+            "type": "String"
+        },
+        "projectLocation": {
+            "type": "String"
+        },
+        "logAnalyticsReuse": {
+            "type": "bool"
+        },
+        "logAnalyticsWorkspaceName": {
+            "type": "String"
+        },
+        "logAnalyticsRetentionDays": {
+            "type": "int",
+            "defaultValue": 120
+        },
+        "sqlBackupRetentionDays": {
+            "type": "int",
+            "defaultValue": 14
+        },
+        "sqlAdminLogin": {
+            "type": "String"
+        },
+        "sqlAdminPassword": {
+            "type": "securestring"
+        }
+    },
+    "variables": {
+        "storageAccountName": "[concat(parameters('projectName'),'sa')]",
+        "automationAccountName": "[concat(parameters('projectName'),'-auto')]",
+        "sqlServerName": "[concat(parameters('projectName'),'-sql')]",
+        "apiVersions": {
+            "operationalInsights": "2015-11-01-preview",
+            "automation": "2015-10-31",
+            "storage": "2019-04-01",
+            "sql": "2019-06-01-preview"
+        }
+    },
+    "resources": [
+        // Log Analytics Workspace
+        {
+            "condition": "[equals(parameters('logAnalyticsReuse'), 'false')]",
+            "type": "microsoft.operationalinsights/workspaces",
+            "apiVersion": "[variables('apiVersions').operationalInsights]",
+            "name": "[parameters('logAnalyticsWorkspaceName')]",
+            "location": "[parameters('projectLocation')]",
+            "properties": {
+                "sku": {
+                    "name": "pergb2018"
+                },
+                "retentionInDays": "[parameters('logAnalyticsRetentionDays')]"
+            }
+        },
+        // Storage Account
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[variables('storageAccountName')]",
+            "location": "[parameters('projectLocation')]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "accessTier": "Cool"
+            }
+        },
+        // Storage Account Blob Services
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(variables('storageAccountName'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        // Storage Account ARG Disk exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(variables('storageAccountName'), '/default/argdiskexports')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Storage Account ARG VM exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(variables('storageAccountName'), '/default/argvmexports')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Storage Account Advisor Cost exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(variables('storageAccountName'), '/default/advisorcostexports')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Storage Account Recommendations exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(variables('storageAccountName'), '/default/recommendationsexports')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Azure SQL Server
+        {
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "[variables('apiVersions').sql]",
+            "name": "[variables('sqlServerName')]",
+            "location": "[parameters('projectLocation')]",
+            "kind": "v12.0",
+            "properties": {
+                "administratorLogin": "[parameters('sqlAdminLogin')]",
+                "administratorLoginPassword": "[parameters('sqlAdminPassword')]",
+                "version": "12.0"
+            }
+        },
+        // Azure SQL Database
+        {
+            "type": "Microsoft.Sql/servers/databases",
+            "apiVersion": "[variables('apiVersions').sql]",
+            "name": "[concat(variables('sqlServerName'), '/azureoptimizationengine')]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+            ],
+            "sku": {
+                "name": "GP_S_Gen5",
+                "tier": "GeneralPurpose",
+                "family": "Gen5",
+                "capacity": 1
+            },
+            "kind": "v12.0,user,vcore,serverless",
+            "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "maxSizeBytes": 3221225472,
+                "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+                "zoneRedundant": false,
+                "readScale": "Disabled",
+                "readReplicaCount": 0,
+                "autoPauseDelay": 60,
+                "storageAccountType": "GRS",
+                "minCapacity": 0.5
+            }
+        },
+        // Azure SQL backup retention policy
+        {
+            "type": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies",
+            "apiVersion": "[variables('apiVersions').sql]",
+            "name": "[concat(variables('sqlServerName'), '/azureoptimizationengine/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', variables('sqlServerName'), 'azureoptimizationengine')]",
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+            ],
+            "properties": {
+                "retentionDays": "[parameters('sqlBackupRetentionDays')]"
+            }
+        },
+        // Automation Account
+        {
+            "type": "Microsoft.Automation/automationAccounts",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "name": "[variables('automationAccountName')]",
+            "location": "[parameters('projectLocation')]",
+            "properties": {
+                "sku": {
+                    "name": "Basic"
+                }
+            }
+        }/*,
+        {
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/09de85b3-8a34-4fb7-8d73-2da6ad005a18')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbook": {
+                    "name": "Ingest-AzureStorageCSVToLogAnalytics"
+                },
+                "schedule": {
+                    "name": "IngestVmCSV-Daily"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/559405d0-8a3f-4ff0-a7fe-6566a649c1f8')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbook": {
+                    "name": "Ingest-AzureStorageCSVToLogAnalytics"
+                },
+                "schedule": {
+                    "name": "IngestDiskCSV-Daily"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/590070ed-4620-4e41-942c-e4aa188c0ff7')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbook": {
+                    "name": "Ingest-AzureStorageCSVToLogAnalytics"
+                },
+                "schedule": {
+                    "name": "IngestBillingCSV-Daily"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/a705c821-ffe9-4448-b7fb-065e805fa937')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbook": {
+                    "name": "Export-ConsumptionToBlobStorage"
+                },
+                "schedule": {
+                    "name": "ExportBilling-Daily"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/af4cda5c-bae2-438f-b089-5ba8c7bba48d')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbook": {
+                    "name": "Export-VirtualMachinePropertiesToBlobStorage"
+                },
+                "schedule": {
+                    "name": "ExportARG-Daily"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/be2b08fe-79e5-401f-88fd-f5c0d0b90b4b')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbook": {
+                    "name": "Export-ManagedDiskPropertiesToBlobStorage"
+                },
+                "schedule": {
+                    "name": "ExportARG-Daily"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/Az.Accounts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/Az.Billing')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/Az.Compute')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/Az.ResourceGraph')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/Az.Resources')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/Az.Storage')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzTable')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "2018-06-30",
+            "name": "[concat(variables('automationAccountName'), '/Export-ConsumptionToBlobStorage')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbookType": "PowerShell",
+                "logVerbose": false,
+                "logProgress": false,
+                "logActivityTrace": 0
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "2018-06-30",
+            "name": "[concat(variables('automationAccountName'), '/Export-ManagedDiskPropertiesToBlobStorage')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbookType": "PowerShell",
+                "logVerbose": false,
+                "logProgress": false,
+                "logActivityTrace": 0
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "2018-06-30",
+            "name": "[concat(variables('automationAccountName'), '/Export-VirtualMachinePropertiesToBlobStorage')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbookType": "PowerShell",
+                "logVerbose": false,
+                "logProgress": false,
+                "logActivityTrace": 0
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "2018-06-30",
+            "name": "[concat(variables('automationAccountName'), '/Ingest-AzureStorageCSVToLogAnalytics')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbookType": "PowerShell",
+                "logVerbose": false,
+                "logProgress": false,
+                "logActivityTrace": 0
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/ExportARG-Daily')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "startTime": "2019-09-25T17:06:00+01:00",
+                "expiryTime": "9999-12-31T23:59:00+00:00",
+                "interval": 1,
+                "frequency": "Day",
+                "timeZone": "Europe/Lisbon"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/ExportBilling-Daily')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "startTime": "2019-09-26T17:36:00+01:00",
+                "expiryTime": "9999-12-31T23:59:00+00:00",
+                "interval": 1,
+                "frequency": "Day",
+                "timeZone": "Europe/Lisbon"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/IngestBillingCSV-Daily')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "startTime": "2019-09-27T17:56:00+01:00",
+                "expiryTime": "9999-12-31T23:59:00+00:00",
+                "interval": 1,
+                "frequency": "Day",
+                "timeZone": "Europe/Lisbon"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/IngestDiskCSV-Daily')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "startTime": "2019-09-27T17:51:00+01:00",
+                "expiryTime": "9999-12-31T23:59:00+00:00",
+                "interval": 1,
+                "frequency": "Day",
+                "timeZone": "Europe/Lisbon"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/IngestVmCSV-Daily')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "startTime": "2019-10-03T17:51:00+01:00",
+                "expiryTime": "9999-12-31T23:59:00+00:00",
+                "interval": 1,
+                "frequency": "Day",
+                "timeZone": "Europe/Lisbon"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ARGDiskContainer')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"argdiskexports\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ARGVMContainer')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"argvmexports\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-BillingContainer')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"billingexports\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-BillingDaysBackwards')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "7"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-CloudEnvironment')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"AzureCloud\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTable')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"loganalyticsimportcontrol\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTablePartition')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"FFGLOBAL\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTableRG')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"farfetch-tests-rg\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTableSA')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"ffoptimizationpocsa\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTableSubId')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"dfabc7a1-ca6f-4a95-8a7a-faddb6ef9b7b\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsChunkSize')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "15000"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsLogPrefix')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"AzureOptimization_\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsWorkspaceId')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"2375a2c3-cde0-40f6-b0fb-3be9fb023456\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsWorkspaceKey')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": true
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-StorageSink')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"ffoptimizationpocsa\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-StorageSinkRG')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"farfetch-tests-rg\""
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-StorageSinkSubId')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "\"dfabc7a1-ca6f-4a95-8a7a-faddb6ef9b7b\""
+            }
+        }*/
+    ]
+}
