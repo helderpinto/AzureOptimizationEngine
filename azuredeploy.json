@@ -8,6 +8,20 @@
         "projectLocation": {
             "type": "String"
         },
+        "_artifactsLocation": {
+            "type": "string",
+            "defaultValue": "[deployment().properties.templateLink.uri]",
+            "metadata": {
+                "description": "The base URI where artifacts required by this template are located"
+            }
+        },
+        "_artifactsLocationSasToken": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated"
+            }
+        },
         "logAnalyticsReuse": {
             "type": "bool"
         },
@@ -34,11 +48,100 @@
         "automationAccountName": "[concat(parameters('projectName'),'-auto')]",
         "sqlServerName": "[concat(parameters('projectName'),'-sql')]",
         "apiVersions": {
-            "operationalInsights": "2015-11-01-preview",
-            "automation": "2015-10-31",
-            "storage": "2019-04-01",
+            "operationalInsights": "2020-03-01-preview",
+            "automation": "2018-06-30",
+            "storage": "2019-06-01",
             "sql": "2019-06-01-preview"
-        }
+        },
+        "Az.Accounts": {
+            "name": "Az.Accounts",
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/1.7.5"
+        },
+        "psModules": [
+            {
+                "name": "Az.Advisor",
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
+            },
+            {
+                "name": "Az.Compute",
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/3.7.0"
+            },
+            {
+                "name": "Az.OperationalInsights",
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/1.3.4"
+            },
+            {
+                "name": "Az.ResourceGraph",
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/1.3.4"
+            },
+            {
+                "name": "Az.Storage",
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/1.3.4"
+            }
+        ],
+        "runbooks": [
+            {
+                "name": "Export-ARGManagedDisksPropertiesToBlobStorage",
+                "version": "1.0.0.0",
+                "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Export-ARGManagedDisksPropertiesToBlobStorage.ps1', parameters('_artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
+                "version": "1.0.0.0",
+                "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Export-ARGVirtualMachinesPropertiesToBlobStorage.ps1', parameters('_artifactsLocationSasToken')))]"
+            }
+        ],
+        "automationVariables": [
+            {
+                "name": "Internal_AROResourceGroupName",
+                "description": "ARO Azure Automation Account resource group name",
+                "value": "[concat('\"',resourceGroup().name,'\"')]"
+            },
+            {
+                "name": "External_ExcludeVMNames",
+                "description": "Excluded VMs as comma separated list: vm1,vm2,vm3",
+                "value": "[concat('\"','\"')]"
+            },
+            {
+                "name": "External_ResourceGroupNames",
+                "description": "Resource groups (as comma seperated) targeted for Snooze actions: rg1,rg2,rg3",
+                "value": "[concat('\"','\"')]"
+            },
+            {
+                "name": "External_AutoSnooze_Condition",
+                "description": "This is the conditional operator required for configuring the condition before triggering an alert. Possible values are [GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual]",
+                "value": "[concat('\"','LessThan','\"')]"
+            },
+            {
+                "name": "External_AutoSnooze_Description",
+                "description": "Alert to stop the VM if the CPU % exceed the threshold",
+                "value": "[concat('\"','Alert to stop the VM if the CPU % exceed the threshold','\"')]"
+            },
+            {
+                "name": "External_AutoSnooze_MetricName",
+                "description": "Name of the metric the Azure Alert rule is to be configured for",
+                "value": "[concat('\"','Percentage CPU','\"')]"
+            },
+            {
+                "name": "External_AutoSnooze_Threshold",
+                "description": "Threshold for the Azure Alert rule. Possible percentage values ranging from 1 to 100",
+                "value": "[concat('\"','5','\"')]"
+            },
+            {
+                "name": "External_AutoSnooze_TimeAggregationOperator",
+                "description": "The time aggregation operator which will be applied to the selected window size to evaluate the condition. Possible values are [Average, Minimum, Maximum, Total, Last]",
+                "value": "[concat('\"','Average','\"')]"
+            },
+            {
+                "name": "External_AutoSnooze_TimeWindow",
+                "description": "The window size over which Azure will analyze selected metric for triggering an alert. This parameter accepts input in timespan format. Possible values are from 5 mins to 6 hours.",
+                "value": "[concat('\"','06:00:00','\"')]"
+            }
+        ]
     },
     "resources": [
         // Log Analytics Workspace
@@ -69,8 +172,10 @@
             "properties": {
                 "networkAcls": {
                     "bypass": "AzureServices",
-                    "virtualNetworkRules": [],
-                    "ipRules": [],
+                    "virtualNetworkRules": [
+                    ],
+                    "ipRules": [
+                    ],
                     "defaultAction": "Allow"
                 },
                 "supportsHttpsTrafficOnly": true,
@@ -101,7 +206,8 @@
             },
             "properties": {
                 "cors": {
-                    "corsRules": []
+                    "corsRules": [
+                    ]
                 },
                 "deleteRetentionPolicy": {
                     "enabled": false
@@ -177,7 +283,7 @@
         {
             "type": "Microsoft.Sql/servers/databases",
             "apiVersion": "[variables('apiVersions').sql]",
-            "name": "[concat(variables('sqlServerName'), '/azureoptimizationengine')]",
+            "name": "[concat(variables('sqlServerName'), '/optimizationengine')]",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
@@ -225,7 +331,183 @@
                     "name": "Basic"
                 }
             }
+        },
+        {
+            "comments": "provision the Az.Accounts module first since others are depenedent on it",
+            "name": "[concat(variables('automationAccountName'), '/', variables('Az.Accounts').name)]",
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {
+                    "uri": "[variables('Az.Accounts').url]"
+                }
+            }
+        },
+        {
+            "name": "[concat(variables('automationAccountName'), '/', variables('psModules')[copyIndex()].name)]",
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('Az.Accounts').name]"
+            ],
+            "copy": {
+                "name": "modulesLoop",
+                "count": "[length(variables('psModules'))]"
+            },
+            "properties": {
+                "contentLink": {
+                    "uri": "[variables('psModules')[copyIndex()].url]"
+                }
+            }
+        },
+        {
+            "name": "[concat(variables('automationAccountName'), '/', variables('runbooks')[copyIndex()].name)]",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('Az.Accounts').name]",
+                "modulesLoop"
+            ],
+            "copy": {
+                "name": "runbooksLoop",
+                "count": "[length(variables('runbooks'))]"
+            },
+            "properties": {
+                "runbookType": "[variables('runbooks')[copyIndex()].type]",
+                "logProgress": false,
+                "logVerbose": false,
+                "description": "[variables('runbooks')[copyIndex()].description]",
+                "publishContentLink": {
+                    "uri": "[variables('runbooks')[copyIndex()].scriptUri]",
+                    "version": "[variables('runbooks')[copyIndex()].version]"
+                }
+            }
         }/*,
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2020-01-13-preview",
+            "name": "[concat(parameters('automationAccountName'), '/', variables('automationVariables')[copyIndex()].name)]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "copy": {
+                "name": "variableLoop",
+                "count": "[length(variables('automationVariables'))]"
+            },
+            "properties": {
+                "description": "[variables('automationVariables')[copyIndex()].description]",
+                "value": "[variables('automationVariables')[copyIndex()].value]"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2020-01-13-preview",
+            "name": "[concat(parameters('automationAccountName'), '/', variables('internalAzureSubscriptionId').name)]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "[variables('internalAzureSubscriptionId').description]",
+                "isEncrypted": 1,
+                "type": "string",
+                "value": "[variables('internalAzureSubscriptionId').value]"
+            }
+        },
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('azureCredentials'))]",
+            "type": "Microsoft.Automation/automationAccounts/credentials",
+            "apiVersion": "2020-01-13-preview",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Azure Subscription Credentials",
+                "password": "[parameters('azureAdminPwd')]",
+                "userName": "[parameters('azureAdmin')]"
+            }
+        },
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', 'startBootstrap')]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "2020-01-13-preview",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('runbooks')[0].name]"
+            ],
+            "properties": {
+                "description": "Starts the bootstrap runbooks",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "frequency": "OneTime"
+            }
+        },
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('newGuid'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2020-01-13-preview",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "startBootstrap",
+                "modulesLoop"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "startBootstrap"
+                },
+                "runbook": {
+                    "name": "Bootstrap_Main"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "name": "[concat(variables('automationAccountName'), '/Export-ManagedDiskPropertiesToBlobStorage')]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbookType": "PowerShell"
+            }
+        }*/ /*,
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "2018-06-30",
+            "name": "[concat(variables('automationAccountName'), '/Export-VirtualMachinePropertiesToBlobStorage')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbookType": "PowerShell",
+                "logVerbose": false,
+                "logProgress": false,
+                "logActivityTrace": 0
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "2018-06-30",
+            "name": "[concat(variables('automationAccountName'), '/Ingest-AzureStorageCSVToLogAnalytics')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "runbookType": "PowerShell",
+                "logVerbose": false,
+                "logProgress": false,
+                "logActivityTrace": 0
+            }
+        },
         {
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "2015-10-31",
@@ -397,66 +679,6 @@
             ],
             "properties": {
                 "contentLink": {}
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2018-06-30",
-            "name": "[concat(variables('automationAccountName'), '/Export-ConsumptionToBlobStorage')]",
-            "location": "westeurope",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "logProgress": false,
-                "logActivityTrace": 0
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2018-06-30",
-            "name": "[concat(variables('automationAccountName'), '/Export-ManagedDiskPropertiesToBlobStorage')]",
-            "location": "westeurope",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "logProgress": false,
-                "logActivityTrace": 0
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2018-06-30",
-            "name": "[concat(variables('automationAccountName'), '/Export-VirtualMachinePropertiesToBlobStorage')]",
-            "location": "westeurope",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "logProgress": false,
-                "logActivityTrace": 0
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2018-06-30",
-            "name": "[concat(variables('automationAccountName'), '/Ingest-AzureStorageCSVToLogAnalytics')]",
-            "location": "westeurope",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "logProgress": false,
-                "logActivityTrace": 0
             }
         },
         {

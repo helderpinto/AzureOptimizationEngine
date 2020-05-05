@@ -1,0 +1,166 @@
+param(
+    [Parameter(Mandatory = $false)]
+    [string] $TargetSubscription = $null
+)
+
+$ErrorActionPreference = "Stop"
+
+$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization-CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
+if ([string]::IsNullOrEmpty($cloudEnvironment))
+{
+    $cloudEnvironment = "AzureCloud"
+}
+$referenceRegion = Get-AutomationVariable -Name "AzureOptimization-ReferenceRegion" -ErrorAction SilentlyContinue # e.g., westeurope
+if ([string]::IsNullOrEmpty($referenceRegion))
+{
+    $referenceRegion = "westeurope"
+}
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization-AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity|User
+if ([string]::IsNullOrEmpty($authenticationOption))
+{
+    $authenticationOption = "RunAsAccount"
+}
+
+# get ARG exports sink (storage account) details
+$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization-StorageSink"
+$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkRG"
+$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkSubId"
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization-ARGDiskContainer" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
+{
+    $storageAccountSinkContainer = "argdiskexports"
+}
+
+$ARGPageSize = 1000
+
+Write-Output "Logging in to Azure with $authenticationOption..."
+
+switch ($authenticationOption) {
+    "RunAsAccount" { 
+        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
+        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+        break
+    }
+    "ManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment
+        break
+    }
+    Default {
+        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
+        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+        break
+    }
+}
+
+$alldisks = @()
+
+Write-Output "Getting subscriptions target $TargetSubscription"
+if ($TargetSubscription)
+{
+    $subscriptions = $TargetSubscription
+    $subscriptionSuffix = "-" + $TargetSubscription
+}
+else
+{
+    $subscriptions = Get-AzSubscription | ForEach-Object { "$($_.Id)"}
+    $subscriptionSuffix = ""
+}
+
+$mdisksTotal = @()
+$resultsSoFar = 0
+
+<#
+   Getting all Managed Disks properties with Azure Resource Graph query
+#>
+
+Write-Output "Querying for ARM VM properties"
+
+$argQuery = @"
+    resources 
+    | where type =~ 'Microsoft.Compute/disks' 
+    | extend DiskId = tolower(id), OwnerVmId = tolower(managedBy) 
+    | join kind=leftouter (
+        resources 
+        | where type =~ 'Microsoft.Compute/virtualMachines' and array_length(properties.storageProfile.dataDisks) > 0 
+        | extend OwnerVmId = tolower(id) 
+        | mv-expand DataDisks = properties.storageProfile.dataDisks 
+        | extend DiskId = tolower(DataDisks.managedDisk.id), diskCaching = tostring(DataDisks.caching), diskType = 'Data' 
+        | project DiskId, OwnerVmId, diskCaching, diskType 
+        | union (
+            resources 
+            | where type =~ 'Microsoft.Compute/virtualMachines' 
+            | extend OwnerVmId = tolower(id) 
+            | extend DiskId = tolower(properties.storageProfile.osDisk.managedDisk.id), diskCaching = tostring(properties.storageProfile.osDisk.caching), diskType = 'OS' 
+            | project DiskId, OwnerVmId, diskCaching, diskType
+        )
+    ) on OwnerVmId, DiskId 
+    | project-away OwnerVmId, DiskId, OwnerVmId1, DiskId1 
+    | order by id asc
+"@
+
+do
+{
+    if ($resultsSoFar -eq 0)
+    {
+        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+    }
+    else
+    {
+        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+    }
+    $resultsCount = $mdisks.Count
+    $resultsSoFar += $resultsCount
+    $mdisksTotal += $mdisks
+
+} while ($resultsCount -eq $ARGPageSize)
+
+<#
+    Building CSV entries 
+#>
+
+$datetime = (get-date).ToUniversalTime()
+$hour = $datetime.Hour
+$min = $datetime.Minute
+$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+$statusDate = $datetime.ToString("yyyy-MM-dd")
+
+foreach ($disk in $mdisksTotal)
+{
+    $logentry = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $cloudEnvironment
+        TenantGuid = $disk.tenantId
+        SubscriptionGuid = $disk.subscriptionId
+        ResourceGroupName = $disk.resourceGroup
+        DiskName = $disk.name
+        InstanceId = $disk.id
+        OwnerVMId = $disk.managedBy
+        DeploymentModel = "Managed"
+        DiskType = $disk.diskType 
+        Caching = $disk.diskCaching 
+        DiskSizeGB = $disk.properties.diskSizeGB
+        SKU = $disk.sku.name
+        StatusDate = $statusDate
+        Tags = $disk.tags
+    }
+    
+    $alldisks += $logentry
+}
+
+<#
+    Actually exporting CSV to Azure Storage
+#>
+
+$today = $datetime.ToString("yyyyMMdd")
+$csvExportPath = $today + $subscriptionSuffix + ".csv"
+
+$alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
+
+$csvBlobName = $csvExportPath
+
+$csvProperties = @{"ContentType" = "text/csv"};
+
+Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+
+Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
