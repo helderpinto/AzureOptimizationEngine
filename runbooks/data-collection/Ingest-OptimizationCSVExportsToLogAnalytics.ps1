@@ -3,17 +3,6 @@ param(
     [string] $StorageSinkContainer
 )
 
-<# 
-Scripts provided are not supported under any Microsoft standard support program or service. 
-The scripts are provided AS IS without warranty of any kind. Microsoft disclaims all implied warranties including, 
-without limitation, any implied warranties of merchantability or of fitness for a particular purpose. The entire 
-risk arising out of the use or performance of the scripts and documentation remains with you. In no event shall Microsoft, 
-its authors, or anyone else involved in the creation, production, or delivery of the scripts be liable for any damages 
-whatsoever (including, without limitation, damages for loss of business profits, business interruption, loss of business 
-information, or other pecuniary loss) arising out of the use of or inability to use the scripts or documentation, even 
-if Microsoft has been advised of the possibility of such damages.
-#>
-
 $ErrorActionPreference = "Stop"
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization-CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
@@ -26,12 +15,7 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "RunAsAccount"
 }
-else {
-    if ($authenticationOption -eq "User")
-    {
-        $authenticationCredential = Get-AutomationVariable -Name  "AzureOptimization-AuthenticationCredential"
-    }
-}
+
 $sqlserver = Get-AutomationVariable -Name  "AzureOptimization-SQLServerHostname"
 $sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization-SQLServerCredential"
 $SqlUsername = $sqlserverCredential.UserName 
@@ -63,6 +47,7 @@ if (-not($StorageBlobsChunkSize -gt 0))
     $StorageBlobsChunkSize = 1000
 }
 
+$SqlTimeout = 120
 $Timestampfield = "Timestamp" 
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
@@ -76,11 +61,6 @@ switch ($authenticationOption) {
     }
     "ManagedIdentity" { 
         Connect-AzAccount -Identity
-        break
-    }
-    "User" { 
-        $cred = Get-AutomationPSCredential –Name $authenticationCredential
-	    Connect-AzAccount -Credential $cred
         break
     }
     Default {
@@ -173,17 +153,35 @@ $newProcessedTime = $null
 
 foreach ($blob in $allblobs) {
 
-    $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=30;") 
-    $Conn.Open() 
-    $Cmd=new-object system.Data.SqlClient.SqlCommand
-    $Cmd.Connection = $Conn
-    $Cmd.CommandTimeout=120 
-    $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE StorageContainerName = '$storageAccountSinkContainer'"
+    $tries = 0
+    $connectionSuccess = $false
+    do {
+        $tries++
+        try {
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+            $Cmd=new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE StorageContainerName = '$storageAccountSinkContainer'"
+        
+            $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+            $sqlAdapter.SelectCommand = $Cmd
+            $controlRows = New-Object System.Data.DataTable
+            $sqlAdapter.Fill($controlRows)            
+            $connectionSuccess = $true
+        }
+        catch {
+            Write-Output "Failed to contact SQL at try $tries."
+            Start-Sleep -Seconds ($tries * 20)
+        }    
+    } while (-not($connectionSuccess) -and $tries -lt 3)
 
-    $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-    $sqlAdapter.SelectCommand = $Cmd
-    $controlRows = New-Object System.Data.DataTable
-    $sqlAdapter.Fill($controlRows)
+    if (-not($connectionSuccess))
+    {
+        throw "Could not establish connection to SQL."
+    }
+
     $controlRow = $controlRows[0]
 
     $lastProcessedLine = $controlRow.LastProcessedLine

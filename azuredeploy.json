@@ -93,6 +93,20 @@
                 "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Export-ARGVirtualMachinesPropertiesToBlobStorage.ps1', parameters('_artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "Export-AdvisorCostRecommendationsToBlobStorage",
+                "version": "1.0.0.0",
+                "description": "Exports Azure Advisor Cost recommendations to Blob Storage using the Advisor API",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Export-AdvisorCostRecommendationsToBlobStorage.ps1', parameters('_artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "Ingest-OptimizationCSVExportsToLogAnalytics",
+                "version": "1.0.0.0",
+                "description": "Ingests CSV blobs as custom logs to Log Analytics",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Ingest-OptimizationCSVExportsToLogAnalytics.ps1', parameters('_artifactsLocationSasToken')))]"
             }
         ],
         "automationVariables": [
@@ -311,9 +325,9 @@
         {
             "type": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies",
             "apiVersion": "[variables('apiVersions').sql]",
-            "name": "[concat(variables('sqlServerName'), '/azureoptimizationengine/default')]",
+            "name": "[concat(variables('sqlServerName'), '/optimizationengine/default')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Sql/servers/databases', variables('sqlServerName'), 'azureoptimizationengine')]",
+                "[resourceId('Microsoft.Sql/servers/databases', variables('sqlServerName'), 'optimizationengine')]",
                 "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
             ],
             "properties": {
@@ -332,6 +346,7 @@
                 }
             }
         },
+        // Automation Modules (Az.Account)
         {
             "comments": "provision the Az.Accounts module first since others are depenedent on it",
             "name": "[concat(variables('automationAccountName'), '/', variables('Az.Accounts').name)]",
@@ -346,6 +361,7 @@
                 }
             }
         },
+        // Automation Modules (other)
         {
             "name": "[concat(variables('automationAccountName'), '/', variables('psModules')[copyIndex()].name)]",
             "type": "Microsoft.Automation/automationAccounts/modules",
@@ -364,6 +380,7 @@
                 }
             }
         },
+        // Automation Runbooks
         {
             "name": "[concat(variables('automationAccountName'), '/', variables('runbooks')[copyIndex()].name)]",
             "type": "Microsoft.Automation/automationAccounts/runbooks",
@@ -467,48 +484,6 @@
             }
         },
         {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "name": "[concat(variables('automationAccountName'), '/Export-ManagedDiskPropertiesToBlobStorage')]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell"
-            }
-        }*/ /*,
-        {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2018-06-30",
-            "name": "[concat(variables('automationAccountName'), '/Export-VirtualMachinePropertiesToBlobStorage')]",
-            "location": "westeurope",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "logProgress": false,
-                "logActivityTrace": 0
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2018-06-30",
-            "name": "[concat(variables('automationAccountName'), '/Ingest-AzureStorageCSVToLogAnalytics')]",
-            "location": "westeurope",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "logProgress": false,
-                "logActivityTrace": 0
-            }
-        },
-        {
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "2015-10-31",
             "name": "[concat(variables('automationAccountName'), '/09de85b3-8a34-4fb7-8d73-2da6ad005a18')]",
@@ -602,83 +577,6 @@
                 "schedule": {
                     "name": "ExportARG-Daily"
                 }
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/Az.Accounts')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/Az.Billing')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/Az.Compute')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/Az.ResourceGraph')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/Az.Resources')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/Az.Storage')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzTable')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
             }
         },
         {
