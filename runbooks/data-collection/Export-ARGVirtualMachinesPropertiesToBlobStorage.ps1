@@ -5,27 +5,27 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization-CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
+$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$referenceRegion = Get-AutomationVariable -Name "AzureOptimization-ReferenceRegion" -ErrorAction SilentlyContinue # e.g., westeurope
+$referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion" -ErrorAction SilentlyContinue # e.g., westeurope
 if ([string]::IsNullOrEmpty($referenceRegion))
 {
     $referenceRegion = "westeurope"
 }
-$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization-AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity|User
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "RunAsAccount"
 }
 
 # get ARG exports sink (storage account) details
-$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization-StorageSink"
-$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkRG"
-$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization-ARGVMContainer" -ErrorAction SilentlyContinue
+$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
+$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
+$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVMContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
     $storageAccountSinkContainer = "argvmexports"
@@ -203,7 +203,7 @@ foreach ($vm in $classicVmsTotal)
 Write-Output "Uploading CSV to Storage"
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = $today + $subscriptionSuffix + ".csv"
+$csvExportPath = "$today-vms-$subscriptionSuffix.csv"
 
 $allvms | Export-Csv -Path $csvExportPath -NoTypeInformation
 

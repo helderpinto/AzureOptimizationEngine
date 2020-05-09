@@ -41,6 +41,14 @@
         },
         "sqlAdminPassword": {
             "type": "securestring"
+        },
+        "cloudEnvironment": {
+            "type": "String",
+            "defaultValue": "AzureCloud"
+        },
+        "authenticationOption": {
+            "type": "String",
+            "defaultValue": "RunAsAccount"
         }
     },
     "variables": {
@@ -111,49 +119,69 @@
         ],
         "automationVariables": [
             {
-                "name": "Internal_AROResourceGroupName",
-                "description": "ARO Azure Automation Account resource group name",
+                "name": "AzureOptimization_CloudEnvironment",
+                "description": "Azure Cloud environment (e.g., AzureCloud, AzureChinaCloud, etc.)",
+                "value": "[concat('\"',parameters('cloudEnvironment'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_AuthenticationOption",
+                "description": "Runbook authentication type (Run As Account or Managed Identity)",
+                "value": "[concat('\"',parameters('authenticationOption'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_StorageSink",
+                "description": "The Azure Storage Account where data source exports are dumped to",
+                "value": "[concat('\"',variables('storageAccountName'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_StorageSinkRG",
+                "description": "The resource group for the Azure Storage Account sink",
                 "value": "[concat('\"',resourceGroup().name,'\"')]"
             },
             {
-                "name": "External_ExcludeVMNames",
-                "description": "Excluded VMs as comma separated list: vm1,vm2,vm3",
-                "value": "[concat('\"','\"')]"
+                "name": "AzureOptimization_StorageSinkSubId",
+                "description": "The subscription Id for the Azure Storage Account sink",
+                "value": "[concat('\"',subscription().subscriptionId,'\"')]"
             },
             {
-                "name": "External_ResourceGroupNames",
-                "description": "Resource groups (as comma seperated) targeted for Snooze actions: rg1,rg2,rg3",
-                "value": "[concat('\"','\"')]"
+                "name": "AzureOptimization_AdvisorCostContainer",
+                "description": "The Storage Account container where Azure Advisor exports are dumped to",
+                "value": "[concat('\"','advisorexports','\"')]"
             },
             {
-                "name": "External_AutoSnooze_Condition",
-                "description": "This is the conditional operator required for configuring the condition before triggering an alert. Possible values are [GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual]",
-                "value": "[concat('\"','LessThan','\"')]"
+                "name": "AzureOptimization_ARGDiskContainer",
+                "description": "The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to",
+                "value": "[concat('\"','argdiskexports','\"')]"
             },
             {
-                "name": "External_AutoSnooze_Description",
-                "description": "Alert to stop the VM if the CPU % exceed the threshold",
-                "value": "[concat('\"','Alert to stop the VM if the CPU % exceed the threshold','\"')]"
+                "name": "AzureOptimization_ARGVMContainer",
+                "description": "The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to",
+                "value": "[concat('\"','argvmexports','\"')]"
             },
             {
-                "name": "External_AutoSnooze_MetricName",
-                "description": "Name of the metric the Azure Alert rule is to be configured for",
-                "value": "[concat('\"','Percentage CPU','\"')]"
+                "name": "AzureOptimization_ReferenceRegion",
+                "description": "The Azure region used as a reference for getting details about Azure VM sizes available",
+                "value": "[concat('\"',parameters('projectLocation'),'\"')]"
             },
             {
-                "name": "External_AutoSnooze_Threshold",
-                "description": "Threshold for the Azure Alert rule. Possible percentage values ranging from 1 to 100",
-                "value": "[concat('\"','5','\"')]"
+                "name": "AzureOptimization_SQLServerDatabase",
+                "description": "The Azure SQL Database name for the ingestion control and recommendations tables",
+                "value": "[concat('\"','azureoptimization','\"')]"
             },
             {
-                "name": "External_AutoSnooze_TimeAggregationOperator",
-                "description": "The time aggregation operator which will be applied to the selected window size to evaluate the condition. Possible values are [Average, Minimum, Maximum, Total, Last]",
-                "value": "[concat('\"','Average','\"')]"
+                "name": "AzureOptimization_LogAnalyticsChunkSize",
+                "description": "The size (in rows) for each chunk of Log Analytics ingestion request",
+                "value": "[concat('\"','10000','\"')]"
             },
             {
-                "name": "External_AutoSnooze_TimeWindow",
-                "description": "The window size over which Azure will analyze selected metric for triggering an alert. This parameter accepts input in timespan format. Possible values are from 5 mins to 6 hours.",
-                "value": "[concat('\"','06:00:00','\"')]"
+                "name": "AzureOptimization_StorageBlobsPageSize",
+                "description": "The size (in blobs count) for each page of Storage Account container blob listing",
+                "value": "[concat('\"','1000','\"')]"
+            },
+            {
+                "name": "AzureOptimization_LogAnalyticsLogPrefix",
+                "description": "The prefix for all Azure Optimization custom log tables in Log Analytics",
+                "value": "[concat('\"','AzureOptimization','\"')]"
             }
         ]
     },
@@ -405,13 +433,14 @@
                     "version": "[variables('runbooks')[copyIndex()].version]"
                 }
             }
-        }/*,
+        },
+        // Automation Variables
         {
             "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2020-01-13-preview",
-            "name": "[concat(parameters('automationAccountName'), '/', variables('automationVariables')[copyIndex()].name)]",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "name": "[concat(variables('automationAccountName'), '/', variables('automationVariables')[copyIndex()].name)]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "copy": {
                 "name": "variableLoop",
@@ -421,7 +450,7 @@
                 "description": "[variables('automationVariables')[copyIndex()].description]",
                 "value": "[variables('automationVariables')[copyIndex()].value]"
             }
-        },
+        }/*,
         {
             "type": "Microsoft.Automation/automationAccounts/variables",
             "apiVersion": "2020-01-13-preview",

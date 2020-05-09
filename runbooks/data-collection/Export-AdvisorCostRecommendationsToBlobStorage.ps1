@@ -5,27 +5,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization-CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
+$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$referenceRegion = Get-AutomationVariable -Name "AzureOptimization-ReferenceRegion" -ErrorAction SilentlyContinue # e.g., westeurope|chineast2
-if ([string]::IsNullOrEmpty($referenceRegion))
-{
-    $referenceRegion = "westeurope"
-}
-$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization-AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity|User
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "RunAsAccount"
 }
 
 # get ARG exports sink (storage account) details
-$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization-StorageSink"
-$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkRG"
-$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization-AdvisorContainer" -ErrorAction SilentlyContinue
+$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
+$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
+$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_AdvisorCostContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
     $storageAccountSinkContainer = "advisorexports"
@@ -128,8 +123,8 @@ foreach ($subscription in $subscriptions)
 #>
 
 $fileDate = $datetime.ToString("yyyyMMdd")
-$jsonExportPath = "cost-$fileDate-$subscriptionSuffix.json"
-$csvExportPath = "cost-$fileDate-$subscriptionSuffix.csv"
+$jsonExportPath = "$fileDate-cost-$subscriptionSuffix.json"
+$csvExportPath = "$fileDate-cost-$subscriptionSuffix.csv"
 
 $recommendations | ConvertTo-Json -Depth 10 | Out-File $jsonExportPath
 Write-Output "Exported to JSON: $($recommendations.Count) lines"

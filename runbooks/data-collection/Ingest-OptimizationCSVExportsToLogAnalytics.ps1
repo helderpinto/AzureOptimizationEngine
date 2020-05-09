@@ -5,46 +5,46 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization-CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
+$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name "AzureOptimization-AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity|User
+$authenticationOption = Get-AutomationVariable -Name "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "RunAsAccount"
 }
 
-$sqlserver = Get-AutomationVariable -Name  "AzureOptimization-SQLServerHostname"
-$sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization-SQLServerCredential"
+$sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
+$sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization_SQLServerCredential"
 $SqlUsername = $sqlserverCredential.UserName 
 $SqlPass = $sqlserverCredential.GetNetworkCredential().Password 
-$sqldatabase = Get-AutomationVariable -Name  "AzureOptimization-SQLServerDatabase" -ErrorAction SilentlyContinue
+$sqldatabase = Get-AutomationVariable -Name  "AzureOptimization_SQLServerDatabase" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($sqldatabase))
 {
     $sqldatabase = "azureoptimization"
 }
-$workspaceId = Get-AutomationVariable -Name  "AzureOptimization-LogAnalyticsWorkspaceId"
-$sharedKey = Get-AutomationVariable -Name  "AzureOptimization-LogAnalyticsWorkspaceKey"
-$LogAnalyticsChunkSize = Get-AutomationVariable -Name  "AzureOptimization-LogAnalyticsChunkSize" -ErrorAction SilentlyContinue
+$workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
+$sharedKey = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceKey"
+$LogAnalyticsChunkSize = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsChunkSize" -ErrorAction SilentlyContinue
 if (-not($LogAnalyticsChunkSize -gt 0))
 {
     $LogAnalyticsChunkSize = 10000
 }
-$lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization-LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
+$lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))
 {
     $lognamePrefix = "AzureOptimization_"
 }
-$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization-StorageSink"
-$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkRG"
-$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization-StorageSinkSubId"
+$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
+$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
+$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
 $storageAccountSinkContainer = $StorageSinkContainer
-$StorageBlobsChunkSize = Get-AutomationVariable -Name  "AzureOptimization-StorageBlobsChunkSize" -ErrorAction SilentlyContinue
-if (-not($StorageBlobsChunkSize -gt 0))
+$StorageBlobsPageSize = Get-AutomationVariable -Name  "AzureOptimization_StorageBlobsPageSize" -ErrorAction SilentlyContinue
+if (-not($StorageBlobsPageSize -gt 0))
 {
-    $StorageBlobsChunkSize = 1000
+    $StorageBlobsPageSize = 1000
 }
 
 $SqlTimeout = 120
@@ -142,7 +142,7 @@ $allblobs = @()
 $continuationToken = $null
 do
 {
-    $blobs = Get-AzStorageBlob -Container $storageAccountSinkContainer -MaxCount $StorageBlobsChunkSize -ContinuationToken $continuationToken -Context $sa.Context | Sort-Object -Property LastModified
+    $blobs = Get-AzStorageBlob -Container $storageAccountSinkContainer -MaxCount $StorageBlobsPageSize -ContinuationToken $continuationToken -Context $sa.Context | Sort-Object -Property LastModified
     if ($blobs.Count -le 0) { break }
     $allblobs += $blobs
     $continuationToken = $blobs[$blobs.Count -1].ContinuationToken;
