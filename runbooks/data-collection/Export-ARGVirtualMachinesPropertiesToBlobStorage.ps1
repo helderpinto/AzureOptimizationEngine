@@ -82,7 +82,8 @@ $resultsSoFar = 0
 Write-Output "Querying for ARM VM properties"
 
 $argQuery = @"
-    where type =~ 'Microsoft.Compute/virtualMachines' 
+    resources
+    | where type =~ 'Microsoft.Compute/virtualMachines' 
     | extend dataDiskCount = array_length(properties.storageProfile.dataDisks), nicCount = array_length(properties.networkProfile.networkInterfaces) 
     | order by id asc
 "@
@@ -112,7 +113,8 @@ $resultsSoFar = 0
 Write-Output "Querying for Classic VM properties"
 
 $argQuery = @"
-    where type =~ 'Microsoft.ClassicCompute/virtualMachines' 
+    resources
+    | where type =~ 'Microsoft.ClassicCompute/virtualMachines' 
     | extend dataDiskCount = iif(isnotnull(properties.storageProfile.dataDisks), array_length(properties.storageProfile.dataDisks), 0), nicCount = iif(isnotnull(properties.networkProfile.virtualNetwork.networkInterfaces), array_length(properties.networkProfile.virtualNetwork.networkInterfaces) + 1, 1) 
     | order by id asc
 "@

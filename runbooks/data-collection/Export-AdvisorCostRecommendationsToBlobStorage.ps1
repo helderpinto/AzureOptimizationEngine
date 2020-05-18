@@ -108,6 +108,7 @@ foreach ($subscription in $subscriptions)
             Description = $advisorRecommendation.ShortDescription.Problem
             RecommendationText = $advisorRecommendation.ShortDescription.Problem
             InstanceId = $instanceId
+            Category = "Cost"
             InstanceName = $advisorRecommendation.ImpactedValue
             AdditionalInfo = $advisorRecommendation.ExtendedProperties
             ResourceGroup = $resourceGroup

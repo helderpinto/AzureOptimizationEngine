@@ -450,6 +450,34 @@
                 "description": "[variables('automationVariables')[copyIndex()].description]",
                 "value": "[variables('automationVariables')[copyIndex()].value]"
             }
+        },
+        // Automation Variables (SQL Server Hostname)
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization_SQLServerHostname')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+            ],
+            "properties": {
+                "description": "The Azure SQL Server hostname for the ingestion control and recommendations tables",
+                "value": "[concat('\"', reference(resourceId('Microsoft.Sql/servers', variables('sqlServerName')), providers('Microsoft.Sql', 'servers').apiVersions[0]).fullyQualifiedDomainName, '\"')]"
+            }
+        },
+        // Automation Credentials
+        {
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization_SQLServerCredential')]",
+            "type": "Microsoft.Automation/automationAccounts/credentials",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Azure Optimization SQL Database Credentials",
+                "password": "[parameters('sqlAdminPassword')]",
+                "userName": "[parameters('sqlAdminLogin')]"
+            }
         }/*,
         {
             "type": "Microsoft.Automation/automationAccounts/variables",
@@ -463,19 +491,6 @@
                 "isEncrypted": 1,
                 "type": "string",
                 "value": "[variables('internalAzureSubscriptionId').value]"
-            }
-        },
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', variables('azureCredentials'))]",
-            "type": "Microsoft.Automation/automationAccounts/credentials",
-            "apiVersion": "2020-01-13-preview",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-            ],
-            "properties": {
-                "description": "Azure Subscription Credentials",
-                "password": "[parameters('azureAdminPwd')]",
-                "userName": "[parameters('azureAdmin')]"
             }
         },
         {
@@ -681,209 +696,6 @@
                 "interval": 1,
                 "frequency": "Day",
                 "timeZone": "Europe/Lisbon"
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ARGDiskContainer')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"argdiskexports\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ARGVMContainer')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"argvmexports\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-BillingContainer')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"billingexports\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-BillingDaysBackwards')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "7"
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-CloudEnvironment')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"AzureCloud\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTable')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"loganalyticsimportcontrol\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTablePartition')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"FFGLOBAL\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTableRG')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"farfetch-tests-rg\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTableSA')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"ffoptimizationpocsa\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-ControlTableSubId')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"dfabc7a1-ca6f-4a95-8a7a-faddb6ef9b7b\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsChunkSize')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "15000"
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsLogPrefix')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"AzureOptimization_\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsWorkspaceId')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"2375a2c3-cde0-40f6-b0fb-3be9fb023456\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-LogAnalyticsWorkspaceKey')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": true
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-StorageSink')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"ffoptimizationpocsa\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-StorageSinkRG')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"farfetch-tests-rg\""
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/variables",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/AzureOptimization-StorageSinkSubId')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isEncrypted": false,
-                "value": "\"dfabc7a1-ca6f-4a95-8a7a-faddb6ef9b7b\""
             }
         }*/
     ]

@@ -27,7 +27,7 @@ if ([string]::IsNullOrEmpty($sqldatabase))
 }
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
 $sharedKey = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceKey"
-$LogAnalyticsChunkSize = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsChunkSize" -ErrorAction SilentlyContinue
+$LogAnalyticsChunkSize = [int] (Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsChunkSize" -ErrorAction SilentlyContinue)
 if (-not($LogAnalyticsChunkSize -gt 0))
 {
     $LogAnalyticsChunkSize = 10000
@@ -41,7 +41,7 @@ $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSi
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
 $storageAccountSinkContainer = $StorageSinkContainer
-$StorageBlobsPageSize = Get-AutomationVariable -Name  "AzureOptimization_StorageBlobsPageSize" -ErrorAction SilentlyContinue
+$StorageBlobsPageSize = [int] (Get-AutomationVariable -Name  "AzureOptimization_StorageBlobsPageSize" -ErrorAction SilentlyContinue)
 if (-not($StorageBlobsPageSize -gt 0))
 {
     $StorageBlobsPageSize = 1000
