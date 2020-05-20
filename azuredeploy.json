@@ -28,9 +28,6 @@
         "logAnalyticsWorkspaceName": {
             "type": "String"
         },
-        "logAnalyticsWorkspaceRG": {
-            "type": "String"
-        },
         "logAnalyticsRetentionDays": {
             "type": "int",
             "defaultValue": 120
@@ -65,6 +62,18 @@
         "storageAccountName": "[concat(parameters('projectName'),'sa')]",
         "automationAccountName": "[concat(parameters('projectName'),'-auto')]",
         "sqlServerName": "[concat(parameters('projectName'),'-sql')]",
+        "advisorCostsContainerName": "advisorcostexports",
+        "argVmContainerName": "argvmexports",
+        "argDiskContainerName": "argdiskexports",
+        "advisorExportsRunbookName": "Export-AdvisorCostRecommendationsToBlobStorage",
+        "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
+        "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
+        "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
+        "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
+        "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
+        "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
+        "argVmIngestScheduleName": "AzureOptimization_IngestARGVMsDaily",
+        "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorCostWeekly",
         "apiVersions": {
             "operationalInsights": "2020-03-01-preview",
             "automation": "2018-06-30",
@@ -99,32 +108,32 @@
         ],
         "runbooks": [
             {
-                "name": "Export-ARGManagedDisksPropertiesToBlobStorage",
-                "version": "1.0.0.0",
-                "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Export-ARGManagedDisksPropertiesToBlobStorage.ps1', parameters('_artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
-                "version": "1.0.0.0",
-                "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Export-ARGVirtualMachinesPropertiesToBlobStorage.ps1', parameters('_artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "Export-AdvisorCostRecommendationsToBlobStorage",
+                "name": "[variables('advisorExportsRunbookName')]",
                 "version": "1.0.0.0",
                 "description": "Exports Azure Advisor Cost recommendations to Blob Storage using the Advisor API",
                 "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Export-AdvisorCostRecommendationsToBlobStorage.ps1', parameters('_artifactsLocationSasToken')))]"
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
             },
             {
-                "name": "Ingest-OptimizationCSVExportsToLogAnalytics",
+                "name": "[variables('argDisksExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argVmExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('csvIngestRunbookName')]",
                 "version": "1.0.0.0",
                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
                 "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/Ingest-OptimizationCSVExportsToLogAnalytics.ps1', parameters('_artifactsLocationSasToken')))]"
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
             }
         ],
         "automationVariables": [
@@ -156,17 +165,17 @@
             {
                 "name": "AzureOptimization_AdvisorCostContainer",
                 "description": "The Storage Account container where Azure Advisor exports are dumped to",
-                "value": "[concat('\"','advisorexports','\"')]"
+                "value": "[concat('\"',variables('advisorCostsContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ARGDiskContainer",
                 "description": "The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to",
-                "value": "[concat('\"','argdiskexports','\"')]"
+                "value": "[concat('\"',variables('argDiskContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ARGVMContainer",
                 "description": "The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to",
-                "value": "[concat('\"','argvmexports','\"')]"
+                "value": "[concat('\"',variables('argVmContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ReferenceRegion",
@@ -270,7 +279,7 @@
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(variables('storageAccountName'), '/default/argdiskexports')]",
+            "name": "[concat(variables('storageAccountName'), '/default/', variables('argDiskContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -283,7 +292,7 @@
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(variables('storageAccountName'), '/default/argvmexports')]",
+            "name": "[concat(variables('storageAccountName'), '/default/', variables('argVmContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -296,7 +305,7 @@
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(variables('storageAccountName'), '/default/advisorcostexports')]",
+            "name": "[concat(variables('storageAccountName'), '/default/', variables('advisorCostsContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -491,7 +500,7 @@
         },
         // Automation ARG Exports Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/', 'AzureOptimization_ExportARGDaily')]",
+            "name": "[concat(variables('automationAccountName'), '/', variables('argExportsScheduleName'))]",
             "type": "Microsoft.Automation/automationAccounts/schedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "dependsOn": [
@@ -508,7 +517,7 @@
         },
         // Automation Advisor Exports Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/', 'AzureOptimization_ExportAdvisorWeekly')]",
+            "name": "[concat(variables('automationAccountName'), '/', variables('advisorExportsScheduleName'))]",
             "type": "Microsoft.Automation/automationAccounts/schedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "dependsOn": [
@@ -518,31 +527,14 @@
                 "description": "Starts the weekly Azure Advisor exports",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
-                "startTime": "[dateTimeAdd(parameters('baseTime'), 'P1DT1H')]",
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H15M')]",
                 "interval": 1,
                 "frequency": "Week"
             }
         },
-        // Automation ARG VM Ingest Schedule
-        {
-            "name": "[concat(variables('automationAccountName'), '/', 'AzureOptimization_IngestARGVMsDaily')]",
-            "type": "Microsoft.Automation/automationAccounts/schedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "description": "Starts the daily Azure Resource Graph Virtual Machine ingests",
-                "expiryTime": "9999-12-31T17:59:00-06:00",
-                "isEnabled": true,
-                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
-                "interval": 1,
-                "frequency": "Day"
-            }
-        },
         // Automation ARG Disk Ingest Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/', 'AzureOptimization_IngestARGDisksDaily')]",
+            "name": "[concat(variables('automationAccountName'), '/', variables('argDiskIngestScheduleName'))]",
             "type": "Microsoft.Automation/automationAccounts/schedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "dependsOn": [
@@ -557,9 +549,26 @@
                 "frequency": "Day"
             }
         },
+        // Automation ARG VM Ingest Schedule
+        {
+            "name": "[concat(variables('automationAccountName'), '/', variables('argVmIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily Azure Resource Graph Virtual Machine ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
         // Automation Advisor Exports Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/', 'AzureOptimization_IngestAdvisorCostWeekly')]",
+            "name": "[concat(variables('automationAccountName'), '/', variables('advisorIngestScheduleName'))]",
             "type": "Microsoft.Automation/automationAccounts/schedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "dependsOn": [
@@ -569,200 +578,135 @@
                 "description": "Starts the weekly Azure Advisor Cost ingests",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
-                "startTime": "[dateTimeAdd(parameters('baseTime'), 'P1DT1H30M')]",
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H45M')]",
                 "interval": 1,
                 "frequency": "Week"
             }
         }/*,
+        // Automation ARG Disk Exports Job Schedule
         {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('newGuid'))]",
+            "name": "[concat(variables('automationAccountName'), '/320d8458-df1b-428e-a8a4-3f2b6b52b873')]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2020-01-13-preview",
-            "location": "[parameters('location')]",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "startBootstrap",
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('argExportsScheduleName')]",
                 "modulesLoop",
-                "[variables('runbooks')[0].name]"
+                "[variables('argDisksExportsRunbookName')]"
             ],
             "properties": {
                 "schedule": {
-                    "name": "startBootstrap"
+                    "name": "[variables('argExportsScheduleName')]"
                 },
                 "runbook": {
-                    "name": "Bootstrap_Main"
+                    "name": "[variables('argDisksExportsRunbookName')]"
                 }
             }
         },
+        // Automation ARG VM Exports Job Schedule
         {
+            "name": "[concat(variables('automationAccountName'), '/136cf1b7-0031-408c-b3e0-28f6573d7581')]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/09de85b3-8a34-4fb7-8d73-2da6ad005a18')]",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('argExportsScheduleName')]",
+                "modulesLoop",
+                "[variables('argVmExportsRunbookName')]"
             ],
             "properties": {
-                "runbook": {
-                    "name": "Ingest-AzureStorageCSVToLogAnalytics"
-                },
                 "schedule": {
-                    "name": "IngestVmCSV-Daily"
+                    "name": "[variables('argExportsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('argVmExportsRunbookName')]"
                 }
             }
         },
+        // Automation Advisor Exports Job Schedule
         {
+            "name": "[concat(variables('automationAccountName'), '/5325f316-b98e-4064-9599-329faac12b95')]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/559405d0-8a3f-4ff0-a7fe-6566a649c1f8')]",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('advisorExportsScheduleName')]",
+                "modulesLoop",
+                "[variables('advisorExportsRunbookName')]"
             ],
             "properties": {
-                "runbook": {
-                    "name": "Ingest-AzureStorageCSVToLogAnalytics"
-                },
                 "schedule": {
-                    "name": "IngestDiskCSV-Daily"
+                    "name": "[variables('advisorExportsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('advisorExportsRunbookName')]"
                 }
             }
         },
+        // Automation ARG Disk Ingest Job Schedule
         {
+            "name": "[concat(variables('automationAccountName'), '/3989d432-5942-4cca-a689-388f5a94daa6')]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/590070ed-4620-4e41-942c-e4aa188c0ff7')]",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('argDiskIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
             ],
             "properties": {
-                "runbook": {
-                    "name": "Ingest-AzureStorageCSVToLogAnalytics"
-                },
                 "schedule": {
-                    "name": "IngestBillingCSV-Daily"
+                    "name": "[variables('argDiskIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
                 }
             }
         },
+        // Automation ARG VM Ingest Job Schedule
         {
+            "name": "[concat(variables('automationAccountName'), '/2e728d16-f32d-42b1-94d2-c375e27eb051')]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/a705c821-ffe9-4448-b7fb-065e805fa937')]",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('argVmIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
             ],
             "properties": {
-                "runbook": {
-                    "name": "Export-ConsumptionToBlobStorage"
-                },
                 "schedule": {
-                    "name": "ExportBilling-Daily"
+                    "name": "[variables('argVmIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
                 }
             }
         },
+        // Automation Advisor Ingest Job Schedule
         {
+            "name": "[concat(variables('automationAccountName'), '/82c1959a-a126-43b5-b55d-235fbe8280e1')]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/af4cda5c-bae2-438f-b089-5ba8c7bba48d')]",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('advisorIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
             ],
             "properties": {
-                "runbook": {
-                    "name": "Export-VirtualMachinePropertiesToBlobStorage"
-                },
                 "schedule": {
-                    "name": "ExportARG-Daily"
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/be2b08fe-79e5-401f-88fd-f5c0d0b90b4b')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbook": {
-                    "name": "Export-ManagedDiskPropertiesToBlobStorage"
+                    "name": "[variables('advisorIngestScheduleName')]"
                 },
-                "schedule": {
-                    "name": "ExportARG-Daily"
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
                 }
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/schedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/ExportARG-Daily')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "startTime": "2019-09-25T17:06:00+01:00",
-                "expiryTime": "9999-12-31T23:59:00+00:00",
-                "interval": 1,
-                "frequency": "Day",
-                "timeZone": "Europe/Lisbon"
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/schedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/ExportBilling-Daily')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "startTime": "2019-09-26T17:36:00+01:00",
-                "expiryTime": "9999-12-31T23:59:00+00:00",
-                "interval": 1,
-                "frequency": "Day",
-                "timeZone": "Europe/Lisbon"
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/schedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/IngestBillingCSV-Daily')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "startTime": "2019-09-27T17:56:00+01:00",
-                "expiryTime": "9999-12-31T23:59:00+00:00",
-                "interval": 1,
-                "frequency": "Day",
-                "timeZone": "Europe/Lisbon"
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/schedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/IngestDiskCSV-Daily')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "startTime": "2019-09-27T17:51:00+01:00",
-                "expiryTime": "9999-12-31T23:59:00+00:00",
-                "interval": 1,
-                "frequency": "Day",
-                "timeZone": "Europe/Lisbon"
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/schedules",
-            "apiVersion": "2015-10-31",
-            "name": "[concat(variables('automationAccountName'), '/IngestVmCSV-Daily')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "startTime": "2019-10-03T17:51:00+01:00",
-                "expiryTime": "9999-12-31T23:59:00+00:00",
-                "interval": 1,
-                "frequency": "Day",
-                "timeZone": "Europe/Lisbon"
             }
         }*/
     ]

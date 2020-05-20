@@ -51,13 +51,14 @@ Write-Output "Getting subscriptions target $TargetSubscription"
 if ($TargetSubscription)
 {
     $subscriptions = $TargetSubscription
-    $subscriptionSuffix = "-" + $TargetSubscription
 }
 else
 {
     $subscriptions = Get-AzSubscription | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = ""
 }
+
+Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
 $recommendations = @()
 
@@ -117,26 +118,26 @@ foreach ($subscription in $subscriptions)
     
         $recommendations += $recommendation    
     }
+
+    <#
+    Actually exporting CSV to Azure Storage
+    #>
+
+    $fileDate = $datetime.ToString("yyyyMMdd")
+    $jsonExportPath = "$fileDate-cost-$subscription.json"
+    $csvExportPath = "$fileDate-cost-$subscription.csv"
+
+    $recommendations | ConvertTo-Json -Depth 10 | Out-File $jsonExportPath
+    Write-Output "Exported to JSON: $($recommendations.Count) lines"
+    $recommendationsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
+    Write-Output "JSON Import: $($recommendationsJson.Count) lines"
+    $recommendationsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    Write-Output "Export to $csvExportPath"
+
+    $csvBlobName = $csvExportPath
+    $csvProperties = @{"ContentType" = "text/csv"};
+
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 }
 
-<#
-    Actually exporting CSV to Azure Storage
-#>
-
-$fileDate = $datetime.ToString("yyyyMMdd")
-$jsonExportPath = "$fileDate-cost-$subscriptionSuffix.json"
-$csvExportPath = "$fileDate-cost-$subscriptionSuffix.csv"
-
-$recommendations | ConvertTo-Json -Depth 10 | Out-File $jsonExportPath
-Write-Output "Exported to JSON: $($recommendations.Count) lines"
-$recommendationsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-Write-Output "JSON Import: $($recommendationsJson.Count) lines"
-$recommendationsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-Write-Output 'Export to CSV'
-
-$csvBlobName = $csvExportPath
-$csvProperties = @{"ContentType" = "text/csv"};
-
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
-Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+Write-Output "DONE!"

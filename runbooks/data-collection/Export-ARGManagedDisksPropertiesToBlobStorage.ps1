@@ -58,7 +58,7 @@ if ($TargetSubscription)
 else
 {
     $subscriptions = Get-AzSubscription | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = ""
+    $subscriptionSuffix = "all"
 }
 
 $mdisksTotal = @()
