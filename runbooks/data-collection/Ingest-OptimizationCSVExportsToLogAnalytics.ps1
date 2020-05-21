@@ -35,7 +35,7 @@ if (-not($LogAnalyticsChunkSize -gt 0))
 $lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))
 {
-    $lognamePrefix = "AzureOptimization_"
+    $lognamePrefix = "AzureOptimization"
 }
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
@@ -173,6 +173,7 @@ foreach ($blob in $allblobs) {
         }
         catch {
             Write-Output "Failed to contact SQL at try $tries."
+            Write-Output $Error[0]
             Start-Sleep -Seconds ($tries * 20)
         }    
     } while (-not($connectionSuccess) -and $tries -lt 3)

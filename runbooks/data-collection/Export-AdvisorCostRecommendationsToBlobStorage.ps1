@@ -48,7 +48,7 @@ switch ($authenticationOption) {
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 
-if ($TargetSubscription)
+if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 {
     $subscriptions = $TargetSubscription
 }
@@ -109,7 +109,7 @@ foreach ($subscription in $subscriptions)
             Description = $advisorRecommendation.ShortDescription.Problem
             RecommendationText = $advisorRecommendation.ShortDescription.Problem
             InstanceId = $instanceId
-            Category = "Cost"
+            Category = $advisorRecommendation.Category
             InstanceName = $advisorRecommendation.ImpactedValue
             AdditionalInfo = $advisorRecommendation.ExtendedProperties
             ResourceGroup = $resourceGroup

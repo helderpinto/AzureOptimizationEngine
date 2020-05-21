@@ -50,7 +50,7 @@ switch ($authenticationOption) {
 $alldisks = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
-if ($TargetSubscription)
+if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 {
     $subscriptions = $TargetSubscription
     $subscriptionSuffix = "-" + $TargetSubscription
