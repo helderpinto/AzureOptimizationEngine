@@ -1,5 +1,5 @@
 $templateUri = "https://hppfedevopssa.blob.core.windows.net/azureoptimizationengine/azuredeploy.json"
-$deploymentName = "aoe04"
+$deploymentName = "aoe07"
 $resourceGroupName = "azure-optimization-engine-rg"
 $projectName = "optimizationengine"
 $location = "westeurope"
@@ -8,8 +8,10 @@ $workspaceResourceGroup = "pfe-governance-rg"
 $sqlAdmin = "hppfeadmin"
 $automationAccountName = "$projectName-auto"
 $runasAppName = "$automactionAccountName-runasaccount"
-$sqlServerName = "$projectName-sql.database.windows.net"
+$sqlServerName = "$projectName-sql"
+$sqlServerEndpoint = "$projectName-sql.database.windows.net"
 $databaseName = "azureoptimization"
+$tempFirewallRuleName = "InitialDeployment"
 
 $ErrorActionPreference = "Stop"
 $ctx = Get-AzContext
@@ -23,11 +25,13 @@ $subscriptionId = $ctx.Subscription.Id
 
 $sqlPass = Read-Host "Please, input the SQL Admin password" -AsSecureString
 
-$myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
-
 New-AzResourceGroupDeployment -TemplateUri $templateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
     -projectName $projectName -projectLocation $location -logAnalyticsReuse $true -logAnalyticsWorkspaceName $workspace `
-    -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -outboundPublicIp $myPublicIp
+    -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+
+$myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+
+New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp
 
 $laIdVariableName = "AzureOptimization_LogAnalyticsWorkspaceId"    
 $laIdVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $laIdVariableName -ErrorAction SilentlyContinue
@@ -70,7 +74,7 @@ do {
     try {
 
 
-        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerName,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
         $Conn.Open() 
 
         $createTableQuery = Get-Content -Path ".\model\loganalyticsingestcontrol-table.sql"
@@ -81,7 +85,7 @@ do {
         $Cmd.ExecuteReader()
         $Conn.Close()
 
-        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerName,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
         $Conn.Open() 
 
         $initTableQuery = Get-Content -Path ".\model\loganalyticsingestcontrol-initialize.sql"
@@ -105,3 +109,5 @@ if (-not($connectionSuccess))
 {
     throw "Could not establish connection to SQL."
 }
+
+Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName

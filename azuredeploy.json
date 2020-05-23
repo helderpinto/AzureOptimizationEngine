@@ -32,9 +32,6 @@
             "type": "int",
             "defaultValue": 120
         },
-        "outboundPublicIp": {
-            "type": "String"
-        },
         "sqlBackupRetentionDays": {
             "type": "int",
             "defaultValue": 14
@@ -58,6 +55,48 @@
             "defaultValue": "[utcNow('u')]",
             "metadata": {
                 "description": "Base time for all automation runbook schedules."
+            }
+        },
+        "argDiskExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG Disk Export job schedule creation - create a unique before deploy"
+            }
+        },
+        "argVmExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VM Export job schedule creation - create a unique before deploy"
+            }
+        },
+        "advisorExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Advisor Export job schedule creation - create a unique before deploy"
+            }
+        },
+        "argDiskIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG Disk Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argVmIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VM Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "advisorIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Advisor Ingest job schedule creation - create a unique before deploy"
             }
         }
     },
@@ -357,19 +396,6 @@
                         "endIpAddress": "0.0.0.0",
                         "startIpAddress": "0.0.0.0"
                     }
-                },
-                {
-                    "type": "firewallRules",
-                    "apiVersion": "[variables('apiVersions').sql]",
-                    "name": "InitialDeploymentRule",
-                    "location": "[parameters('projectLocation')]",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
-                    ],
-                    "properties": {
-                        "endIpAddress": "[parameters('outboundPublicIp')]",
-                        "startIpAddress": "[parameters('outboundPublicIp')]"
-                    }
                 }
             ]
         },
@@ -615,10 +641,10 @@
                 "interval": 1,
                 "frequency": "Week"
             }
-        } /*,
+        },
         // Automation ARG Disk Exports Job Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/320d8458-df1b-428e-a8a4-3f2b6b52b873')]",
+            "name": "[concat(variables('automationAccountName'), '/', parameters('argDiskExportJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
@@ -639,7 +665,7 @@
         },
         // Automation ARG VM Exports Job Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/136cf1b7-0031-408c-b3e0-28f6573d7581')]",
+            "name": "[concat(variables('automationAccountName'), '/', parameters('argVmExportJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
@@ -660,7 +686,7 @@
         },
         // Automation Advisor Exports Job Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/5325f316-b98e-4064-9599-329faac12b95')]",
+            "name": "[concat(variables('automationAccountName'), '/', parameters('advisorExportJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
@@ -681,7 +707,7 @@
         },
         // Automation ARG Disk Ingest Job Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/3989d432-5942-4cca-a689-388f5a94daa6')]",
+            "name": "[concat(variables('automationAccountName'), '/', parameters('argDiskIngestJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
@@ -697,12 +723,15 @@
                 },
                 "runbook": {
                     "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('argDiskContainerName')]"
                 }
             }
         },
         // Automation ARG VM Ingest Job Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/2e728d16-f32d-42b1-94d2-c375e27eb051')]",
+            "name": "[concat(variables('automationAccountName'), '/', parameters('argVmIngestJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
@@ -718,12 +747,15 @@
                 },
                 "runbook": {
                     "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('argVmContainerName')]"
                 }
             }
         },
         // Automation Advisor Ingest Job Schedule
         {
-            "name": "[concat(variables('automationAccountName'), '/82c1959a-a126-43b5-b55d-235fbe8280e1')]",
+            "name": "[concat(variables('automationAccountName'), '/', parameters('advisorIngestJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
@@ -739,8 +771,11 @@
                 },
                 "runbook": {
                     "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('advisorCostsContainerName')]"
                 }
             }
-        }*/
+        }
     ]
 }
