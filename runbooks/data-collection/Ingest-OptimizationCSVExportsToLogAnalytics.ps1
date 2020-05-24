@@ -196,9 +196,20 @@ foreach ($blob in $allblobs) {
         $logname = $lognamePrefix + $controlRow.LogAnalyticsSuffix
         $linesProcessed = 0
         $csvObjectSplitted = @()
-        for ($i = 0; $i -lt $csvObject.count; $i += $LogAnalyticsChunkSize) {
-            $csvObjectSplitted += , @($csvObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
+
+        if ($recCount -gt 1)
+        {
+            for ($i = 0; $i -lt $recCount; $i += $LogAnalyticsChunkSize) {
+                $csvObjectSplitted += , @($csvObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
+            }
         }
+        else
+        {
+            $csvObjectArray = @()
+            $csvObjectArray += $csvObject
+            $csvObjectSplitted += , $csvObjectArray   
+        }        
+        
         for ($i = 0; $i -lt $csvObjectSplitted.Count; $i++) {
             $currentObjectLines = $csvObjectSplitted[$i].Count
             if ($lastProcessedLine -lt $linesProcessed) {				
