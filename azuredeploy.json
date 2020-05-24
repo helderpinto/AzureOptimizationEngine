@@ -25,9 +25,6 @@
         "logAnalyticsReuse": {
             "type": "bool"
         },
-        "logAnalyticsWorkspaceName": {
-            "type": "String"
-        },
         "logAnalyticsRetentionDays": {
             "type": "int",
             "defaultValue": 120
@@ -101,9 +98,10 @@
         }
     },
     "variables": {
-        "storageAccountName": "[concat(parameters('projectName'),'sa')]",
+        "storageAccountName": "[concat(tolower(parameters('projectName')),'sa')]",
         "automationAccountName": "[concat(parameters('projectName'),'-auto')]",
         "sqlServerName": "[concat(parameters('projectName'),'-sql')]",
+        "logAnalyticsWorkspaceName": "[concat(parameters('projectName'),'-la')]",
         "sqlDatabaseName": "azureoptimization",
         "advisorCostsContainerName": "advisorexports",
         "argVmContainerName": "argvmexports",
@@ -253,7 +251,7 @@
             "condition": "[not(parameters('logAnalyticsReuse'))]",
             "type": "microsoft.operationalinsights/workspaces",
             "apiVersion": "[variables('apiVersions').operationalInsights]",
-            "name": "[parameters('logAnalyticsWorkspaceName')]",
+            "name": "[variables('logAnalyticsWorkspaceName')]",
             "location": "[parameters('projectLocation')]",
             "properties": {
                 "sku": {
