@@ -1,24 +1,22 @@
-# Make template URI a parameter
-
-$templateUri = "https://hppfedevopssa.blob.core.windows.net/azureoptimizationengine/azuredeploy.json"
-
-$deploymentName = "aoe07"
-$resourceGroupName = "azure-optimization-engine-rg"
-$location = "westeurope"
-$workspace = "helderpintopfe"
-$workspaceResourceGroup = "pfe-governance-rg"
-$sqlAdmin = "hppfeadmin"
-$automationAccountName = "$projectName-auto"
-$runasAppName = "$automactionAccountName-runasaccount"
-$sqlServerName = "$projectName-sql"
-$sqlServerEndpoint = "$projectName-sql.database.windows.net"
-$databaseName = "azureoptimization"
-$tempFirewallRuleName = "InitialDeployment"
+param (
+    [Parameter(Mandatory = $true)]
+    [string] $TemplateUri
+)
 
 $ErrorActionPreference = "Stop"
-if (-not(Get-AzContext))
+
+$deploymentNameTemplate = "{0}" + (Get-Date).ToString("yyMMddHHmmss")
+$resourceGroupNameTemplate = "{0}-rg"
+$storageAccountNameTemplate = "{0}sa"
+$laWorkspaceNameTemplate = "{0}-la"
+$automationAccountNameTemplate = "{0}-auto"
+$sqlServerNameTemplate = "{0}-sql"
+
+$ctx = Get-AzContext
+if (-not($ctx))
 {
     Connect-AzAccount
+    $ctx = Get-AzContext
 }
 
 $subscriptions = Get-AzSubscription
@@ -31,7 +29,7 @@ if ($subscriptions.Count -gt 1)
     }
     $selectedSubscription = -1
     $lastSubscriptionIndex = $subscriptions.Count - 1
-    while ($selectedSubscription -le 0 -or $selectedSubscription -gt $lastSubscriptionIndex)
+    while ($selectedSubscription -lt 0 -or $selectedSubscription -gt $lastSubscriptionIndex)
     {
         Write-Output "---"
         $selectedSubscription = Read-Host "Please, select the target subscription for this deployment [0..$lastSubscriptionIndex]"
@@ -42,20 +40,33 @@ else
     $selectedSubscription = 0
 }
 
+$subscriptionId = $subscriptions[$selectedSubscription].Id
+
 $workspaceReuse = $null
 
 do
 {
     $nameAvailable = $true
     $namePrefix = Read-Host "Please, enter a unique name prefix for the resource group and all resources created by this deployment (up to 21 characters)"
+    if ($namePrefix.Length -gt 21)
+    {
+        throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
+    }
+
     if ($null -eq $workspaceReuse)
     {
         $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
     }
-    
+
+    $deploymentName = $deploymentNameTemplate -f $namePrefix
+    $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
+    $storageAccountName = $storageAccountNameTemplate -f $namePrefix
+    $automationAccountName = $automationAccountNameTemplate -f $namePrefix
+    $sqlServerName = $sqlServerNameTemplate -f $namePrefix
+        
     Write-Output "Checking name prefix availability..."
 
-    $saNameResult = Get-AzStorageAccountNameAvailability -Name ($namePrefix + "sa")
+    $saNameResult = Get-AzStorageAccountNameAvailability -Name $storageAccountName
     if (-not($saNameResult.NameAvailable))
     {
         $nameAvailable = $false
@@ -65,12 +76,14 @@ do
     if ("N","n" -contains $workspaceReuse)
     {
         $logAnalyticsReuse = $false
+        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        $laWorkspaceResourceGroup = $resourceGroupName
         
-        $laNameResult = Invoke-WebRequest -Uri "https://portal.loganalytics.io/api/workspaces/IsWorkspaceExists?name=$namePrefix-la"
+        $laNameResult = Invoke-WebRequest -Uri "https://portal.loganalytics.io/api/workspaces/IsWorkspaceExists?name=$laWorkspaceName"
         if ($laNameResult.Content -eq "true")
         {
             $nameAvailable = $false
-            Write-Output "The Log Analytics workspace named $namePrefix-la is already taken."
+            Write-Output "The Log Analytics workspace $laWorkspaceName is already taken."
         }
     }
     else
@@ -78,27 +91,79 @@ do
         $logAnalyticsReuse = $true
     }
 
-    ## SQL Server name availability
-    # https://docs.microsoft.com/en-us/rest/api/sql/servers%20-%20name%20availability/checknameavailability
-    # https://secureinfra.blog/2019/11/07/test-azure-resource-name-availability/
+    $azureRmProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile;
+    $profileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azureRmProfile);
+    $accessToken = $profileClient.AcquireAccessToken($ctx.Subscription.TenantId).AccessToken
+
+    $SqlServerNameAvailabilityUri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
+    $Headers = @{}
+    $Headers.Add("Authorization","Bearer $accessToken")
+    $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
+    $sqlNameResult = (Invoke-WebRequest -Uri $SqlServerNameAvailabilityUri -Method Post -Body $body -ContentType "application/json" -Headers $Headers).content | ConvertFrom-Json
+    
+    if (-not($sqlNameResult.available))
+    {
+        $nameAvailable = $false
+        Write-Output "$($sqlNameResult.message) ($sqlServerName)"
+    }
 }
 while (-not($nameAvailable))
 
+Write-Output "Name prefix $namePrefix is available."
 $continueInput = Read-Host "Deploying Azure Optimization Engine to subscription $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
 if ("Y","y" -contains $continueInput)
 {
-    $subscriptionId = $subscriptions[$selectedSubscription].Id
+    if ($ctx.Subscription.Id -ne $subscriptionId)
+    {
+        Select-AzSubscription -SubscriptionId $subscriptionId
+    }
 
-    ## Create Resource Group
+    if ("Y","y" -contains $workspaceReuse)
+    {
+        $laWorkspaceName = Read-Host "Please, enter the Log Analytics workspace name"
+        $laWorkspaceResourceGroup = Read-Host "Please, enter the name of the resource group containing Log Analytics $laWorkspaceName"
+        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName -ErrorAction SilentlyContinue
+        if (-not($la))
+        {
+            throw "Could not find $laWorkspaceName in resource group $laWorkspaceResourceGroup for the chosen subscription. Aborting."
+        }        
+    }
 
+    $locations = Get-AzLocation | Sort-Object -Property location
+
+    for ($i = 0; $i -lt $locations.Count; $i++)
+    {
+        Write-Output "[$i] $($locations[$i].location)"    
+    }
+    $selectedLocation = -1
+    $lastLocationIndex = $locations.Count - 1
+    while ($selectedLocation -lt 0 -or $selectedLocation -gt $lastLocationIndex)
+    {
+        Write-Output "---"
+        $selectedLocation = Read-Host "Please, select the target location for this deployment [0..$lastLocationIndex]"
+    }
+
+    $targetLocation = $locations[$selectedLocation].location
+    
+    $rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue 
+    
+    if ($null -eq $rg)
+    {
+        Write-Output "Resource group $resourceGroupName does not exist."
+        Write-Output "Creating resource group $resourceGroupName..."
+        New-AzResourceGroup -Name $resourceGroupName -Location $targetLocation
+    }
+
+    $sqlAdmin = Read-Host "Please, input the SQL Admin username"
     $sqlPass = Read-Host "Please, input the SQL Admin password" -AsSecureString
     
-    New-AzResourceGroupDeployment -TemplateUri $templateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-        -projectName $namePrefix -projectLocation $location -logAnalyticsReuse $logAnalyticsReuse -logAnalyticsWorkspaceName $workspace `
+    New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+        -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
     
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
-    
+
+    $tempFirewallRuleName = "InitialDeployment"            
     New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp
     
     $laIdVariableName = "AzureOptimization_LogAnalyticsWorkspaceId"    
@@ -106,7 +171,7 @@ if ("Y","y" -contains $continueInput)
     
     if ($null -eq $laIdVariable)
     {
-        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $workspaceResourceGroup -Name $workspace
+        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
         New-AzAutomationVariable -Name $laIdVariableName -Description "The Log Analytics Workspace ID where optimization data will be ingested." `
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $la.CustomerId.Guid -Encrypted $false
     }
@@ -116,7 +181,7 @@ if ("Y","y" -contains $continueInput)
     
     if ($null -eq $laKeyVariable)
     {
-        $keys = Get-AzOperationalInsightsWorkspaceSharedKey -ResourceGroupName $workspaceResourceGroup -Name $workspace
+        $keys = Get-AzOperationalInsightsWorkspaceSharedKey -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
         New-AzAutomationVariable -Name $laKeyVariableName -Description "The shared key for the Log Analytics Workspace where optimization data will be ingested." `
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $keys.PrimarySharedKey -Encrypted $true
     }
@@ -125,8 +190,9 @@ if ("Y","y" -contains $continueInput)
     
     if ($null -eq $runAsConnection)
     {
-        $certPass = Read-Host "Please, input the Run As cert password" -AsSecureString
-    
+
+        $runasAppName = "$automactionAccountName-runasaccount"
+        $certPass = Read-Host "Please, input the Run As certificate password" -AsSecureString   
         .\New-RunAsAccount.ps1 -ResourceGroup $resourceGroupName -AutomationAccountName $automationAccountName -SubscriptionId $subscriptionId `
             -ApplicationDisplayName $runasAppName -SelfSignedCertPlainPassword $certPass -CreateClassicRunAsAccount $false
     }
@@ -134,6 +200,8 @@ if ("Y","y" -contains $continueInput)
     $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sqlPass)
     $sqlPassPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
     
+    $sqlServerEndpoint = "$sqlServerName.database.windows.net"
+    $databaseName = "azureoptimization" 
     $SqlTimeout = 60
     $tries = 0
     $connectionSuccess = $false
