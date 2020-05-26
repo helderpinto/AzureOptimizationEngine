@@ -19,6 +19,8 @@ if (-not($ctx))
     $ctx = Get-AzContext
 }
 
+Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
+
 $subscriptions = Get-AzSubscription
 
 if ($subscriptions.Count -gt 1)
@@ -64,17 +66,20 @@ do
     $automationAccountName = $automationAccountNameTemplate -f $namePrefix
     $sqlServerName = $sqlServerNameTemplate -f $namePrefix
         
-    Write-Output "Checking name prefix availability..."
+    Write-Host "Checking name prefix availability..." -ForegroundColor Green
 
+    Write-Host "...for the Storage Account..." -ForegroundColor Green
     $saNameResult = Get-AzStorageAccountNameAvailability -Name $storageAccountName
     if (-not($saNameResult.NameAvailable))
     {
         $nameAvailable = $false
-        Write-Output "$($saNameResult.Message)"
+        Write-Host "$($saNameResult.Message)" -ForegroundColor Red
     }
 
     if ("N","n" -contains $workspaceReuse)
     {
+        Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
+
         $logAnalyticsReuse = $false
         $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
         $laWorkspaceResourceGroup = $resourceGroupName
@@ -83,13 +88,15 @@ do
         if ($laNameResult.Content -eq "true")
         {
             $nameAvailable = $false
-            Write-Output "The Log Analytics workspace $laWorkspaceName is already taken."
+            Write-Host "The Log Analytics workspace $laWorkspaceName is already taken." -ForegroundColor Red
         }
     }
     else
     {
         $logAnalyticsReuse = $true
     }
+
+    Write-Host "...for the Azure SQL Server..." -ForegroundColor Green
 
     $azureRmProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile;
     $profileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azureRmProfile);
@@ -104,12 +111,12 @@ do
     if (-not($sqlNameResult.available))
     {
         $nameAvailable = $false
-        Write-Output "$($sqlNameResult.message) ($sqlServerName)"
+        Write-Host "$($sqlNameResult.message) ($sqlServerName)" -ForegroundColor Red
     }
 }
 while (-not($nameAvailable))
 
-Write-Output "Name prefix $namePrefix is available."
+Write-Host "Name prefix $namePrefix is available for all services" -ForegroundColor Green
 $continueInput = Read-Host "Deploying Azure Optimization Engine to subscription $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
 if ("Y","y" -contains $continueInput)
 {
@@ -129,6 +136,7 @@ if ("Y","y" -contains $continueInput)
         }        
     }
 
+    Write-Host "Getting Azure locations..." -ForegroundColor Green
     $locations = Get-AzLocation | Sort-Object -Property location
 
     for ($i = 0; $i -lt $locations.Count; $i++)
@@ -149,23 +157,26 @@ if ("Y","y" -contains $continueInput)
     
     if ($null -eq $rg)
     {
-        Write-Output "Resource group $resourceGroupName does not exist."
-        Write-Output "Creating resource group $resourceGroupName..."
+        Write-Host "Resource group $resourceGroupName does not exist." -ForegroundColor Yellow
+        Write-Host "Creating resource group $resourceGroupName..." -ForegroundColor Green
         New-AzResourceGroup -Name $resourceGroupName -Location $targetLocation
     }
 
     $sqlAdmin = Read-Host "Please, input the SQL Admin username"
     $sqlPass = Read-Host "Please, input the SQL Admin password" -AsSecureString
     
+    Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
     New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
     
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
+    Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
     $tempFirewallRuleName = "InitialDeployment"            
     New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp
     
+    Write-Host "Checking Azure Automation variables referring to the Log Analytics workspace..." -ForegroundColor Green
     $laIdVariableName = "AzureOptimization_LogAnalyticsWorkspaceId"    
     $laIdVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $laIdVariableName -ErrorAction SilentlyContinue
     
@@ -186,16 +197,20 @@ if ("Y","y" -contains $continueInput)
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $keys.PrimarySharedKey -Encrypted $true
     }
     
+    Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green
+
     $runAsConnection = Get-AzAutomationConnection -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name "AzureRunAsConnection"
     
     if ($null -eq $runAsConnection)
     {
 
-        $runasAppName = "$automactionAccountName-runasaccount"
+        $runasAppName = "$automationAccountName-runasaccount"
         $certPass = Read-Host "Please, input the Run As certificate password" -AsSecureString   
         .\New-RunAsAccount.ps1 -ResourceGroup $resourceGroupName -AutomationAccountName $automationAccountName -SubscriptionId $subscriptionId `
             -ApplicationDisplayName $runasAppName -SelfSignedCertPlainPassword $certPass -CreateClassicRunAsAccount $false
     }
+
+    Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
     $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sqlPass)
     $sqlPassPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
@@ -235,8 +250,8 @@ if ("Y","y" -contains $continueInput)
             $connectionSuccess = $true
         }
         catch {
-            Write-Output "Failed to contact SQL at try $tries."
-            Write-Output $Error[0]
+            Write-Host "Failed to contact SQL at try $tries." -ForegroundColor Yellow
+            Write-Host $Error[0] -ForegroundColor Yellow
             Start-Sleep -Seconds ($tries * 20)
         }    
     } while (-not($connectionSuccess) -and $tries -lt 3)
@@ -246,9 +261,10 @@ if ("Y","y" -contains $continueInput)
         throw "Could not establish connection to SQL."
     }
     
+    Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
     Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
 }
 else
 {
-    Write-Output "Deployment cancelled."    
+    Write-Host "Deployment cancelled." -ForegroundColor Red
 }
