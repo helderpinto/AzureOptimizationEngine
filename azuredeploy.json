@@ -98,7 +98,7 @@
         }
     },
     "variables": {
-        "storageAccountName": "[concat(tolower(parameters('projectName')),'sa')]",
+        "storageAccountName": "[concat(replace(tolower(parameters('projectName')),'-',''),'sa')]",
         "automationAccountName": "[concat(parameters('projectName'),'-auto')]",
         "sqlServerName": "[concat(parameters('projectName'),'-sql')]",
         "logAnalyticsWorkspaceName": "[concat(parameters('projectName'),'-la')]",
