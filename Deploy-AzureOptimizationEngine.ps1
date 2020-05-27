@@ -165,7 +165,7 @@ if ("Y", "y" -contains $continueInput) {
 
     Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
     $tempFirewallRuleName = "InitialDeployment"            
-    New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp
+    New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue
     
     Write-Host "Checking Azure Automation variables referring to the Log Analytics workspace..." -ForegroundColor Green
     $laIdVariableName = "AzureOptimization_LogAnalyticsWorkspaceId"    
@@ -188,7 +188,7 @@ if ("Y", "y" -contains $continueInput) {
     
     Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green
 
-    $runAsConnection = Get-AzAutomationConnection -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name "AzureRunAsConnection"
+    $runAsConnection = Get-AzAutomationConnection -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name "AzureRunAsConnection" -ErrorAction SilentlyContinue
     
     if ($null -eq $runAsConnection) {
 
