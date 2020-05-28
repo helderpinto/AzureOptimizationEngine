@@ -105,9 +105,11 @@ foreach ($subscription in $subscriptions)
         $recommendation = New-Object PSObject -Property @{
             Timestamp = $timestamp
             Cloud = $cloudEnvironment
-            RecommendationArea = $advisorRecommendation.ImpactedField.Split('/')[0].Split('.')[1]
+            Impact = $advisorRecommendation.Impact
+            ImpactedArea = $advisorRecommendation.ImpactedField
             Description = $advisorRecommendation.ShortDescription.Problem
             RecommendationText = $advisorRecommendation.ShortDescription.Problem
+            RecommendationTypeId = $advisorRecommendation.RecommendationTypeId
             InstanceId = $instanceId
             Category = $advisorRecommendation.Category
             InstanceName = $advisorRecommendation.ImpactedValue
