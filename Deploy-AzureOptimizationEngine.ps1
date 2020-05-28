@@ -250,6 +250,8 @@ if ("Y", "y" -contains $continueInput) {
     
     Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
     Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
+
+    Write-Host "Deployment completed!" -ForegroundColor Green
 }
 else {
     Write-Host "Deployment cancelled." -ForegroundColor Red

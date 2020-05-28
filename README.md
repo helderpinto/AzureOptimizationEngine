@@ -10,7 +10,7 @@ You must first install the Az Powershell module (instructions [here](https://doc
 
 During deployment, you'll be asked several questions. You must plan for the following:
 
-* If you're going to reuse an existing Log Analytics Workspace or a create a new one
+* Whether you're going to reuse an existing Log Analytics Workspace or a create a new one
 * Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
 * A unique name prefix for the Azure resources being created
 * Azure datacenter location
