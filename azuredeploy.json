@@ -110,6 +110,7 @@
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
+        "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
@@ -175,6 +176,13 @@
                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('unattachedDisksRecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates unattached disks recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
             }
         ],
         "automationVariables": [

@@ -47,7 +47,7 @@ $workspaceReuse = $null
 
 do {
     $nameAvailable = $true
-    $namePrefix = Read-Host "Please, enter a unique name prefix for the resource group and all resources created by this deployment (up to 21 characters)"
+    $namePrefix = Read-Host "Please, enter a unique name prefix for this deployment or enter existing prefix if updating deployment"
     if ($namePrefix.Length -gt 21) {
         throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
     }
@@ -156,6 +156,17 @@ if ("Y", "y" -contains $continueInput) {
         New-AzResourceGroup -Name $resourceGroupName -Location $targetLocation
     }
 
+    $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
+    if ($jobSchedules.Count -gt 0)
+    {
+        Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
+        foreach ($jobSchedule in $jobSchedules)
+        {
+            Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                -JobScheduleId $jobSchedule.JobScheduleId -Force
+        }    
+    }
+
     Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
     New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
@@ -235,6 +246,39 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
     
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+    
+            $createTableQuery = Get-Content -Path ".\model\recommendationsingestcontrol-table.sql"
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $createTableQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+    
+            $initTableQuery = Get-Content -Path ".\model\recommendationsingestcontrol-initialize.sql"
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $initTableQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+    
+            $createTableQuery = Get-Content -Path ".\model\recommendations-table.sql"
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $createTableQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+
             $connectionSuccess = $true
         }
         catch {
