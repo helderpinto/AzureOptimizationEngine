@@ -73,6 +73,9 @@ do {
             Write-Host "$($saNameResult.Message)" -ForegroundColor Red
         }    
     }
+    else {
+        Write-Host "(The Storage Account was already deployed)" -ForegroundColor Green
+    }
 
     if ("N", "n" -contains $workspaceReuse) {
         Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
@@ -88,6 +91,9 @@ do {
                 $nameAvailable = $false
                 Write-Host "The Log Analytics workspace $laWorkspaceName is already taken." -ForegroundColor Red
             }
+        }
+        else {
+            Write-Host "(The Log Analytics Workspace was already deployed)" -ForegroundColor Green
         }
     }
     else {
@@ -113,6 +119,9 @@ do {
             Write-Host "$($sqlNameResult.message) ($sqlServerName)" -ForegroundColor Red
         }
     }
+    else {
+        Write-Host "(The SQL Server was already deployed)" -ForegroundColor Green
+    }
 }
 while (-not($nameAvailable))
 
@@ -128,7 +137,7 @@ if ("Y", "y" -contains $workspaceReuse) {
 }
 
 Write-Host "Getting Azure locations..." -ForegroundColor Green
-$locations = Get-AzLocation | Sort-Object -Property location
+$locations = Get-AzLocation | Where-Object {$_.Providers -contains "Microsoft.Automation"} | Sort-Object -Property Location
 
 for ($i = 0; $i -lt $locations.Count; $i++) {
     Write-Output "[$i] $($locations[$i].location)"    
@@ -156,7 +165,7 @@ if ("Y", "y" -contains $continueInput) {
         New-AzResourceGroup -Name $resourceGroupName -Location $targetLocation
     }
 
-    $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
+    $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
     if ($jobSchedules.Count -gt 0)
     {
         Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
@@ -170,32 +179,13 @@ if ("Y", "y" -contains $continueInput) {
     Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
     New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
-        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
     
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
     Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
     $tempFirewallRuleName = "InitialDeployment"            
     New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue
-    
-    Write-Host "Checking Azure Automation variables referring to the Log Analytics workspace..." -ForegroundColor Green
-    $laIdVariableName = "AzureOptimization_LogAnalyticsWorkspaceId"    
-    $laIdVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $laIdVariableName -ErrorAction SilentlyContinue
-    
-    if ($null -eq $laIdVariable) {
-        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
-        New-AzAutomationVariable -Name $laIdVariableName -Description "The Log Analytics Workspace ID where optimization data will be ingested." `
-            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $la.CustomerId.Guid -Encrypted $false
-    }
-    
-    $laKeyVariableName = "AzureOptimization_LogAnalyticsWorkspaceKey"    
-    $laKeyVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $laKeyVariableName -ErrorAction SilentlyContinue
-    
-    if ($null -eq $laKeyVariable) {
-        $keys = Get-AzOperationalInsightsWorkspaceSharedKey -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
-        New-AzAutomationVariable -Name $laKeyVariableName -Description "The shared key for the Log Analytics Workspace where optimization data will be ingested." `
-            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $keys.PrimarySharedKey -Encrypted $true
-    }
     
     Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green
 
@@ -207,6 +197,9 @@ if ("Y", "y" -contains $continueInput) {
         $certPass = Read-Host "Please, input the Run As certificate password" -AsSecureString   
         .\New-RunAsAccount.ps1 -ResourceGroup $resourceGroupName -AutomationAccountName $automationAccountName -SubscriptionId $subscriptionId `
             -ApplicationDisplayName $runasAppName -SelfSignedCertPlainPassword $certPass -CreateClassicRunAsAccount $false
+    }
+    else {
+        Write-Host "(The Automation Run As account was already deployed)" -ForegroundColor Green
     }
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green

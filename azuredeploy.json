@@ -25,6 +25,12 @@
         "logAnalyticsReuse": {
             "type": "bool"
         },
+        "logAnalyticsWorkspaceName": {
+            "type": "String"
+        },
+        "logAnalyticsWorkspaceRG": {
+            "type": "String"
+        },
         "logAnalyticsRetentionDays": {
             "type": "int",
             "defaultValue": 120
@@ -547,6 +553,35 @@
             "properties": {
                 "description": "The Azure SQL Server hostname for the ingestion control and recommendations tables",
                 "value": "[concat('\"', reference(resourceId('Microsoft.Sql/servers', variables('sqlServerName')), providers('Microsoft.Sql', 'servers').apiVersions[0]).fullyQualifiedDomainName, '\"')]"
+            }
+        },
+        // Automation Variables (Log Analytics workspace Id)
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization_LogAnalyticsWorkspaceId')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[if(not(parameters('logAnalyticsReuse')),resourceId('microsoft.operationalinsights/workspaces', variables('logAnalyticsWorkspaceName')),'variableLoop')]"
+            ],
+            "properties": {
+                "description": "The Log Analytics Workspace ID where optimization data will be ingested",
+                "value": "[concat('\"', reference(if(not(parameters('logAnalyticsReuse')), resourceId('microsoft.operationalinsights/workspaces', variables('logAnalyticsWorkspaceName')), resourceId(parameters('logAnalyticsWorkspaceRG'), 'microsoft.operationalinsights/workspaces', parameters('logAnalyticsWorkspaceName'))), providers('microsoft.operationalinsights', 'workspaces').apiVersions[0]).customerId, '\"')]"
+            }
+        },
+        // Automation Variables (Log Analytics workspace key)
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "name": "[concat(variables('automationAccountName'), '/AzureOptimization_LogAnalyticsWorkspaceKey')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[if(not(parameters('logAnalyticsReuse')),resourceId('microsoft.operationalinsights/workspaces', variables('logAnalyticsWorkspaceName')),'variableLoop')]"
+            ],
+            "properties": {
+                "description": "The shared key for the Log Analytics Workspace where optimization data will be ingested",
+                "value": "[concat('\"', listKeys(if(not(parameters('logAnalyticsReuse')), resourceId('microsoft.operationalinsights/workspaces', variables('logAnalyticsWorkspaceName')), resourceId(parameters('logAnalyticsWorkspaceRG'), 'microsoft.operationalinsights/workspaces', parameters('logAnalyticsWorkspaceName'))),variables('apiVersions').operationalInsights).primarySharedKey, '\"')]",
+                "isEncrypted": true
             }
         },
         // Automation Credentials
