@@ -85,6 +85,10 @@ $argQuery = @"
     resources
     | where type =~ 'Microsoft.Compute/virtualMachines' 
     | extend dataDiskCount = array_length(properties.storageProfile.dataDisks), nicCount = array_length(properties.networkProfile.networkInterfaces) 
+    | extend usesManagedDisks = iif(isnull(properties.storageProfile.osDisk.managedDisk), 'false', 'true')
+    | extend availabilitySetId = tostring(properties.availabilitySet.id)
+    | extend bootDiagnosticsEnabled = tostring(properties.diagnosticsProfile.bootDiagnostics.enabled)
+    | parse tostring(properties.diagnosticsProfile.bootDiagnostics.storageUri) with 'http' * '://' bootDiagnosticsStorageAccount '.blob.core.' *
     | order by id asc
 "@
 
@@ -116,6 +120,10 @@ $argQuery = @"
     resources
     | where type =~ 'Microsoft.ClassicCompute/virtualMachines' 
     | extend dataDiskCount = iif(isnotnull(properties.storageProfile.dataDisks), array_length(properties.storageProfile.dataDisks), 0), nicCount = iif(isnotnull(properties.networkProfile.virtualNetwork.networkInterfaces), array_length(properties.networkProfile.virtualNetwork.networkInterfaces) + 1, 1) 
+	| extend usesManagedDisks = 'false'
+	| extend availabilitySetId = tostring(properties.hardwareProfile.availabilitySet)
+	| extend bootDiagnosticsEnabled = tostring(properties.debugProfile.bootDiagnosticsEnabled)
+	| parse tostring(properties.debugProfile.serialOutputBlobUri) with 'http' * '://' bootDiagnosticsStorageAccount '.blob.core.' *
     | order by id asc
 "@
 
@@ -165,6 +173,10 @@ foreach ($vm in $armVmsTotal)
         OSType = $vm.properties.storageProfile.osDisk.osType
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
+        UsesManagedDisks = $vm.usesManagedDisks
+        AvailabilitySetId = $vm.availabilitySetId
+        BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
+        BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         StatusDate = $statusDate
         Tags = $vm.tags
     }
@@ -191,6 +203,10 @@ foreach ($vm in $classicVmsTotal)
         OSType = $vm.properties.storageProfile.operatingSystemDisk.operatingSystem
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
+        UsesManagedDisks = $vm.usesManagedDisks
+        AvailabilitySetId = $vm.availabilitySetId
+        BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
+        BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         StatusDate = $statusDate
         Tags = $null
     }

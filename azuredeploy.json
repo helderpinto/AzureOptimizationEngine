@@ -116,11 +116,11 @@
         "sqlServerName": "[concat(parameters('projectName'),'-sql')]",
         "logAnalyticsWorkspaceName": "[concat(parameters('projectName'),'-la')]",
         "sqlDatabaseName": "azureoptimization",
-        "advisorCostsContainerName": "advisorexports",
+        "advisorContainerName": "advisorexports",
         "argVmContainerName": "argvmexports",
         "argDiskContainerName": "argdiskexports",
         "recommendationsContainerName": "recommendationsexports",
-        "advisorExportsRunbookName": "Export-AdvisorCostRecommendationsToBlobStorage",
+        "advisorExportsRunbookName": "Export-AdvisorRecommendationsToBlobStorage",
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
@@ -129,7 +129,7 @@
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
         "argVmIngestScheduleName": "AzureOptimization_IngestARGVMsDaily",
-        "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorCostWeekly",
+        "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorWeekly",
         "recommendationsScheduleName": "AzureOptimization_RecommendationsWeekly",
         "apiVersions": {
             "operationalInsights": "2020-03-01-preview",
@@ -167,7 +167,7 @@
             {
                 "name": "[variables('advisorExportsRunbookName')]",
                 "version": "1.0.0.0",
-                "description": "Exports Azure Advisor Cost recommendations to Blob Storage using the Advisor API",
+                "description": "Exports Azure Advisor recommendations to Blob Storage using the Advisor API",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
             },
@@ -227,9 +227,9 @@
                 "value": "[concat('\"',subscription().subscriptionId,'\"')]"
             },
             {
-                "name": "AzureOptimization_AdvisorCostContainer",
+                "name": "AzureOptimization_AdvisorContainer",
                 "description": "The Storage Account container where Azure Advisor exports are dumped to",
-                "value": "[concat('\"',variables('advisorCostsContainerName'),'\"')]"
+                "value": "[concat('\"',variables('advisorContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ARGDiskContainer",
@@ -390,11 +390,11 @@
                 "publicAccess": "None"
             }
         },
-        // Storage Account Advisor Cost exports container
+        // Storage Account Advisor exports container
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(variables('storageAccountName'), '/default/', variables('advisorCostsContainerName'))]",
+            "name": "[concat(variables('storageAccountName'), '/default/', variables('advisorContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -709,7 +709,7 @@
                 "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
-                "description": "Starts the weekly Azure Advisor Cost ingests",
+                "description": "Starts the weekly Azure Advisor ingests",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
                 "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H45M')]",
@@ -865,7 +865,7 @@
                     "name": "[variables('csvIngestRunbookName')]"
                 },
                 "parameters": {
-                    "StorageSinkContainer": "[variables('advisorCostsContainerName')]"
+                    "StorageSinkContainer": "[variables('advisorContainerName')]"
                 }
             }
         },
