@@ -88,7 +88,7 @@ $argQuery = @"
     | extend usesManagedDisks = iif(isnull(properties.storageProfile.osDisk.managedDisk), 'false', 'true')
     | extend availabilitySetId = tostring(properties.availabilitySet.id)
     | extend bootDiagnosticsEnabled = tostring(properties.diagnosticsProfile.bootDiagnostics.enabled)
-    | parse tostring(properties.diagnosticsProfile.bootDiagnostics.storageUri) with 'http' * '://' bootDiagnosticsStorageAccount '.blob.core.' *
+    | extend bootDiagnosticsStorageAccount = split(split(properties.diagnosticsProfile.bootDiagnostics.storageUri, '/')[2],'.')[0]
     | order by id asc
 "@
 
@@ -123,7 +123,7 @@ $argQuery = @"
 	| extend usesManagedDisks = 'false'
 	| extend availabilitySetId = tostring(properties.hardwareProfile.availabilitySet)
 	| extend bootDiagnosticsEnabled = tostring(properties.debugProfile.bootDiagnosticsEnabled)
-	| parse tostring(properties.debugProfile.serialOutputBlobUri) with 'http' * '://' bootDiagnosticsStorageAccount '.blob.core.' *
+    | extend bootDiagnosticsStorageAccount = split(split(properties.debugProfile.serialOutputBlobUri, '/')[2],'.')[0]
     | order by id asc
 "@
 

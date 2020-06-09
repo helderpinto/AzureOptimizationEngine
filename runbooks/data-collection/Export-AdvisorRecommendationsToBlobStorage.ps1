@@ -16,7 +16,7 @@ if ([string]::IsNullOrEmpty($authenticationOption))
     $authenticationOption = "RunAsAccount"
 }
 
-# get ARG exports sink (storage account) details
+# get Advisor exports sink (storage account) details
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
