@@ -22,7 +22,7 @@ $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_Storage
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
 $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RecommendationsContainer"
 
-$deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # 2020-05-28
+$deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # yyyy-MM-dd format
 
 $recommendationSearchTimeSpan = 1
 
