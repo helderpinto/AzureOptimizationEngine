@@ -15,11 +15,11 @@
                 "description": "The base URI where artifacts required by this template are located"
             }
         },
-        "_artifactsLocationSasToken": {
-            "type": "securestring",
+        "artifactsLocationSasToken": {
+            "type": "string",
             "defaultValue": "",
             "metadata": {
-                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated"
+                "description": "The sasToken required to access _artifactsLocation. When the template is deployed using the accompanying scripts, a sasToken will be grabbed from parameters."
             }
         },
         "logAnalyticsReuse": {
@@ -153,28 +153,28 @@
                 "version": "1.0.0.0",
                 "description": "Exports Azure Advisor Cost recommendations to Blob Storage using the Advisor API",
                 "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argDisksExportsRunbookName')]",
                 "version": "1.0.0.0",
                 "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argVmExportsRunbookName')]",
                 "version": "1.0.0.0",
                 "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('csvIngestRunbookName')]",
                 "version": "1.0.0.0",
                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
                 "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('_artifactsLocationSasToken')))]"
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             }
         ],
         "automationVariables": [
