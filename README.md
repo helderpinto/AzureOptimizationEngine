@@ -19,7 +19,12 @@ During deployment, you'll be asked several questions. You must plan for the foll
 ### Deploying from GitHub
 
 ```powershell
+.\Deploy-AzureOptimizationEngine.ps1 [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
+
+# examples
 .\Deploy-AzureOptimizationEngine.ps1
+
+.\Deploy-AzureOptimizationEngine.ps1 -AzureEnvironment AzureChinaCloud
 ```
 
 ### Deploying from your own repo
@@ -27,7 +32,12 @@ During deployment, you'll be asked several questions. You must plan for the foll
 You must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token.
 
 ```powershell
-.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri <URL to the ARM template JSON file - azuredeploy.json> [-ArtifactsSasToken <Storage Account SAS token>]
+.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri <URL to the ARM template JSON file (e.g., https://contoso.com/azuredeploy.json)> [-ArtifactsSasToken <Storage Account SAS token>] [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
+
+# examples
+.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://contoso.com/azuredeploy.json"
+
+.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://aoesa.blob.core.windows.net/files/azuredeploy.json" -ArtifactsSasToken "?sv=2019-10-10&ss=bfqt&srt=o&sp=rwdlacupx&se=2020-06-13T23:27:18Z&st=2020-06-13T15:27:18Z&spr=https&sig=4cvPayBlF67aYvifwu%2BIUw8Ldh5txpFGgXlhzvKF3%2BI%3D"
 ```
 
 ## Usage instructions
