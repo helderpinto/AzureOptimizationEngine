@@ -71,31 +71,28 @@ if ([string]::IsNullOrEmpty($TemplateUri))
 
 $isTemplateAvailable = $false
 
-if ($TemplateUri -ne $GitHubOriginalUri)
+try
 {
-    try
+    Invoke-WebRequest -Uri $TemplateUri | Out-Null
+    $isTemplateAvailable = $true
+}
+catch
+{
+    $saNameEnd = $TemplateUri.IndexOf(".blob.core.")
+    if ($saNameEnd -gt 0)
     {
-        Invoke-WebRequest -Uri $TemplateUri | Out-Null
-        $isTemplateAvailable = $true
+        $FullTemplateUri = $TemplateUri + $ArtifactsSasToken
+        try {
+            Invoke-WebRequest -Uri $FullTemplateUri | Out-Null
+            $isTemplateAvailable = $true
+            $TemplateUri = $FullTemplateUri
+        }
+        catch {
+            Write-Host "The template URL ($TemplateUri) is not available. Please, provide a valid SAS Token in the ArtifactsSasToken parameter (Read permission and Object level access are sufficient)." -ForegroundColor Red
+        }
     }
-    catch
-    {
-        $saNameEnd = $TemplateUri.IndexOf(".blob.core.")
-        if ($saNameEnd -gt 0)
-        {
-            $FullTemplateUri = $TemplateUri + $ArtifactsSasToken
-            try {
-                Invoke-WebRequest -Uri $FullTemplateUri | Out-Null
-                $isTemplateAvailable = $true
-                $TemplateUri = $FullTemplateUri
-            }
-            catch {
-                Write-Host "The template URL ($TemplateUri) is not available. Please, provide a valid SAS Token in the ArtifactsSasToken parameter (Read permission and Object level access are sufficient)." -ForegroundColor Red
-            }
-        }
-        else {
-            Write-Host "The template URL ($TemplateUri) is not available. Please, put it in a publicly accessible HTTPS location." -ForegroundColor Red
-        }
+    else {
+        Write-Host "The template URL ($TemplateUri) is not available. Please, put it in a publicly accessible HTTPS location." -ForegroundColor Red
     }
 }
 
@@ -308,11 +305,10 @@ if ("Y", "y" -contains $continueInput) {
     if ($null -eq $runAsConnection) {
 
         $runasAppName = "$automationAccountName-runasaccount"
-        $certPass = Read-Host "Please, input the Run As certificate password" -AsSecureString   
 
         $CertificateName = $automationAccountName + $CertificateAssetName
         $PfxCertPathForRunAsAccount = Join-Path $env:TEMP ($CertificateName + ".pfx")
-        $PfxCertPlainPasswordForRunAsAccount = $certPass
+        $PfxCertPlainPasswordForRunAsAccount = -join ((65..90) + (97..122) | Get-Random -Count 20 | % {[char]$_})
         $CerCertPathForRunAsAccount = Join-Path $env:TEMP ($CertificateName + ".cer")
 
         try {
@@ -326,7 +322,7 @@ if ("Y", "y" -contains $continueInput) {
         $PfxCert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($PfxCertPathForRunAsAccount, $PfxCertPlainPasswordForRunAsAccount)
         $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
         
-        CreateAutomationCertificateAsset $ResourceGroup $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
+        CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
         $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id}
 
