@@ -276,7 +276,7 @@ if ("Y", "y" -contains $continueInput) {
     New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken $ArtifactsSasToken
+        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)
     
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
