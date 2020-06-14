@@ -266,7 +266,7 @@ if ("Y", "y" -contains $continueInput) {
     Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
     New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
-        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken $ArtifactsSasToken
+        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)
     
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
