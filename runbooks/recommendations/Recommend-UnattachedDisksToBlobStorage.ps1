@@ -24,6 +24,15 @@ $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_
 
 $deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # yyyy-MM-dd format
 
+$lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($lognamePrefix))
+{
+    $lognamePrefix = "AzureOptimization"
+}
+
+$disksTableSuffix = "DisksV1_CL"
+$disksTableName = $lognamePrefix + $disksTableSuffix
+
 $recommendationSearchTimeSpan = 1
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -54,9 +63,9 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 }
 
 $baseQuery = @"
-    AzureOptimization_DisksV1_CL 
+    $disksTableName 
     | where OwnerVMId_s == ""
-    | project DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s 
+    | project DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s 
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
@@ -81,7 +90,7 @@ foreach ($result in $results)
     $queryInstanceId = $result.InstanceId_s
     $querySubscriptionId = $result.SubscriptionGuid_g
     $queryText = @"
-    AzureOptimization_DisksV1_CL
+    $disksTableName
     | extend InstanceId = tolower(InstanceId_s)
     | where InstanceId == tolower(`'$queryInstanceId`')  and OwnerVMId_s == ''
     | project DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
@@ -101,6 +110,18 @@ foreach ($result in $results)
     $confidenceScore = 5
 
     $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            $tagName = $tagPair[0].Trim()
+            $tagValue = $tagPair[1].Trim()
+            $tags[$tagName] = $tagValue
+        }
+    }
 
     $recommendation = New-Object PSObject -Property @{
         Timestamp = $timestamp
