@@ -20,7 +20,10 @@ $workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyti
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RecommendationsContainer"
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RecommendationsContainer" -ErrorAction SilentlyContinue 
+if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
+    $storageAccountSinkContainer = "recommendationsexports"
+}
 
 $deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # yyyy-MM-dd format
 
@@ -126,7 +129,7 @@ foreach ($result in $results)
     $recommendation = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        ImpactedArea = "Compute"
+        ImpactedArea = "Microsoft.Compute/disks"
         Impact = "Medium"
         RecommendationType = "Saving"
         RecommendationSubType = "UnattachedDisks"
