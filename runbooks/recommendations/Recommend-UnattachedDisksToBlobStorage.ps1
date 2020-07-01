@@ -68,7 +68,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 $baseQuery = @"
     $disksTableName 
     | where OwnerVMId_s == ""
-    | project DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s 
+    | project DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
@@ -128,7 +128,7 @@ foreach ($result in $results)
 
     $recommendation = New-Object PSObject -Property @{
         Timestamp = $timestamp
-        Cloud = $cloudEnvironment
+        Cloud = $result.Cloud_s
         ImpactedArea = "Microsoft.Compute/disks"
         Impact = "Medium"
         RecommendationType = "Saving"

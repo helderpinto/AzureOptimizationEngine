@@ -67,7 +67,7 @@ if (-not($diskPercentile -gt 0)) {
 # perf thresholds variables
 $cpuPercentageThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuPercentage" -ErrorAction SilentlyContinue 
 if (-not($cpuPercentageThreshold -gt 0)) {
-    $cpuPercentageThreshold = 50
+    $cpuPercentageThreshold = 30
 }
 $memoryPercentageThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdMemoryPercentage" -ErrorAction SilentlyContinue 
 if (-not($memoryPercentageThreshold -gt 0)) {
@@ -75,21 +75,21 @@ if (-not($memoryPercentageThreshold -gt 0)) {
 }
 $networkMpbsThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdNetworkMbps" -ErrorAction SilentlyContinue 
 if (-not($networkMpbsThreshold -gt 0)) {
-    $networkMpbsThreshold = 500
+    $networkMpbsThreshold = 750
 }
 
 # perf thresholds variables (shutdown)
 $cpuPercentageShutdownThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuShutdownPercentage" -ErrorAction SilentlyContinue 
-if (-not($cpuPercentageThreshold -gt 0)) {
-    $cpuPercentageThreshold = 50
+if (-not($cpuPercentageShutdownThreshold -gt 0)) {
+    $cpuPercentageShutdownThreshold = 5
 }
 $memoryPercentageShutdownThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdShutdownMemoryPercentage" -ErrorAction SilentlyContinue 
-if (-not($memoryPercentageThreshold -gt 0)) {
-    $memoryPercentageThreshold = 50
+if (-not($memoryPercentageShutdownThreshold -gt 0)) {
+    $memoryPercentageShutdownThreshold = 100
 }
 $networkMpbsShutdownThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdShutdownNetworkMbps" -ErrorAction SilentlyContinue 
-if (-not($networkMpbsThreshold -gt 0)) {
-    $networkMpbsThreshold = 500
+if (-not($networkMpbsShutdownThreshold -gt 0)) {
+    $networkMpbsShutdownThreshold = 10
 }
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -210,7 +210,7 @@ $baseQuery = @"
     | join kind=leftouter ( WriteThroughputPerf ) on InstanceId
     | extend MaxPIOPS = MaxPReadIOPS + MaxPWriteIOPS, MaxPMiBps = MaxPReadMiBps + MaxPWriteMiBps
     | extend PNetworkMbps = PNetwork * 8 / 1000 / 1000
-    | project InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, RecommendationArea_s, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s
+    | summarize by InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s
 "@
 
 $daysBackwardsInterval = "" + $daysBackwards + "d"
@@ -351,54 +351,53 @@ foreach ($result in $results) {
             else {
                 $additionalInfoDictionary["SupportsMiBps"] = "unknown:needs$($result.MaxPMiBps)"
             }
-
-
-            $cpuThreshold = $cpuPercentageThreshold
-            $memoryThreshold = $memoryPercentageThreshold
-            $networkThreshold = $networkMpbsThreshold
-            if ($additionalInfoDictionary.targetSku -eq "Shutdown") {
-                $cpuThreshold = $cpuPercentageShutdownThreshold
-                $memoryThreshold = $memoryPercentageShutdownThreshold
-                $networkThreshold = $networkMpbsShutdownThreshold
-            }
-            if (-not([string]::isNullOrEmpty($result.PCPUPercentage))) {
-                if ([double]$result.PCPUPercentage -ge [double]$cpuThreshold) {
-                    $confidenceScore -= 0.5    
-                    $additionalInfoDictionary["BelowCPUThreshold"] = "false:needs$($result.PCPUPercentage)-max$cpuThreshold"                    
-                }
-            }
-            else {
-                $confidenceScore -= 0.5
-                $additionalInfoDictionary["BelowCPUThreshold"] = "unknown:max$cpuThreshold"
-            }
-            if (-not([string]::isNullOrEmpty($result.PMemoryPercentage))) {
-                if ([double]$result.PMemoryPercentage -ge [double]$memoryThreshold) {
-                    $confidenceScore -= 0.5    
-                    $additionalInfoDictionary["BelowMemoryThreshold"] = "false:needs$($result.PMemoryPercentage)-max$memoryThreshold"                    
-                }
-            }
-            else {
-                $confidenceScore -= 0.5
-                $additionalInfoDictionary["BelowMemoryThreshold"] = "unknown:max$memoryThreshold"
-            }
-            if (-not([string]::isNullOrEmpty($result.PNetworkMbps))) {
-                if ([double]$result.PNetworkMbps -ge [double]$networkThreshold) {
-                    $confidenceScore -= 0.1    
-                    $additionalInfoDictionary["BelowNetworkThreshold"] = "false:needs$($result.PNetworkMbps)-max$networkThreshold"                    
-                }
-            }
-            else {
-                $confidenceScore -= 0.1
-                $additionalInfoDictionary["BelowNetworkThreshold"] = "unknown:max$networkThreshold"
-            }
-    
-            $confidenceScore = [Math]::max(0.0, $confidenceScore)
         }
+
+        $cpuThreshold = $cpuPercentageThreshold
+        $memoryThreshold = $memoryPercentageThreshold
+        $networkThreshold = $networkMpbsThreshold
+        if ($additionalInfoDictionary.targetSku -eq "Shutdown") {
+            $cpuThreshold = $cpuPercentageShutdownThreshold
+            $memoryThreshold = $memoryPercentageShutdownThreshold
+            $networkThreshold = $networkMpbsShutdownThreshold
+        }
+        if (-not([string]::isNullOrEmpty($result.PCPUPercentage))) {
+            if ([double]$result.PCPUPercentage -ge [double]$cpuThreshold) {
+                $confidenceScore -= 0.5    
+                $additionalInfoDictionary["BelowCPUThreshold"] = "false:needs$($result.PCPUPercentage)-max$cpuThreshold"                    
+            }
+        }
+        else {
+            $confidenceScore -= 0.5
+            $additionalInfoDictionary["BelowCPUThreshold"] = "unknown:max$cpuThreshold"
+        }
+        if (-not([string]::isNullOrEmpty($result.PMemoryPercentage))) {
+            if ([double]$result.PMemoryPercentage -ge [double]$memoryThreshold) {
+                $confidenceScore -= 0.5    
+                $additionalInfoDictionary["BelowMemoryThreshold"] = "false:needs$($result.PMemoryPercentage)-max$memoryThreshold"                    
+            }
+        }
+        else {
+            $confidenceScore -= 0.5
+            $additionalInfoDictionary["BelowMemoryThreshold"] = "unknown:max$memoryThreshold"
+        }
+        if (-not([string]::isNullOrEmpty($result.PNetworkMbps))) {
+            if ([double]$result.PNetworkMbps -ge [double]$networkThreshold) {
+                $confidenceScore -= 0.1    
+                $additionalInfoDictionary["BelowNetworkThreshold"] = "false:needs$($result.PNetworkMbps)-max$networkThreshold"                    
+            }
+        }
+        else {
+            $confidenceScore -= 0.1
+            $additionalInfoDictionary["BelowNetworkThreshold"] = "unknown:max$networkThreshold"
+        }
+
+        $confidenceScore = [Math]::max(0.0, $confidenceScore)
     }
 
     $recommendation = New-Object PSObject -Property @{
         Timestamp                   = $timestamp
-        Cloud                       = $cloudEnvironment
+        Cloud                       = $result.Cloud_s
         ImpactedArea                = $result.ImpactedArea_s
         Impact                      = $result.Impact_s
         RecommendationType          = "Saving"
