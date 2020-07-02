@@ -108,6 +108,20 @@
             "metadata": {
                 "description": "GUID for the Unattached Disks Recommendation Generation job schedule creation - create a unique before deploy"
             }
+        },
+        "advisorCostAugmentedRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Augmented Advisor Cost Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "recommendationsIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Recommendations Ingest job schedule creation - create a unique before deploy"
+            }
         }
     },
     "variables": {
@@ -125,12 +139,15 @@
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
+        "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
+        "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
         "argVmIngestScheduleName": "AzureOptimization_IngestARGVMsDaily",
         "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorWeekly",
         "recommendationsScheduleName": "AzureOptimization_RecommendationsWeekly",
+        "recommendationsIngestScheduleName": "AzureOptimization_IngestRecommendationsWeekly",
         "apiVersions": {
             "operationalInsights": "2020-03-01-preview",
             "automation": "2018-06-30",
@@ -198,6 +215,20 @@
                 "description": "Generates unattached disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates augmented Advisor Cost recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('recommendationsIngestRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Ingests JSON-based recommendations into an Azure SQL Database",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             }
         ],
         "automationVariables": [
@@ -267,6 +298,11 @@
                 "value": "[concat('\"','1000','\"')]"
             },
             {
+                "name": "AzureOptimization_SQLServerInsertSize",
+                "description": "The size (in inserted lines) for each page of recommendations ingestion into the SQL Database",
+                "value": "[concat('\"','900','\"')]"
+            },
+            {
                 "name": "AzureOptimization_LogAnalyticsLogPrefix",
                 "description": "The prefix for all Azure Optimization custom log tables in Log Analytics",
                 "value": "[concat('\"','AzureOptimization','\"')]"
@@ -290,6 +326,61 @@
                 "name": "AzureOptimization_LogAnalyticsWorkspaceTenantId",
                 "description": "The Azure AD tenant for the Log Analytics Workspace where optimization data will be ingested",
                 "value": "[concat('\"', subscription().tenantId, '\"')]"
+            },
+            {
+                "name": "AzureOptimization_RecommendAdvisorPeriodInDays",
+                "description": "The period (in days) to look back for Advisor exported recommendations",
+                "value": "[concat('\"','7','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfPercentileCpu",
+                "description": "The percentile to be used for processor metrics",
+                "value": "[concat('\"','99','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfPercentileMemory",
+                "description": "The percentile to be used for memory metrics",
+                "value": "[concat('\"','99','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfPercentileNetwork",
+                "description": "The percentile to be used for network metrics",
+                "value": "[concat('\"','99','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfPercentileDisk",
+                "description": "The percentile to be used for disk metrics",
+                "value": "[concat('\"','99','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdCpuPercentage",
+                "description": "The processor usage percentage threshold above which the confidence score is decreased",
+                "value": "[concat('\"','30','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdMemoryPercentage",
+                "description": "The memory usage percentage threshold above which the confidence score is decreased",
+                "value": "[concat('\"','50','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdNetworkMbps",
+                "description": "The network usage threshold (in Mbps) above which the confidence score is decreased",
+                "value": "[concat('\"','750','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdCpuShutdownPercentage",
+                "description": "The processor usage percentage threshold above which the confidence score is decreased (shutdown scenarios)",
+                "value": "[concat('\"','5','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdMemoryShutdownPercentage",
+                "description": "The memory usage percentage threshold above which the confidence score is decreased (shutdown scenarios)",
+                "value": "[concat('\"','100','\"')]"
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdNetworkShutdownMbps",
+                "description": "The network usage threshold (in Mbps) above which the confidence score is decreased (shutdown scenarios)",
+                "value": "[concat('\"','10','\"')]"
             }
         ]
     },
@@ -734,6 +825,23 @@
                 "frequency": "Week"
             }
         },
+        // Automation Recommendations Ingest Schedule
+        {
+            "name": "[concat(variables('automationAccountName'), '/', variables('recommendationsIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the weekly Recommendations ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'P7DT3H30M')]",
+                "interval": 1,
+                "frequency": "Week"
+            }
+        },
         // Automation ARG Disk Exports Job Schedule
         {
             "name": "[concat(variables('automationAccountName'), '/', parameters('argDiskExportJobId'))]",
@@ -887,6 +995,48 @@
                 },
                 "runbook": {
                     "name": "[variables('unattachedDisksRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Augmented Advisor Cost Recommendations Generation Job Schedule
+        {
+            "name": "[concat(variables('automationAccountName'), '/', parameters('advisorCostAugmentedRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('advisorCostAugmentedRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Recommendations Ingest Job Schedule
+        {
+            "name": "[concat(variables('automationAccountName'), '/', parameters('recommendationsIngestJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[variables('recommendationsIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('recommendationsIngestRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('recommendationsIngestRunbookName')]"
                 }
             }
         }

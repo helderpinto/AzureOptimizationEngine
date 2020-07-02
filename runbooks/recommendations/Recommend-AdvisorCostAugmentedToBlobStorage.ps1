@@ -41,53 +41,53 @@ $advisorTableName = $lognamePrefix + $advisorTableSuffix
 $referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion"
 
 # must be less than or equal to the advisor exports frequency
-$daysBackwards = Get-AutomationVariable -Name  "AzureOptimization_RecommendAdvisorCostPeriodInDays" -ErrorAction SilentlyContinue 
+$daysBackwards = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendAdvisorPeriodInDays" -ErrorAction SilentlyContinue)
 if (-not($daysBackwards -gt 0)) {
     $daysBackwards = 7
 }
 
 # percentiles variables
-$cpuPercentile = Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileCpu" -ErrorAction SilentlyContinue 
+$cpuPercentile = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileCpu" -ErrorAction SilentlyContinue)
 if (-not($cpuPercentile -gt 0)) {
     $cpuPercentile = 99
 }
-$memoryPercentile = Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileMemory" -ErrorAction SilentlyContinue 
+$memoryPercentile = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileMemory" -ErrorAction SilentlyContinue)
 if (-not($memoryPercentile -gt 0)) {
     $memoryPercentile = 99
 }
-$networkPercentile = Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileNetwork" -ErrorAction SilentlyContinue 
+$networkPercentile = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileNetwork" -ErrorAction SilentlyContinue)
 if (-not($networkPercentile -gt 0)) {
     $networkPercentile = 99
 }
-$diskPercentile = Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileDisk" -ErrorAction SilentlyContinue 
+$diskPercentile = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfPercentileDisk" -ErrorAction SilentlyContinue)
 if (-not($diskPercentile -gt 0)) {
     $diskPercentile = 99
 }
 
 # perf thresholds variables
-$cpuPercentageThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuPercentage" -ErrorAction SilentlyContinue 
+$cpuPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuPercentage" -ErrorAction SilentlyContinue)
 if (-not($cpuPercentageThreshold -gt 0)) {
     $cpuPercentageThreshold = 30
 }
-$memoryPercentageThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdMemoryPercentage" -ErrorAction SilentlyContinue 
+$memoryPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdMemoryPercentage" -ErrorAction SilentlyContinue)
 if (-not($memoryPercentageThreshold -gt 0)) {
     $memoryPercentageThreshold = 50
 }
-$networkMpbsThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdNetworkMbps" -ErrorAction SilentlyContinue 
+$networkMpbsThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdNetworkMbps" -ErrorAction SilentlyContinue)
 if (-not($networkMpbsThreshold -gt 0)) {
     $networkMpbsThreshold = 750
 }
 
 # perf thresholds variables (shutdown)
-$cpuPercentageShutdownThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuShutdownPercentage" -ErrorAction SilentlyContinue 
+$cpuPercentageShutdownThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuShutdownPercentage" -ErrorAction SilentlyContinue)
 if (-not($cpuPercentageShutdownThreshold -gt 0)) {
     $cpuPercentageShutdownThreshold = 5
 }
-$memoryPercentageShutdownThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdShutdownMemoryPercentage" -ErrorAction SilentlyContinue 
+$memoryPercentageShutdownThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdMemoryShutdownPercentage" -ErrorAction SilentlyContinue)
 if (-not($memoryPercentageShutdownThreshold -gt 0)) {
     $memoryPercentageShutdownThreshold = 100
 }
-$networkMpbsShutdownThreshold = Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdShutdownNetworkMbps" -ErrorAction SilentlyContinue 
+$networkMpbsShutdownThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdNetworkShutdownMbps" -ErrorAction SilentlyContinue )
 if (-not($networkMpbsShutdownThreshold -gt 0)) {
     $networkMpbsShutdownThreshold = 10
 }
