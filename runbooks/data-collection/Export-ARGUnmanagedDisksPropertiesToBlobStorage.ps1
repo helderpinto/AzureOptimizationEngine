@@ -71,7 +71,8 @@ resources
 | where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
 | extend diskType = 'OS', diskCaching = tostring(properties.storageProfile.osDisk.caching), diskSize = tostring(properties.storageProfile.osDisk.diskSizeGB)
 | extend vhdUriParts = split(tostring(properties.storageProfile.osDisk.vhd.uri),'/')
-| extend diskStorageAccountName = split(vhdUriParts[2],'.')[0], diskContainerName = vhdUriParts[3], diskVhdName = vhdUriParts[4]
+| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
+| order by id, diskStorageAccountName, diskContainerName, diskVhdName
 "@
 
 do
@@ -100,7 +101,8 @@ resources
 | mvexpand dataDisks = properties.storageProfile.dataDisks
 | extend diskType = 'Data', diskCaching = tostring(dataDisks.caching), diskSize = tostring(dataDisks.diskSizeGB)
 | extend vhdUriParts = split(tostring(dataDisks.vhd.uri),'/')
-| extend diskStorageAccountName = split(vhdUriParts[2],'.')[0], diskContainerName = vhdUriParts[3], diskVhdName = vhdUriParts[4]
+| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
+| order by id, diskStorageAccountName, diskContainerName, diskVhdName
 "@
 
 do
