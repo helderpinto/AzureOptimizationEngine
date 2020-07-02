@@ -129,6 +129,7 @@ foreach ($result in $results)
     $recommendation = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
+        Category = "Cost"
         ImpactedArea = "Microsoft.Compute/disks"
         Impact = "Medium"
         RecommendationType = "Saving"

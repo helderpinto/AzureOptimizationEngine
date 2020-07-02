@@ -125,11 +125,11 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 $skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
 
 $baseQuery = @"
-    let advisorInterval = 7d;
-    let cpuPercentileValue = 99;
-    let memoryPercentileValue = 99;
-    let networkPercentileValue = 99;
-    let diskPercentileValue = 99;
+    let advisorInterval = $($daysBackwards)d;
+    let cpuPercentileValue = $cpuPercentile;
+    let memoryPercentileValue = $memoryPercentile;
+    let networkPercentileValue = $networkPercentile;
+    let diskPercentileValue = $diskPercentile;
 
     let LinuxMemoryPerf = Perf 
     | where CounterName == '% Used Memory' 
@@ -213,14 +213,7 @@ $baseQuery = @"
     | summarize by InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s
 "@
 
-$daysBackwardsInterval = "" + $daysBackwards + "d"
-$query = $baseQuery.Replace("7d", $daysBackwardsInterval)
-$query = $query.Replace("cpuPercentileValue = 99", "cpuPercentileValue = $cpuPercentile")
-$query = $query.Replace("memoryPercentileValue = 99", "memoryPercentileValue = $memoryPercentile")
-$query = $query.Replace("networkPercentileValue = 99", "networkPercentileValue = $networkPercentile")
-$query = $query.Replace("diskPercentileValue = 99", "diskPercentileValue = $diskPercentile")
-
-$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $query -Timespan (New-TimeSpan -Days $daysBackwards) -Wait 600
+$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $daysBackwards) -Wait 600
 $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 
 $recommendations = @()
@@ -237,7 +230,6 @@ $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
 
 foreach ($result in $results) {  
     $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.com/#@$tenantId/resource/$queryInstanceId/overview"
 
     $tags = @{}
 
@@ -262,6 +254,7 @@ foreach ($result in $results) {
     }
 
     $confidenceScore = -1
+    $hasCpuRamPerfMetrics = $false
 
     if ($additionalInfoDictionary.targetSku) {
         $confidenceScore = 5
@@ -361,11 +354,13 @@ foreach ($result in $results) {
             $memoryThreshold = $memoryPercentageShutdownThreshold
             $networkThreshold = $networkMpbsShutdownThreshold
         }
+
         if (-not([string]::isNullOrEmpty($result.PCPUPercentage))) {
             if ([double]$result.PCPUPercentage -ge [double]$cpuThreshold) {
                 $confidenceScore -= 0.5    
                 $additionalInfoDictionary["BelowCPUThreshold"] = "false:needs$($result.PCPUPercentage)-max$cpuThreshold"                    
             }
+            $hasCpuRamPerfMetrics = $true
         }
         else {
             $confidenceScore -= 0.5
@@ -376,6 +371,7 @@ foreach ($result in $results) {
                 $confidenceScore -= 0.5    
                 $additionalInfoDictionary["BelowMemoryThreshold"] = "false:needs$($result.PMemoryPercentage)-max$memoryThreshold"                    
             }
+            $hasCpuRamPerfMetrics = $true
         }
         else {
             $confidenceScore -= 0.5
@@ -395,9 +391,53 @@ foreach ($result in $results) {
         $confidenceScore = [Math]::max(0.0, $confidenceScore)
     }
 
+    $queryInstanceId = $result.InstanceId_s
+    if (-not($hasCpuRamPerfMetrics))
+    {
+        $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
+    }
+    else
+    {
+        $queryText = @"
+        let armId = tolower(`'$queryInstanceId`');
+        let gInt = 1h;
+        let LinuxMemoryPerf = Perf 
+        | where CounterName == '% Used Memory' and _ResourceId =~ armId
+        | extend MemoryPercentage = CounterValue
+        | project TimeGenerated, MemoryPercentage; 
+        let WindowsMemoryPerf = Perf 
+        | where CounterName == 'Available MBytes' and _ResourceId =~ armId
+        | extend MemoryAvailableMBs = CounterValue, InstanceId = tolower(_ResourceId) 
+        | project TimeGenerated, MemoryAvailableMBs, InstanceId;
+        let MemoryPerf = WindowsMemoryPerf
+        | join kind=inner (
+            $vmsTableName 
+            | where TimeGenerated > ago(1d)
+            | extend InstanceId = tolower(InstanceId_s)
+            | distinct InstanceId, MemoryMB_s
+        ) on InstanceId
+        | extend MemoryPercentage = todouble(toint(MemoryMB_s) - toint(MemoryAvailableMBs)) / todouble(MemoryMB_s) * 100 
+        | project TimeGenerated, MemoryPercentage
+        | union LinuxMemoryPerf
+        | summarize P$($memoryPercentile)MemoryPercentage = percentile(MemoryPercentage, $memoryPercentile) by bin(TimeGenerated, gInt);
+        let ProcessorPerf = Perf 
+        | where CounterName == '% Processor Time' and InstanceName == '_Total' and _ResourceId =~ armId
+        | summarize P$($cpuPercentile)CPUPercentage = percentile(CounterValue, $cpuPercentile) by bin(TimeGenerated, gInt);
+        MemoryPerf
+        | union ProcessorPerf
+        | render timechart
+"@
+    
+        $encodedQuery = [System.Uri]::EscapeDataString($queryText)
+        $detailsQueryStart = $datetime.AddDays(-30).ToString("yyyy-MM-dd")
+        $detailsQueryEnd = $datetime.AddDays(1).ToString("yyyy-MM-dd")
+        $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"            
+    }
+
     $recommendation = New-Object PSObject -Property @{
         Timestamp                   = $timestamp
         Cloud                       = $result.Cloud_s
+        Category                    = "Cost"
         ImpactedArea                = $result.ImpactedArea_s
         Impact                      = $result.Impact_s
         RecommendationType          = "Saving"
