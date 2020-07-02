@@ -20,10 +20,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGDiskContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVhdContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argdiskexports"
+    $storageAccountSinkContainer = "argvhdexports"
 }
 
 $ARGPageSize = 1000
@@ -64,33 +64,43 @@ else
 $mdisksTotal = @()
 $resultsSoFar = 0
 
-<#
-   Getting all Managed Disks properties with Azure Resource Graph query
-#>
-
-Write-Output "Querying for ARM Managed Disks properties"
+Write-Output "Querying for ARM Unmanaged OS Disks properties"
 
 $argQuery = @"
-    resources 
-    | where type =~ 'Microsoft.Compute/disks' 
-    | extend DiskId = tolower(id), OwnerVmId = tolower(managedBy) 
-    | join kind=leftouter (
-        resources 
-        | where type =~ 'Microsoft.Compute/virtualMachines' and array_length(properties.storageProfile.dataDisks) > 0 
-        | extend OwnerVmId = tolower(id) 
-        | mv-expand DataDisks = properties.storageProfile.dataDisks 
-        | extend DiskId = tolower(DataDisks.managedDisk.id), diskCaching = tostring(DataDisks.caching), diskType = 'Data' 
-        | project DiskId, OwnerVmId, diskCaching, diskType 
-        | union (
-            resources 
-            | where type =~ 'Microsoft.Compute/virtualMachines' 
-            | extend OwnerVmId = tolower(id) 
-            | extend DiskId = tolower(properties.storageProfile.osDisk.managedDisk.id), diskCaching = tostring(properties.storageProfile.osDisk.caching), diskType = 'OS' 
-            | project DiskId, OwnerVmId, diskCaching, diskType
-        )
-    ) on OwnerVmId, DiskId 
-    | project-away OwnerVmId, DiskId, OwnerVmId1, DiskId1 
-    | order by id asc
+resources
+| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
+| extend diskType = 'OS', diskCaching = tostring(properties.storageProfile.osDisk.caching), diskSize = tostring(properties.storageProfile.osDisk.diskSizeGB)
+| extend vhdUriParts = split(tostring(properties.storageProfile.osDisk.vhd.uri),'/')
+| extend diskStorageAccountName = split(vhdUriParts[2],'.')[0], diskContainerName = vhdUriParts[3], diskVhdName = vhdUriParts[4]
+"@
+
+do
+{
+    if ($resultsSoFar -eq 0)
+    {
+        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+    }
+    else
+    {
+        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+    }
+    $resultsCount = $mdisks.Count
+    $resultsSoFar += $resultsCount
+    $mdisksTotal += $mdisks
+
+} while ($resultsCount -eq $ARGPageSize)
+
+$resultsSoFar = 0
+
+Write-Output "Querying for ARM Unmanaged Data Disks properties"
+
+$argQuery = @"
+resources
+| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
+| mvexpand dataDisks = properties.storageProfile.dataDisks
+| extend diskType = 'Data', diskCaching = tostring(dataDisks.caching), diskSize = tostring(dataDisks.diskSizeGB)
+| extend vhdUriParts = split(tostring(dataDisks.vhd.uri),'/')
+| extend diskStorageAccountName = split(vhdUriParts[2],'.')[0], diskContainerName = vhdUriParts[3], diskVhdName = vhdUriParts[4]
 "@
 
 do
@@ -127,14 +137,13 @@ foreach ($disk in $mdisksTotal)
         TenantGuid = $disk.tenantId
         SubscriptionGuid = $disk.subscriptionId
         ResourceGroupName = $disk.resourceGroup
-        DiskName = $disk.name
-        InstanceId = $disk.id
-        OwnerVMId = $disk.managedBy
-        DeploymentModel = "Managed"
+        DiskName = $disk.diskVhdName
+        InstanceId = ($disk.diskStorageAccountName + "/" + $disk.diskContainerName + "/" + $disk.diskVhdName)
+        OwnerVMId = $disk.id
+        DeploymentModel = "Unmanaged"
         DiskType = $disk.diskType 
         Caching = $disk.diskCaching 
-        DiskSizeGB = $disk.properties.diskSizeGB
-        SKU = $disk.sku.name
+        DiskSizeGB = $disk.diskSize
         StatusDate = $statusDate
         Tags = $disk.tags
     }
@@ -147,7 +156,7 @@ foreach ($disk in $mdisksTotal)
 #>
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-disks-$subscriptionSuffix.csv"
+$csvExportPath = "$today-vhds-$subscriptionSuffix.csv"
 
 $alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
 
