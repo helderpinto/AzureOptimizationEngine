@@ -820,7 +820,7 @@
                 "description": "Starts the weekly Recommendations generation",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
-                "startTime": "[dateTimeAdd(parameters('baseTime'), 'P7DT2H30M')]",
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT2H30M')]",
                 "interval": 1,
                 "frequency": "Week"
             }
@@ -837,7 +837,7 @@
                 "description": "Starts the weekly Recommendations ingests",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
-                "startTime": "[dateTimeAdd(parameters('baseTime'), 'P7DT3H30M')]",
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT3H30M')]",
                 "interval": 1,
                 "frequency": "Week"
             }
