@@ -126,7 +126,7 @@ if ($subscriptions.Count -gt 1) {
     $lastSubscriptionIndex = $subscriptions.Count - 1
     while ($selectedSubscription -lt 0 -or $selectedSubscription -gt $lastSubscriptionIndex) {
         Write-Output "---"
-        $selectedSubscription = Read-Host "Please, select the target subscription for this deployment [0..$lastSubscriptionIndex]"
+        $selectedSubscription = [int] (Read-Host "Please, select the target subscription for this deployment [0..$lastSubscriptionIndex]")
     }
 }
 else {
@@ -233,7 +233,7 @@ $selectedLocation = -1
 $lastLocationIndex = $locations.Count - 1
 while ($selectedLocation -lt 0 -or $selectedLocation -gt $lastLocationIndex) {
     Write-Output "---"
-    $selectedLocation = Read-Host "Please, select the target location for this deployment [0..$lastLocationIndex]"
+    $selectedLocation = [int] (Read-Host "Please, select the target location for this deployment [0..$lastLocationIndex]")
 }
 
 $targetLocation = $locations[$selectedLocation].location
@@ -264,9 +264,18 @@ if ("Y", "y" -contains $continueInput) {
     }
 
     Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
-    New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+    if ([string]::IsNullOrEmpty($ArtifactsSasToken))
+    {
+        New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
-        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)
+        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+    }
+    else
+    {
+        New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+        -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
+        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
+    }
     
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
