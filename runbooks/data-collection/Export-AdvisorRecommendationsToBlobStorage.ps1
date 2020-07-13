@@ -16,14 +16,19 @@ if ([string]::IsNullOrEmpty($authenticationOption))
     $authenticationOption = "RunAsAccount"
 }
 
-# get ARG exports sink (storage account) details
+# get Advisor exports sink (storage account) details
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_AdvisorCostContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_AdvisorContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
     $storageAccountSinkContainer = "advisorexports"
+}
+$advisorFilter = Get-AutomationVariable -Name  "AzureOptimization_AdvisorFilter" -ErrorAction SilentlyContinue # set to 'all' to obtain all recommendations
+if ([string]::IsNullOrEmpty($advisorFilter))
+{
+    $advisorFilter = "cost"
 }
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -63,7 +68,7 @@ $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $stora
 $recommendations = @()
 
 <#
-   Getting Advisor Cost recommendations for each subscription and building CSV entries
+   Getting Advisor recommendations for each subscription and building CSV entries
 #>
 
 $datetime = (get-date).ToUniversalTime()
@@ -75,7 +80,32 @@ foreach ($subscription in $subscriptions)
 {
     Select-AzSubscription -SubscriptionId $subscription
 
-    $advisorRecommendations = Get-AzAdvisorRecommendation -Category Cost
+    switch ($advisorFilter)
+    {
+        "cost" {
+            $advisorRecommendations = Get-AzAdvisorRecommendation -Category Cost
+            break
+        }
+        "highavailability" {
+            $advisorRecommendations = Get-AzAdvisorRecommendation -Category HighAvailability
+            break
+        }
+        "operationalexcellence" {
+            $advisorRecommendations = Get-AzAdvisorRecommendation -Category OperationalExcellence
+            break
+        }
+        "performance" {
+            $advisorRecommendations = Get-AzAdvisorRecommendation -Category Performance
+            break
+        }
+        "security" {
+            $advisorRecommendations = Get-AzAdvisorRecommendation -Category Security
+            break
+        }
+        default {
+            $advisorRecommendations = Get-AzAdvisorRecommendation
+        }
+    }
 
     foreach ($advisorRecommendation in $advisorRecommendations)
     {
@@ -126,8 +156,9 @@ foreach ($subscription in $subscriptions)
     #>
 
     $fileDate = $datetime.ToString("yyyyMMdd")
-    $jsonExportPath = "$fileDate-cost-$subscription.json"
-    $csvExportPath = "$fileDate-cost-$subscription.csv"
+    $advisorFilter = $advisorFilter.ToLower()
+    $jsonExportPath = "$fileDate-$advisorFilter-$subscription.json"
+    $csvExportPath = "$fileDate-$advisorFilter-$subscription.csv"
 
     $recommendations | ConvertTo-Json -Depth 10 | Out-File $jsonExportPath
     Write-Output "Exported to JSON: $($recommendations.Count) lines"

@@ -143,7 +143,7 @@ $workspaceReuse = $null
 
 do {
     $nameAvailable = $true
-    $namePrefix = Read-Host "Please, enter a unique name prefix for the resource group and all resources created by this deployment (up to 21 characters)"
+    $namePrefix = Read-Host "Please, enter a unique name prefix for this deployment or enter existing prefix if updating deployment"
     if ($namePrefix.Length -gt 21) {
         throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
     }
@@ -169,6 +169,9 @@ do {
             Write-Host "$($saNameResult.Message)" -ForegroundColor Red
         }    
     }
+    else {
+        Write-Host "(The Storage Account was already deployed)" -ForegroundColor Green
+    }
 
     if ("N", "n" -contains $workspaceReuse) {
         Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
@@ -184,6 +187,9 @@ do {
                 $nameAvailable = $false
                 Write-Host "The Log Analytics workspace $laWorkspaceName is already taken." -ForegroundColor Red
             }
+        }
+        else {
+            Write-Host "(The Log Analytics Workspace was already deployed)" -ForegroundColor Green
         }
     }
     else {
@@ -208,6 +214,9 @@ do {
             $nameAvailable = $false
             Write-Host "$($sqlNameResult.message) ($sqlServerName)" -ForegroundColor Red
         }
+    }
+    else {
+        Write-Host "(The SQL Server was already deployed)" -ForegroundColor Green
     }
 }
 while (-not($nameAvailable))
@@ -268,40 +277,34 @@ if ("Y", "y" -contains $continueInput) {
     {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
+        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
     }
     else
     {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
         -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
+        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-    }
-    
+    }        
+        
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
     Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
     $tempFirewallRuleName = "InitialDeployment"            
     New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue
     
-    Write-Host "Checking Azure Automation variables referring to the Log Analytics workspace..." -ForegroundColor Green
-    $laIdVariableName = "AzureOptimization_LogAnalyticsWorkspaceId"    
-    $laIdVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $laIdVariableName -ErrorAction SilentlyContinue
+    Write-Host "Checking Azure Automation variable referring to the initial Azure Optimization Engine deployment date..." -ForegroundColor Green
+    $deploymentDateVariableName = "AzureOptimization_DeploymentDate"    
+    $deploymentDateVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $deploymentDateVariableName -ErrorAction SilentlyContinue
     
-    if ($null -eq $laIdVariable) {
-        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
-        New-AzAutomationVariable -Name $laIdVariableName -Description "The Log Analytics Workspace ID where optimization data will be ingested." `
-            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $la.CustomerId.Guid -Encrypted $false
+    if ($null -eq $deploymentDateVariable) {
+        $deploymentDate = (get-date).ToUniversalTime().ToString("yyyy-MM-dd")
+        Write-Host "Setting initial deployment date ($deploymentDate)..." -ForegroundColor Green
+        New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
+            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
     }
-    
-    $laKeyVariableName = "AzureOptimization_LogAnalyticsWorkspaceKey"    
-    $laKeyVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $laKeyVariableName -ErrorAction SilentlyContinue
-    
-    if ($null -eq $laKeyVariable) {
-        $keys = Get-AzOperationalInsightsWorkspaceSharedKey -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
-        New-AzAutomationVariable -Name $laKeyVariableName -Description "The shared key for the Log Analytics Workspace where optimization data will be ingested." `
-            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $keys.PrimarySharedKey -Encrypted $true
-    }
-    
+
     Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green
 
     $CertificateAssetName = "AzureRunAsCertificate"
@@ -336,6 +339,9 @@ if ("Y", "y" -contains $continueInput) {
         $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id}
 
         CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
+    }
+    else {
+        Write-Host "(The Automation Run As account was already deployed)" -ForegroundColor Green
     }
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
@@ -375,6 +381,39 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
     
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+    
+            $createTableQuery = Get-Content -Path ".\model\sqlserveringestcontrol-table.sql"
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $createTableQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+    
+            $initTableQuery = Get-Content -Path ".\model\sqlserveringestcontrol-initialize.sql"
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $initTableQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+    
+            $createTableQuery = Get-Content -Path ".\model\recommendations-table.sql"
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $createTableQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+
             $connectionSuccess = $true
         }
         catch {
