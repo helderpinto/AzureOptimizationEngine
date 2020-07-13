@@ -273,7 +273,6 @@ if ("Y", "y" -contains $continueInput) {
     }
 
     Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
-
     if ([string]::IsNullOrEmpty($ArtifactsSasToken))
     {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
