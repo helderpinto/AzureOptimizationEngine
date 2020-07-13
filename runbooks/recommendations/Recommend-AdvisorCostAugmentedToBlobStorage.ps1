@@ -314,7 +314,7 @@ foreach ($result in $results) {
             $targetUncachedDiskIOPS = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskIOPS' }).Value
             if ($targetUncachedDiskIOPS -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.MaxPIOPS))) {
-                    if ([int]$result.MaxPIOPS -ge $targetUncachedDiskIOPS) {
+                    if ([double]$result.MaxPIOPS -ge $targetUncachedDiskIOPS) {
                         $confidenceScore -= 1
                         $additionalInfoDictionary["SupportsIOPS"] = "false:needs$($result.MaxPIOPS)-max$targetUncachedDiskIOPS"            
                     }
@@ -331,7 +331,7 @@ foreach ($result in $results) {
             $targetUncachedDiskMiBps = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskBytesPerSecond' }).Value / 1024 / 1024
             if ($targetUncachedDiskMiBps -gt 0) { 
                 if (-not([string]::isNullOrEmpty($result.MaxPMiBps))) {
-                    if ([int]$result.MaxPMiBps -ge $targetUncachedDiskMiBps) {
+                    if ([double]$result.MaxPMiBps -ge $targetUncachedDiskMiBps) {
                         $confidenceScore -= 1    
                         $additionalInfoDictionary["SupportsMiBps"] = "false:needs$($result.MaxPMiBps)-max$targetUncachedDiskMiBps"                    
                     }
