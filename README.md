@@ -52,3 +52,5 @@ This solution currently supports two types of recommendations:
 * Delete unattached disks
 
 For Advisor Cost recommendations, the engine's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the confidence score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables.
+
+**Soon you will find here additional instructions about visualizing all recommendations with Power BI**.
