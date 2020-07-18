@@ -68,3 +68,10 @@ If the connection fails at the first try, this might be because the SQL Database
 The report was built for a scenario where you have an "environment" tag applied to your resources. If you want to change this or add new tags, open the Transform Data menu again, but now choose the Transform data sub-option. A new window will open. If you click next in "Advanced editor" option, you can edit the data transformation logic and update the tag processing instructions.
 
 ![Open the Transform Data > Transform data menu item, click on Advanced editor and edit accordingly](./docs/powerbi-transformdata.jpg "Update data transformation logic")
+
+### Adjusting Azure Automation Run As Account permissions
+
+By default, the Azure Automation Run As Account is created with Contributor role over the respective subscription. The simplest minimum required permissions for the AOE runbooks are: 
+
+* Reader role in every subscription you want to gather recommendations from.
+* Contributor role in the resource group the solution was deployed to.
