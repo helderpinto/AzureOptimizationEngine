@@ -200,15 +200,9 @@ do {
     $sql = Get-AzSqlServer -ResourceGroupName $resourceGroupName -Name $sqlServerName -ErrorAction SilentlyContinue
     if ($null -eq $sql) {
 
-        $azureRmProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile;
-        $profileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azureRmProfile);
-        $accessToken = $profileClient.AcquireAccessToken($ctx.Subscription.TenantId).AccessToken
-
-        $SqlServerNameAvailabilityUri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
-        $Headers = @{ }
-        $Headers.Add("Authorization", "Bearer $accessToken")
+        $SqlServerNameAvailabilityUriPath = "/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
         $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
-        $sqlNameResult = (Invoke-WebRequest -Uri $SqlServerNameAvailabilityUri -Method Post -Body $body -ContentType "application/json" -Headers $Headers).content | ConvertFrom-Json
+        $sqlNameResult = (Invoke-AzRestMethod -Path $SqlServerNameAvailabilityUriPath -Method POST -Payload $body).Content | ConvertFrom-Json
         
         if (-not($sqlNameResult.available)) {
             $nameAvailable = $false

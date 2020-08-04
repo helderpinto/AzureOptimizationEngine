@@ -156,7 +156,7 @@
         },
         "Az.Accounts": {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/1.8.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/1.9.1"
         },
         "psModules": [
             {
@@ -165,11 +165,11 @@
             },
             {
                 "name": "Az.Compute",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.1.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.2.1"
             },
             {
                 "name": "Az.OperationalInsights",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/2.0.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/2.2.0"
             },
             {
                 "name": "Az.ResourceGraph",
@@ -177,7 +177,7 @@
             },
             {
                 "name": "Az.Storage",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/2.0.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/2.3.0"
             }
         ],
         "runbooks": [
