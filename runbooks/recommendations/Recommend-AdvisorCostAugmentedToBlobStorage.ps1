@@ -132,11 +132,13 @@ $baseQuery = @"
     let diskPercentileValue = $diskPercentile;
 
     let LinuxMemoryPerf = Perf 
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == '% Used Memory' 
     | extend InstanceId = tolower(_ResourceId) 
     | summarize PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by InstanceId;
 
     let WindowsMemoryPerf = Perf 
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == 'Available MBytes' 
     | extend MemoryAvailableMBs = CounterValue, InstanceId = tolower(_ResourceId) 
     | project TimeGenerated, MemoryAvailableMBs, InstanceId;
@@ -153,17 +155,20 @@ $baseQuery = @"
     | union LinuxMemoryPerf;
 
     let ProcessorPerf = Perf 
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == '% Processor Time' and InstanceName == '_Total' 
     | extend InstanceId = tolower(_ResourceId) 
     | summarize PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by InstanceId;
 
     let WindowsNetworkPerf = Perf 
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == 'Bytes Total/sec' 
     | extend InstanceId = tolower(_ResourceId) 
     | summarize PCounter = percentile(CounterValue, networkPercentileValue) by InstanceName, InstanceId
     | summarize PNetwork = sum(PCounter) by InstanceId;
 
     let ReadIOPSPerf = Perf
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == 'Disk Reads/sec' and InstanceName !in ("_Total", "D:", "/mnt/resource", "/mnt")
     | extend InstanceId = tolower(_ResourceId) 
     | summarize PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, 1h), InstanceName, InstanceId
@@ -171,6 +176,7 @@ $baseQuery = @"
     | summarize MaxPReadIOPS = max(SumPCounter) by InstanceId;
 
     let WriteIOPSPerf = Perf
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == 'Disk Writes/sec' and InstanceName !in ("_Total", "D:", "/mnt/resource", "/mnt")
     | extend InstanceId = tolower(_ResourceId) 
     | summarize PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, 1h), InstanceName, InstanceId
@@ -178,6 +184,7 @@ $baseQuery = @"
     | summarize MaxPWriteIOPS = max(SumPCounter) by InstanceId;
 
     let ReadThroughputPerf = Perf
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == 'Disk Read Bytes/sec' and InstanceName !in ("_Total", "D:", "/mnt/resource", "/mnt")
     | extend InstanceId = tolower(_ResourceId) 
     | summarize PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, 1h), InstanceName, InstanceId
@@ -185,6 +192,7 @@ $baseQuery = @"
     | summarize MaxPReadMiBps = max(SumPCounter / 1024 / 1024) by InstanceId;
 
     let WriteThroughputPerf = Perf
+    | where TimeGenerated > ago(advisorInterval) 
     | where CounterName == 'Disk Write Bytes/sec' and InstanceName !in ("_Total", "D:", "/mnt/resource", "/mnt")
     | extend InstanceId = tolower(_ResourceId) 
     | summarize PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, 1h), InstanceName, InstanceId
