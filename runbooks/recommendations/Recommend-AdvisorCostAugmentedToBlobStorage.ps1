@@ -131,6 +131,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
+Write-Output "Getting Virtual Machine SKUs for the $referenceRegion region..."
 # Get all the VM SKUs information for the reference Azure region
 $skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
 
@@ -204,8 +205,12 @@ $advisorTableName
 | summarize by InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s            
 "@
 
+Write-Output "Getting cost recommendations for $($daysBackwards)d Advisor and $($perfDaysBackwards)d Perf history and a $perfTimeGrain time grain..."
+
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days ([Math]::max($daysBackwards,$perfDaysBackwards))) -Wait 600
 $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+
+Write-Output "Query finished with $($results.Count) results."
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
@@ -218,6 +223,8 @@ if ($min -lt 10) {
     $min = "0" + $min
 }
 $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+
+Write-Output "Generating confidence score..."
 
 foreach ($result in $results) {  
     $queryInstanceId = $result.InstanceId_s
@@ -452,10 +459,16 @@ foreach ($result in $results) {
     $recommendations += $recommendation
 }
 
+Write-Output "Exporting final results as a JSON file..."
+
 $fileDate = $datetime.ToString("yyyyMMdd")
 $jsonExportPath = "advisor-cost-augmented-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
+Write-Output "Uploading $jsonExportPath to blob storage..."
+
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json" };
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "DONE"
