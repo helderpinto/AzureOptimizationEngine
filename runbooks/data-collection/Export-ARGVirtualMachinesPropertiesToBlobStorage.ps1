@@ -89,6 +89,7 @@ $argQuery = @"
     | extend availabilitySetId = tostring(properties.availabilitySet.id)
     | extend bootDiagnosticsEnabled = tostring(properties.diagnosticsProfile.bootDiagnostics.enabled)
     | extend bootDiagnosticsStorageAccount = split(split(properties.diagnosticsProfile.bootDiagnostics.storageUri, '/')[2],'.')[0]
+    | extend powerState = tostring(properties.extended.instanceView.powerState.code) 
     | order by id asc
 "@
 
@@ -124,6 +125,7 @@ $argQuery = @"
 	| extend availabilitySetId = tostring(properties.hardwareProfile.availabilitySet)
 	| extend bootDiagnosticsEnabled = tostring(properties.debugProfile.bootDiagnosticsEnabled)
     | extend bootDiagnosticsStorageAccount = split(split(properties.debugProfile.serialOutputBlobUri, '/')[2],'.')[0]
+    | extend powerState = tostring(properties.instanceView.status)
     | order by id asc
 "@
 
@@ -162,22 +164,23 @@ foreach ($vm in $armVmsTotal)
         Cloud = $cloudEnvironment
         TenantGuid = $vm.tenantId
         SubscriptionGuid = $vm.subscriptionId
-        ResourceGroupName = $vm.resourceGroup
+        ResourceGroupName = $vm.resourceGroup.ToLower()
         Zones = $vm.zones
-        VMName = $vm.name
+        VMName = $vm.name.ToLower()
         DeploymentModel = 'ARM'
-        InstanceId = $vm.id
-        VMSize = $vmSize.name
+        InstanceId = $vm.id.ToLower()
+        VMSize = $vmSize.name.ToLower()
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.osDisk.osType
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks
-        AvailabilitySetId = $vm.availabilitySetId
+        AvailabilitySetId = $vm.availabilitySetId.ToLower()
         BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         StatusDate = $statusDate
+        PowerState = $vm.powerState
         Tags = $vm.tags
     }
     
@@ -193,20 +196,21 @@ foreach ($vm in $classicVmsTotal)
         Cloud = $cloudEnvironment
         TenantGuid = $vm.tenantId
         SubscriptionGuid = $vm.subscriptionId
-        ResourceGroupName = $vm.resourceGroup
-        VMName = $vm.name
+        ResourceGroupName = $vm.resourceGroup.ToLower()
+        VMName = $vm.name.ToLower()
         DeploymentModel = 'Classic'
-        InstanceId = $vm.id
-        VMSize = $vmSize.name
+        InstanceId = $vm.id.ToLower()
+        VMSize = $vmSize.name.ToLower()
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.operatingSystemDisk.operatingSystem
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks
-        AvailabilitySetId = $vm.availabilitySetId
+        AvailabilitySetId = $vm.availabilitySetId.ToLower()
         BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
+        PowerState = $vm.powerState
         StatusDate = $statusDate
         Tags = $null
     }

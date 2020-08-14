@@ -126,10 +126,10 @@ foreach ($disk in $mdisksTotal)
         Cloud = $cloudEnvironment
         TenantGuid = $disk.tenantId
         SubscriptionGuid = $disk.subscriptionId
-        ResourceGroupName = $disk.resourceGroup
-        DiskName = $disk.name
-        InstanceId = $disk.id
-        OwnerVMId = $disk.managedBy
+        ResourceGroupName = $disk.resourceGroup.ToLower()
+        DiskName = $disk.name.ToLower()
+        InstanceId = $disk.id.ToLower()
+        OwnerVMId = $disk.managedBy.ToLower()
         DeploymentModel = "Managed"
         DiskType = $disk.diskType 
         Caching = $disk.diskCaching 

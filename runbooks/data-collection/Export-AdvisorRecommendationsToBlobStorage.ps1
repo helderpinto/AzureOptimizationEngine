@@ -140,11 +140,11 @@ foreach ($subscription in $subscriptions)
             Description = $advisorRecommendation.ShortDescription.Problem
             RecommendationText = $advisorRecommendation.ShortDescription.Problem
             RecommendationTypeId = $advisorRecommendation.RecommendationTypeId
-            InstanceId = $instanceId
+            InstanceId = $instanceId.ToLower()
             Category = $advisorRecommendation.Category
-            InstanceName = $advisorRecommendation.ImpactedValue
+            InstanceName = $advisorRecommendation.ImpactedValue.ToLower()
             AdditionalInfo = $advisorRecommendation.ExtendedProperties
-            ResourceGroup = $resourceGroup
+            ResourceGroup = $resourceGroup.ToLower()
             SubscriptionGuid = $subscriptionId
         }
     
