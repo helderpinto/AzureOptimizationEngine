@@ -156,11 +156,10 @@ let WindowsMemoryPerf = Perf
 
 let MemoryPerf = $vmsTableName 
 | where TimeGenerated > ago(1d)
-| extend InstanceId = tolower(InstanceId_s)
-| distinct InstanceId, MemoryMB_s
+| distinct InstanceId_s, MemoryMB_s
 | join kind=inner hint.strategy=broadcast (
-	WindowsMemoryPerf | extend InstanceId = tolower(_ResourceId)
-) on InstanceId
+	WindowsMemoryPerf
+) on `$left.InstanceId_s == `$right._ResourceId
 | extend MemoryPercentage = todouble(toint(MemoryMB_s) - toint(MemoryAvailableMBs)) / todouble(MemoryMB_s) * 100 
 | summarize hint.strategy=shuffle PMemoryPercentage = percentile(MemoryPercentage, memoryPercentileValue) by _ResourceId
 | union LinuxMemoryPerf;
@@ -188,18 +187,16 @@ let DiskPerf = Perf
 
 $advisorTableName 
 | where Category == 'Cost' and todatetime(TimeGenerated) > ago(advisorInterval) 
-| extend InstanceId = tolower(InstanceId_s)
 | join kind=leftouter (
     $vmsTableName 
     | where TimeGenerated > ago(1d) 
-    | extend InstanceId = tolower(InstanceId_s)
-    | project InstanceId, NicCount_s, DataDiskCount_s, Tags_s
-) on InstanceId 
+    | project InstanceId_s, NicCount_s, DataDiskCount_s, Tags_s
+) on InstanceId_s 
 | where Description_s !startswith "Right-size" or (Description_s startswith "Right-size" and toint(NicCount_s) >= 0 and toint(DataDiskCount_s) >= 0)
-| join kind=leftouter hint.strategy=broadcast ( MemoryPerf | extend InstanceId = tolower(_ResourceId)) on InstanceId
-| join kind=leftouter hint.strategy=broadcast ( ProcessorPerf | extend InstanceId = tolower(_ResourceId) ) on InstanceId
-| join kind=leftouter hint.strategy=broadcast ( WindowsNetworkPerf | extend InstanceId = tolower(_ResourceId) ) on InstanceId
-| join kind=leftouter hint.strategy=broadcast ( DiskPerf | extend InstanceId = tolower(_ResourceId) ) on InstanceId
+| join kind=leftouter hint.strategy=broadcast ( MemoryPerf ) on `$left.InstanceId_s == `$right._ResourceId
+| join kind=leftouter hint.strategy=broadcast ( ProcessorPerf ) on `$left.InstanceId_s == `$right._ResourceId
+| join kind=leftouter hint.strategy=broadcast ( WindowsNetworkPerf ) on `$left.InstanceId_s == `$right._ResourceId
+| join kind=leftouter hint.strategy=broadcast ( DiskPerf ) on `$left.InstanceId_s == `$right._ResourceId
 | extend MaxPIOPS = MaxPReadIOPS + MaxPWriteIOPS, MaxPMiBps = MaxPReadMiBps + MaxPWriteMiBps
 | extend PNetworkMbps = PNetwork * 8 / 1000 / 1000
 | summarize by InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s            
