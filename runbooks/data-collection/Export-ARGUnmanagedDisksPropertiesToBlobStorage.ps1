@@ -139,7 +139,7 @@ foreach ($disk in $mdisksTotal)
         TenantGuid = $disk.tenantId
         SubscriptionGuid = $disk.subscriptionId
         ResourceGroupName = $disk.resourceGroup.ToLower()
-        DiskName = $disk.diskVhdName
+        DiskName = $disk.diskVhdName.ToLower()
         InstanceId = ($disk.diskStorageAccountName + "/" + $disk.diskContainerName + "/" + $disk.diskVhdName).ToLower()
         OwnerVMId = $disk.id.ToLower()
         DeploymentModel = "Unmanaged"
