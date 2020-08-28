@@ -101,17 +101,18 @@ if (!$isTemplateAvailable)
     throw "Terminating due to template unavailability."
 }
 
-$deploymentNameTemplate = "{0}" + (Get-Date).ToString("yyMMddHHmmss")
-$resourceGroupNameTemplate = "{0}-rg"
-$storageAccountNameTemplate = "{0}sa"
-$laWorkspaceNameTemplate = "{0}-la"
-$automationAccountNameTemplate = "{0}-auto"
-$sqlServerNameTemplate = "{0}-sql"
-
 $ctx = Get-AzContext
 if (-not($ctx)) {
     Connect-AzAccount -Environment $AzureEnvironment
     $ctx = Get-AzContext
+}
+else {
+    if ($ctx.Environment.Name -ne $AzureEnvironment)
+    {
+        Disconnect-AzAccount -ContextName $ctx.Name
+        Connect-AzAccount -Environment $AzureEnvironment
+        $ctx = Get-AzContext
+    }
 }
 
 Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
@@ -141,23 +142,48 @@ if ($ctx.Subscription.Id -ne $subscriptionId) {
 
 $workspaceReuse = $null
 
+$deploymentNameTemplate = "{0}" + (Get-Date).ToString("yyMMddHHmmss")
+$resourceGroupNameTemplate = "{0}-rg"
+$storageAccountNameTemplate = "{0}sa"
+$laWorkspaceNameTemplate = "{0}-la"
+$automationAccountNameTemplate = "{0}-auto"
+$sqlServerNameTemplate = "{0}-sql"
+
 do {
     $nameAvailable = $true
-    $namePrefix = Read-Host "Please, enter a unique name prefix for this deployment or enter existing prefix if updating deployment"
-    if ($namePrefix.Length -gt 21) {
-        throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
-    }
+    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to fully name all resources, just press ENTER)"
 
     if ($null -eq $workspaceReuse) {
         $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
     }
 
-    $deploymentName = $deploymentNameTemplate -f $namePrefix
-    $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
-    $storageAccountName = $storageAccountNameTemplate -f $namePrefix
-    $automationAccountName = $automationAccountNameTemplate -f $namePrefix
-    $sqlServerName = $sqlServerNameTemplate -f $namePrefix
-        
+    if ([string]::IsNullOrEmpty($namePrefix))
+    {
+        $resourceGroupName = Read-Host "Resource Group"
+        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+        $storageAccountName = Read-Host "Storage Account"
+        $automationAccountName = Read-Host "Automation Account"
+        $sqlServerName = Read-Host "Azure SQL Server"
+        $sqlDatabaseName = Read-Host "Azure SQL Database"
+        if ("N", "n" -contains $workspaceReuse) {
+            $laWorkspaceName = Read-Host "Log Analytics Workspace"
+        }
+    }
+    else
+    {
+        if ($namePrefix.Length -gt 21) {
+            throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
+        }
+    
+        $deploymentName = $deploymentNameTemplate -f $namePrefix
+        $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
+        $storageAccountName = $storageAccountNameTemplate -f $namePrefix
+        $automationAccountName = $automationAccountNameTemplate -f $namePrefix
+        $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
+        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        $sqlDatabaseName = "azureoptimization"
+    }
+
     Write-Host "Checking name prefix availability..." -ForegroundColor Green
 
     Write-Host "...for the Storage Account..." -ForegroundColor Green
@@ -177,7 +203,6 @@ do {
         Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
 
         $logAnalyticsReuse = $false
-        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
         $laWorkspaceResourceGroup = $resourceGroupName
 
         $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $laWorkspaceName -ErrorAction SilentlyContinue
@@ -215,10 +240,10 @@ do {
 }
 while (-not($nameAvailable))
 
-Write-Host "Name prefix $namePrefix is available for all services" -ForegroundColor Green
+Write-Host "Chosen resource names are available for all services" -ForegroundColor Green
 
 if ("Y", "y" -contains $workspaceReuse) {
-    $laWorkspaceName = Read-Host "Please, enter the Log Analytics workspace name"
+    $laWorkspaceName = Read-Host "Please, enter the name of the Log Analytics workspace to be reused"
     $laWorkspaceResourceGroup = Read-Host "Please, enter the name of the resource group containing Log Analytics $laWorkspaceName"
     $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName -ErrorAction SilentlyContinue
     if (-not($la)) {
@@ -226,28 +251,35 @@ if ("Y", "y" -contains $workspaceReuse) {
     }        
 }
 
-Write-Host "Getting Azure locations..." -ForegroundColor Green
-$locations = Get-AzLocation | Where-Object {$_.Providers -contains "Microsoft.Automation"} | Sort-Object -Property Location
+$rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue 
 
-for ($i = 0; $i -lt $locations.Count; $i++) {
-    Write-Output "[$i] $($locations[$i].location)"    
+if (-not($rg.Location))
+{
+    Write-Host "Getting Azure locations..." -ForegroundColor Green
+    $locations = Get-AzLocation | Where-Object {$_.Providers -contains "Microsoft.Automation"} | Sort-Object -Property Location
+    
+    for ($i = 0; $i -lt $locations.Count; $i++) {
+        Write-Output "[$i] $($locations[$i].location)"    
+    }
+    $selectedLocation = -1
+    $lastLocationIndex = $locations.Count - 1
+    while ($selectedLocation -lt 0 -or $selectedLocation -gt $lastLocationIndex) {
+        Write-Output "---"
+        $selectedLocation = [int] (Read-Host "Please, select the target location for this deployment [0..$lastLocationIndex]")
+    }
+    
+    $targetLocation = $locations[$selectedLocation].location    
 }
-$selectedLocation = -1
-$lastLocationIndex = $locations.Count - 1
-while ($selectedLocation -lt 0 -or $selectedLocation -gt $lastLocationIndex) {
-    Write-Output "---"
-    $selectedLocation = [int] (Read-Host "Please, select the target location for this deployment [0..$lastLocationIndex]")
+else
+{
+    $targetLocation = $rg.Location    
 }
-
-$targetLocation = $locations[$selectedLocation].location
 
 $sqlAdmin = Read-Host "Please, input the SQL Admin username"
 $sqlPass = Read-Host "Please, input the SQL Admin password" -AsSecureString
 
 $continueInput = Read-Host "Deploying Azure Optimization Engine to subscription $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
 if ("Y", "y" -contains $continueInput) {
-    
-    $rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue 
     
     if ($null -eq $rg) {
         Write-Host "Resource group $resourceGroupName does not exist." -ForegroundColor Yellow
@@ -261,8 +293,11 @@ if ("Y", "y" -contains $continueInput) {
         Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
         foreach ($jobSchedule in $jobSchedules)
         {
-            Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+            if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization"))
+            {
+                Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                 -JobScheduleId $jobSchedule.JobScheduleId -Force
+            }
         }    
     }
 
@@ -270,15 +305,19 @@ if ("Y", "y" -contains $continueInput) {
     if ([string]::IsNullOrEmpty($ArtifactsSasToken))
     {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-        -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
+        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
     }
     else
     {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-        -projectName $namePrefix -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
+        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
     }        
         
