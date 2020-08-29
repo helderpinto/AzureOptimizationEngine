@@ -151,7 +151,7 @@ $sqlServerNameTemplate = "{0}-sql"
 
 do {
     $nameAvailable = $true
-    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to fully name all resources, just press ENTER)"
+    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
 
     if ($null -eq $workspaceReuse) {
         $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
@@ -159,12 +159,12 @@ do {
 
     if ([string]::IsNullOrEmpty($namePrefix))
     {
-        $resourceGroupName = Read-Host "Resource Group"
+        $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
         $deploymentName = $deploymentNameTemplate -f $resourceGroupName
-        $storageAccountName = Read-Host "Storage Account"
-        $automationAccountName = Read-Host "Automation Account"
-        $sqlServerName = Read-Host "Azure SQL Server"
-        $sqlDatabaseName = Read-Host "Azure SQL Database"
+        $storageAccountName = Read-Host "Enter the Storage Account name"
+        $automationAccountName = Read-Host "Automation Account name"
+        $sqlServerName = Read-Host "Azure SQL Server name"
+        $sqlDatabaseName = Read-Host "Azure SQL Database name"
         if ("N", "n" -contains $workspaceReuse) {
             $laWorkspaceName = Read-Host "Log Analytics Workspace"
         }
@@ -308,7 +308,7 @@ if ("Y", "y" -contains $continueInput) {
         -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
         -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName
+        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
     }
     else
@@ -317,7 +317,7 @@ if ("Y", "y" -contains $continueInput) {
         -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
         -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName
+        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
         -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
     }        
         
