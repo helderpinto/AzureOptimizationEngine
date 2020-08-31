@@ -155,9 +155,17 @@ $min = $datetime.Minute
 $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
+Write-Output "Building $($armVmsTotal.Count) ARM VM entries"
+
 foreach ($vm in $armVmsTotal)
 {
     $vmSize = $sizes | Where-Object {$_.name -eq $vm.properties.hardwareProfile.vmSize}
+
+    $avSetId = $null
+    if ($vm.availabilitySetId)
+    {
+        $avSetId = $vm.availabilitySetId.ToLower()
+    }
 
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
@@ -169,14 +177,14 @@ foreach ($vm in $armVmsTotal)
         VMName = $vm.name.ToLower()
         DeploymentModel = 'ARM'
         InstanceId = $vm.id.ToLower()
-        VMSize = $vmSize.name.ToLower()
+        VMSize = $vmSize.name
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.osDisk.osType
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks
-        AvailabilitySetId = $vm.availabilitySetId.ToLower()
+        AvailabilitySetId = $avSetId
         BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         StatusDate = $statusDate
@@ -187,9 +195,17 @@ foreach ($vm in $armVmsTotal)
     $allvms += $logentry
 }
 
+Write-Output "Building $($classicVmsTotal.Count) Classic VM entries"
+
 foreach ($vm in $classicVmsTotal)
 {
     $vmSize = $sizes | Where-Object {$_.name -eq $vm.properties.hardwareProfile.size}
+
+    $avSetId = $null
+    if ($vm.availabilitySetId)
+    {
+        $avSetId = $vm.availabilitySetId.ToLower()
+    }
 
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
@@ -200,14 +216,14 @@ foreach ($vm in $classicVmsTotal)
         VMName = $vm.name.ToLower()
         DeploymentModel = 'Classic'
         InstanceId = $vm.id.ToLower()
-        VMSize = $vmSize.name.ToLower()
+        VMSize = $vmSize.name
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.operatingSystemDisk.operatingSystem
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks
-        AvailabilitySetId = $vm.availabilitySetId.ToLower()
+        AvailabilitySetId = $avSetId
         BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         PowerState = $vm.powerState

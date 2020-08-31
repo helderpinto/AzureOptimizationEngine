@@ -102,6 +102,11 @@ if (-not($networkMpbsShutdownThreshold -gt 0)) {
     $networkMpbsShutdownThreshold = 10
 }
 
+$rightSizeRecommendationId = Get-AutomationVariable -Name  "AzureOptimization_RecommendationAdvisorCostRightSizeId" -ErrorAction SilentlyContinue
+if (-not($rightSizeRecommendationId)) {
+    $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
+}
+
 Write-Output "Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
@@ -192,7 +197,7 @@ $advisorTableName
     | where TimeGenerated > ago(1d) 
     | project InstanceId_s, NicCount_s, DataDiskCount_s, Tags_s
 ) on InstanceId_s 
-| where Description_s !startswith "Right-size" or (Description_s startswith "Right-size" and toint(NicCount_s) >= 0 and toint(DataDiskCount_s) >= 0)
+| where RecommendationTypeId_g != '$rightSizeRecommendationId' or (RecommendationTypeId_g == '$rightSizeRecommendationId' and toint(NicCount_s) >= 0 and toint(DataDiskCount_s) >= 0)
 | join kind=leftouter hint.strategy=broadcast ( MemoryPerf ) on `$left.InstanceId_s == `$right._ResourceId
 | join kind=leftouter hint.strategy=broadcast ( ProcessorPerf ) on `$left.InstanceId_s == `$right._ResourceId
 | join kind=leftouter hint.strategy=broadcast ( WindowsNetworkPerf ) on `$left.InstanceId_s == `$right._ResourceId
