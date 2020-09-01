@@ -28,9 +28,9 @@ if ([string]::IsNullOrEmpty($sqldatabase))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RemediationsContainer" -ErrorAction SilentlyContinue 
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RemediationLogsContainer" -ErrorAction SilentlyContinue 
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
-    $storageAccountSinkContainer = "remediationslogs"
+    $storageAccountSinkContainer = "remediationlogs"
 }
 
 $minConfidenceScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinConfidenceScore" -ErrorAction SilentlyContinue)
@@ -118,6 +118,13 @@ if (-not($connectionSuccess))
 
 Write-Output "Found $([int]$vmsToRightSize.Count) remediation opportunities with confidence score >= $minConfidenceScore consecutively for the last $minWeeksInARow weeks."
 
+$logEntries = @()
+
+$datetime = (get-date).ToUniversalTime()
+$hour = $datetime.Hour
+$min = $datetime.Minute
+$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+
 $ctx = Get-AzContext
 
 foreach ($vm in $vmsToRightSize)
@@ -132,7 +139,7 @@ foreach ($vm in $vmsToRightSize)
         $vmTags = $null
         if (-not([string]::IsNullOrEmpty($vm.Tags)))
         {
-            $vmTags = $vm.Tags | ConvertFrom-Json # { "security_context": "standard", "boundary": "test", "environment": "dev", "platform": "infrastructure", "miscellaneous": "terraform", "service_name": "webserver", "expiration_date": "2100-01-01", "owner": "infrastructure-baseauto-admins", "name": "we1-dev-infrastructure-test-provision-centos-1", "tech_type": "webserver", "business_unit": "farfetch", "tier": "2" }
+            $vmTags = $vm.Tags | ConvertFrom-Json
         }
         if ($vmTags)
         {
@@ -150,9 +157,11 @@ foreach ($vm in $vmsToRightSize)
             }
         }
     }
+
+    $additionalInfo = $vm.AdditionalInfo | ConvertFrom-Json
+
     if ($isVmEligible)
     {
-        $additionalInfo = $vm.AdditionalInfo | ConvertFrom-Json
         Write-Output "Downsizing (SIMULATE=$Simulate) $($vm.InstanceId) to $($additionalInfo.targetSku)..."
         if (-not($Simulate))
         {
@@ -164,13 +173,37 @@ foreach ($vm in $vmsToRightSize)
             $vmObj = Get-AzVM -ResourceGroupName $vm.ResourceGroup -VMName $vm.InstanceName
             $vmObj.HardwareProfile.VmSize = $additionalInfo.targetSku
             Update-AzVM -VM $vmObj -ResourceGroupName $vm.ResourceGroup    
-
-            # add log entry
         }
     }
+
+    $logentry = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $cloudEnvironment
+        SubscriptionGuid = $vm.SubscriptionGuid
+        ResourceGroupName = $vm.ResourceGroup.ToLower()
+        VmName = $vm.InstanceName.ToLower()
+        InstanceId = $vm.InstanceId.ToLower()
+        CurrentSku = $vm.currentSku
+        TargetSku = $vm.targetSku
+        Tags = $vm.tags
+        Simulate = $Simulate
+        IsVmEligible = $isVmEligible
+    }
+    
+    $logEntries += $logentry
 }
     
 $Conn.Close()    
 $Conn.Dispose()            
 
-# output log entries to blob storage
+
+$today = $datetime.ToString("yyyyMMdd")
+$csvExportPath = "$today-rightsizefiltered.csv"
+
+$logEntries | Export-Csv -Path $csvExportPath -NoTypeInformation
+
+$csvBlobName = $csvExportPath
+
+$csvProperties = @{"ContentType" = "text/csv"};
+
+Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
