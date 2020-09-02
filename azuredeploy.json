@@ -139,6 +139,7 @@
         "argVmContainerName": "argvmexports",
         "argDiskContainerName": "argdiskexports",
         "recommendationsContainerName": "recommendationsexports",
+        "remediationLogsContainerName": "remediationlogs",
         "advisorExportsRunbookName": "Export-AdvisorRecommendationsToBlobStorage",
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
@@ -146,6 +147,7 @@
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
         "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
+        "advisorRightSizeFilteredRemediationRunbookName": "Remediate-AdvisorRightSizeFiltered",
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
@@ -234,6 +236,13 @@
                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('advisorRightSizeFilteredRemediationRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Remediates Azure Advisor right-size recommendations given confidence and tag filters",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorRightSizeFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             }
         ],
         "automationVariables": [
@@ -281,6 +290,11 @@
                 "name": "AzureOptimization_RecommendationsContainer",
                 "description": "The Storage Account container where recommendations are dumped to",
                 "value": "[concat('\"',variables('recommendationsContainerName'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_RemediationLogsContainer",
+                "description": "The Storage Account container where remediation logs are dumped to",
+                "value": "[concat('\"',variables('remediationLogsContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ReferenceRegion",
@@ -386,6 +400,16 @@
                 "name": "AzureOptimization_PerfThresholdNetworkShutdownMbps",
                 "description": "The network usage threshold (in Mbps) above which the confidence score is decreased (shutdown scenarios)",
                 "value": "[concat('\"','10','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RemediateRightSizeMinConfidenceScore",
+                "description": "The minimum confidence score for right-size remediation",
+                "value": "[concat('\"','5.0','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RemediateRightSizeMinWeeksInARow",
+                "description": "The minimum number of weeks in a row required for a right-size recommendation to be remediated",
+                "value": "[concat('\"','4','\"')]"
             },
             {
                 "name": "AzureOptimization_RecommendationAdvisorCostRightSizeId",

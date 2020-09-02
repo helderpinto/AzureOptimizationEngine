@@ -81,6 +81,8 @@ switch ($authenticationOption) {
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
+Write-Output "Querying for right-size recommendations with confidence score >= $minConfidenceScore made consecutively for the last $minWeeksInARow weeks."
+
 $tries = 0
 $connectionSuccess = $false
 do {
@@ -116,7 +118,7 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-Write-Output "Found $([int]$vmsToRightSize.Count) remediation opportunities with confidence score >= $minConfidenceScore consecutively for the last $minWeeksInARow weeks."
+Write-Output "Found $($vmsToRightSize.Rows.Count) remediation opportunities."
 
 $logEntries = @()
 
@@ -127,7 +129,7 @@ $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
 
 $ctx = Get-AzContext
 
-foreach ($vm in $vmsToRightSize)
+foreach ($vm in $vmsToRightSize.Rows)
 {
     $isVmEligible = $false
     if ([string]::IsNullOrEmpty($tagsFilter))
@@ -160,7 +162,7 @@ foreach ($vm in $vmsToRightSize)
 
     $additionalInfo = $vm.AdditionalInfo | ConvertFrom-Json
 
-    if ($isVmEligible)
+    if ($isVmEligible -and $additionalInfo.targetSku -ne "Shutdown")
     {
         Write-Output "Downsizing (SIMULATE=$Simulate) $($vm.InstanceId) to $($additionalInfo.targetSku)..."
         if (-not($Simulate))
@@ -181,11 +183,10 @@ foreach ($vm in $vmsToRightSize)
         Cloud = $cloudEnvironment
         SubscriptionGuid = $vm.SubscriptionGuid
         ResourceGroupName = $vm.ResourceGroup.ToLower()
-        VmName = $vm.InstanceName.ToLower()
+        InstanceName = $vm.InstanceName.ToLower()
         InstanceId = $vm.InstanceId.ToLower()
-        CurrentSku = $vm.currentSku
-        TargetSku = $vm.targetSku
-        Tags = $vm.tags
+        CurrentSku = $additionalInfo.currentSku
+        TargetSku = $additionalInfo.targetSku
         Simulate = $Simulate
         IsVmEligible = $isVmEligible
     }
