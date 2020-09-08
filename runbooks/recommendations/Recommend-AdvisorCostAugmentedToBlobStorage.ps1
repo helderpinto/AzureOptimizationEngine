@@ -150,13 +150,17 @@ let networkPercentileValue = $networkPercentile;
 let diskPercentileValue = $diskPercentile;
 let rightSizeRecommendationId = '$rightSizeRecommendationId';
 
+let RightSizeInstanceIds = materialize(AzureOptimizationAdvisorV1_CL 
+| where Category == 'Cost' and todatetime(TimeGenerated) > ago(advisorInterval) and RecommendationTypeId_g == rightSizeRecommendationId
+| distinct InstanceId_s);
+
 let LinuxMemoryPerf = Perf 
-| where TimeGenerated > ago(perfInterval) 
+| where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == '% Used Memory' 
 | summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId;
 
 let WindowsMemoryPerf = Perf 
-| where TimeGenerated > ago(perfInterval) 
+| where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Available MBytes' 
 | project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId;
 
@@ -171,18 +175,18 @@ let MemoryPerf = $vmsTableName
 | union LinuxMemoryPerf;
 
 let ProcessorPerf = Perf 
-| where TimeGenerated > ago(perfInterval) 
+| where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == '% Processor Time' and InstanceName == '_Total' 
 | summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId;
 
 let WindowsNetworkPerf = Perf 
-| where TimeGenerated > ago(perfInterval) 
+| where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Bytes Total/sec' 
 | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, networkPercentileValue) by InstanceName, _ResourceId
 | summarize PNetwork = sum(PCounter) by _ResourceId;
 
 let DiskPerf = Perf
-| where TimeGenerated > ago(perfInterval) 
+| where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName in ('Disk Reads/sec', 'Disk Writes/sec', 'Disk Read Bytes/sec', 'Disk Write Bytes/sec') and InstanceName !in ("_Total", "D:", "/mnt/resource", "/mnt")
 | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, perfTimeGrain), CounterName, InstanceName, _ResourceId
 | summarize SumPCounter = sum(PCounter) by CounterName, TimeGenerated, _ResourceId
