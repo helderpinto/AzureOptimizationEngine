@@ -151,7 +151,7 @@ let diskPercentileValue = $diskPercentile;
 let rightSizeRecommendationId = '$rightSizeRecommendationId';
 
 let RightSizeInstanceIds = materialize(AzureOptimizationAdvisorV1_CL 
-| where Category == 'Cost' and todatetime(TimeGenerated) > ago(advisorInterval) and RecommendationTypeId_g == rightSizeRecommendationId
+| where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost' and RecommendationTypeId_g == rightSizeRecommendationId
 | distinct InstanceId_s);
 
 let LinuxMemoryPerf = Perf 
@@ -196,7 +196,7 @@ let DiskPerf = Perf
             MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId;
 
 $advisorTableName 
-| where Category == 'Cost' and todatetime(TimeGenerated) > ago(advisorInterval) 
+| where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
 | join kind=leftouter (
     $vmsTableName 
     | where TimeGenerated > ago(1d) 
@@ -214,10 +214,12 @@ $advisorTableName
 
 Write-Output "Getting cost recommendations for $($daysBackwards)d Advisor and $($perfDaysBackwards)d Perf history and a $perfTimeGrain time grain..."
 
-$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days ([Math]::max($daysBackwards,$perfDaysBackwards))) -Wait 600
+$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days ([Math]::max($daysBackwards,$perfDaysBackwards))) -Wait 600 -IncludeStatistics
 $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 
 Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
