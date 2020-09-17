@@ -150,7 +150,7 @@ let networkPercentileValue = $networkPercentile;
 let diskPercentileValue = $diskPercentile;
 let rightSizeRecommendationId = '$rightSizeRecommendationId';
 
-let RightSizeInstanceIds = materialize(AzureOptimizationAdvisorV1_CL 
+let RightSizeInstanceIds = materialize($advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost' and RecommendationTypeId_g == rightSizeRecommendationId
 | distinct InstanceId_s);
 
