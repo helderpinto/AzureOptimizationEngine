@@ -94,7 +94,7 @@ do {
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
         $Cmd.CommandText = @"
-        SELECT InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags, COUNT(InstanceId)
+        SELECT RecommendationId, InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags, COUNT(InstanceId)
         FROM [dbo].[$recommendationsTable] 
         WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND ConfidenceScore >= $minConfidenceScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
         GROUP BY InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags
@@ -178,6 +178,12 @@ foreach ($vm in $vmsToRightSize.Rows)
         }
     }
 
+    $logDetails = @{
+        IsVmEligible = $isVmEligible
+        CurrentSku = $additionalInfo.currentSku
+        TargetSku = $additionalInfo.targetSku
+    }
+
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
@@ -185,10 +191,10 @@ foreach ($vm in $vmsToRightSize.Rows)
         ResourceGroupName = $vm.ResourceGroup.ToLower()
         InstanceName = $vm.InstanceName.ToLower()
         InstanceId = $vm.InstanceId.ToLower()
-        CurrentSku = $additionalInfo.currentSku
-        TargetSku = $additionalInfo.targetSku
         Simulate = $Simulate
-        IsVmEligible = $isVmEligible
+        LogDetails = $logDetails
+        RecommendationId = $vm.RecommendationId
+        RecommendationSubTypeId = $rightSizeRecommendationId
     }
     
     $logEntries += $logentry
