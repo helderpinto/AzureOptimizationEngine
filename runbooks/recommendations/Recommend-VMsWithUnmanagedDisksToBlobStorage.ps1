@@ -63,7 +63,8 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 
 $baseQuery = @"
     $vmsTableName 
-    | where UsesManagedDisks_s == 'false'
+    | where TimeGenerated > ago(1d) and UsesManagedDisks_s == 'false'
+    | distinct InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, DeploymentModel_s, Tags_s, Cloud_s
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
