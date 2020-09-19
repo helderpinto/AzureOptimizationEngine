@@ -383,7 +383,7 @@ if ("Y", "y" -contains $continueInput) {
     $sqlPassPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
     
     $sqlServerEndpoint = "$sqlServerName.database.windows.net"
-    $databaseName = "azureoptimization" 
+    $databaseName = $sqlDatabaseName
     $SqlTimeout = 60
     $tries = 0
     $connectionSuccess = $false

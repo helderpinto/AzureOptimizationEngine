@@ -18,6 +18,10 @@ During deployment, you'll be asked several questions. You must plan for the foll
 
 If the deployment fails for some reason, you can simply repeat it, as it is idempotent. The same if you want to upgrade a previous deployment with the latest version of the repo. You just have to keep the same deployment options.
 
+### Requirements
+
+* Azure Powershell 4.5.0+
+
 ### Deploying from GitHub
 
 ```powershell
