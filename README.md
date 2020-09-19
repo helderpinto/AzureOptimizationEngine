@@ -12,7 +12,7 @@ During deployment, you'll be asked several questions. You must plan for the foll
 
 * Whether you're going to reuse an existing Log Analytics Workspace or a create a new one
 * Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
-* A unique name prefix for the Azure resources being created
+* A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
 * Azure datacenter location
 * Using a user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)).
 

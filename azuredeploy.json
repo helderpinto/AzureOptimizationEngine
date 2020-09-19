@@ -160,7 +160,7 @@
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
-        "unmanagedDisksRecommendationsRunbookName": "Recommend-UnmanagedDisksToBlobStorage",
+        "unmanagedDisksRecommendationsRunbookName": "Recommend-VMsWithUnmanagedDisksToBlobStorage",
         "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
         "advisorRightSizeFilteredRemediationRunbookName": "Remediate-AdvisorRightSizeFiltered",
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
