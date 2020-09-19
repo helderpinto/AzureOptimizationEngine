@@ -67,8 +67,8 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 
 $baseQuery = @"
     $disksTableName 
-    | where OwnerVMId_s == ""
-    | project DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
+    | where TimeGenerated > ago(1d) and OwnerVMId_s == ""
+    | distinct DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)

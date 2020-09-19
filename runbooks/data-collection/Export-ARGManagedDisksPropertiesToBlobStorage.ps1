@@ -121,15 +121,21 @@ $statusDate = $datetime.ToString("yyyy-MM-dd")
 
 foreach ($disk in $mdisksTotal)
 {
+    $ownerVmId = $null
+    if ($null -ne $disk.managedBy)
+    {
+        $ownerVmId = $disk.managedBy.ToLower()
+    }
+
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
         TenantGuid = $disk.tenantId
         SubscriptionGuid = $disk.subscriptionId
-        ResourceGroupName = $disk.resourceGroup
-        DiskName = $disk.name
-        InstanceId = $disk.id
-        OwnerVMId = $disk.managedBy
+        ResourceGroupName = $disk.resourceGroup.ToLower()
+        DiskName = $disk.name.ToLower()
+        InstanceId = $disk.id.ToLower()
+        OwnerVMId = $ownerVmId
         DeploymentModel = "Managed"
         DiskType = $disk.diskType 
         Caching = $disk.diskCaching 

@@ -89,6 +89,7 @@ $argQuery = @"
     | extend availabilitySetId = tostring(properties.availabilitySet.id)
     | extend bootDiagnosticsEnabled = tostring(properties.diagnosticsProfile.bootDiagnostics.enabled)
     | extend bootDiagnosticsStorageAccount = split(split(properties.diagnosticsProfile.bootDiagnostics.storageUri, '/')[2],'.')[0]
+    | extend powerState = tostring(properties.extended.instanceView.powerState.code) 
     | order by id asc
 "@
 
@@ -124,6 +125,7 @@ $argQuery = @"
 	| extend availabilitySetId = tostring(properties.hardwareProfile.availabilitySet)
 	| extend bootDiagnosticsEnabled = tostring(properties.debugProfile.bootDiagnosticsEnabled)
     | extend bootDiagnosticsStorageAccount = split(split(properties.debugProfile.serialOutputBlobUri, '/')[2],'.')[0]
+    | extend powerState = tostring(properties.instanceView.status)
     | order by id asc
 "@
 
@@ -153,20 +155,28 @@ $min = $datetime.Minute
 $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
+Write-Output "Building $($armVmsTotal.Count) ARM VM entries"
+
 foreach ($vm in $armVmsTotal)
 {
     $vmSize = $sizes | Where-Object {$_.name -eq $vm.properties.hardwareProfile.vmSize}
+
+    $avSetId = $null
+    if ($vm.availabilitySetId)
+    {
+        $avSetId = $vm.availabilitySetId.ToLower()
+    }
 
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
         TenantGuid = $vm.tenantId
         SubscriptionGuid = $vm.subscriptionId
-        ResourceGroupName = $vm.resourceGroup
+        ResourceGroupName = $vm.resourceGroup.ToLower()
         Zones = $vm.zones
-        VMName = $vm.name
+        VMName = $vm.name.ToLower()
         DeploymentModel = 'ARM'
-        InstanceId = $vm.id
+        InstanceId = $vm.id.ToLower()
         VMSize = $vmSize.name
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
@@ -174,29 +184,38 @@ foreach ($vm in $armVmsTotal)
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks
-        AvailabilitySetId = $vm.availabilitySetId
+        AvailabilitySetId = $avSetId
         BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         StatusDate = $statusDate
+        PowerState = $vm.powerState
         Tags = $vm.tags
     }
     
     $allvms += $logentry
 }
 
+Write-Output "Building $($classicVmsTotal.Count) Classic VM entries"
+
 foreach ($vm in $classicVmsTotal)
 {
     $vmSize = $sizes | Where-Object {$_.name -eq $vm.properties.hardwareProfile.size}
+
+    $avSetId = $null
+    if ($vm.availabilitySetId)
+    {
+        $avSetId = $vm.availabilitySetId.ToLower()
+    }
 
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
         TenantGuid = $vm.tenantId
         SubscriptionGuid = $vm.subscriptionId
-        ResourceGroupName = $vm.resourceGroup
-        VMName = $vm.name
+        ResourceGroupName = $vm.resourceGroup.ToLower()
+        VMName = $vm.name.ToLower()
         DeploymentModel = 'Classic'
-        InstanceId = $vm.id
+        InstanceId = $vm.id.ToLower()
         VMSize = $vmSize.name
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
@@ -204,9 +223,10 @@ foreach ($vm in $classicVmsTotal)
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks
-        AvailabilitySetId = $vm.availabilitySetId
+        AvailabilitySetId = $avSetId
         BootDiagnosticsEnabled = $vm.bootDiagnosticsEnabled
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
+        PowerState = $vm.powerState
         StatusDate = $statusDate
         Tags = $null
     }
