@@ -50,10 +50,11 @@ You must publish the solution files into a publicly reachable URL. If you're usi
 
 Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the required performance counters, we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones!
 
-This solution currently supports two types of recommendations:
+This solution currently supports several types of recommendations, not restricted to Cost optimization:
 
 * Advisor Cost recommendations augmented with a confidence score based on performance metrics and Azure properties
 * Delete unattached disks
+* Upgrade Virtual Machines to Managed Disks
 
 For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the confidence score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables.
 
