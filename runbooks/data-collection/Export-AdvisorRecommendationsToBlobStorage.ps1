@@ -1,6 +1,15 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $targetSubscription = ""
+    [string] $targetSubscription = "",
+
+    [Parameter(Mandatory = $false)]
+    [string] $externalCloudEnvironment = "",
+
+    [Parameter(Mandatory = $false)]
+    [string] $externalTenantId = "",
+
+    [Parameter(Mandatory = $false)]
+    [string] $externalCredentialName = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,6 +40,11 @@ if ([string]::IsNullOrEmpty($advisorFilter))
     $advisorFilter = "cost"
 }
 
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
+}
+
 Write-Output "Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
@@ -50,6 +64,14 @@ switch ($authenticationOption) {
     }
 }
 
+Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
+    $cloudEnvironment = $externalCloudEnvironment   
+}
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 
@@ -59,11 +81,8 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 }
 else
 {
-    $subscriptions = Get-AzSubscription | ForEach-Object { "$($_.Id)"}
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
 }
-
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
 $recommendations = @()
 

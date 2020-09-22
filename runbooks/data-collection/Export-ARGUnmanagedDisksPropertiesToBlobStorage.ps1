@@ -1,6 +1,15 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $TargetSubscription = $null
+    [string] $TargetSubscription = $null,
+
+    [Parameter(Mandatory = $false)]
+    [string] $externalCloudEnvironment = "",
+
+    [Parameter(Mandatory = $false)]
+    [string] $externalTenantId = "",
+
+    [Parameter(Mandatory = $false)]
+    [string] $externalCredentialName = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,6 +35,11 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
     $storageAccountSinkContainer = "argvhdexports"
 }
 
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
+}
+
 $ARGPageSize = 1000
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -47,18 +61,30 @@ switch ($authenticationOption) {
     }
 }
 
+Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+
+$cloudSuffix = ""
+
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
+    $cloudSuffix = $externalCloudEnvironment.ToLower() + "-"
+    $cloudEnvironment = $externalCloudEnvironment   
+}
+
 $alldisks = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 {
     $subscriptions = $TargetSubscription
-    $subscriptionSuffix = "-" + $TargetSubscription
+    $subscriptionSuffix = $TargetSubscription
 }
 else
 {
     $subscriptions = Get-AzSubscription | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = "all"
+    $subscriptionSuffix = $cloudSuffix + "all"
 }
 
 $mdisksTotal = @()
@@ -165,8 +191,5 @@ $alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
 $csvBlobName = $csvExportPath
 
 $csvProperties = @{"ContentType" = "text/csv"};
-
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
