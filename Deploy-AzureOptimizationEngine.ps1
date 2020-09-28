@@ -134,6 +134,11 @@ else {
     $selectedSubscription = 0
 }
 
+if ($subscriptions.Count -eq 0)
+{
+    throw "No subscriptions found. Check if you are logged in with the right Azure AD account."
+}
+
 $subscriptionId = $subscriptions[$selectedSubscription].Id
 
 if ($ctx.Subscription.Id -ne $subscriptionId) {
