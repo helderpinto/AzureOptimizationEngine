@@ -161,6 +161,7 @@ foreach ($disk in $mdisksTotal)
         ResourceGroupName = $disk.resourceGroup.ToLower()
         DiskName = $disk.name.ToLower()
         InstanceId = $disk.id.ToLower()
+        Location = $disk.location
         OwnerVMId = $ownerVmId
         DeploymentModel = "Managed"
         DiskType = $disk.diskType 

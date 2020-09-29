@@ -200,6 +200,7 @@ foreach ($vm in $armVmsTotal)
         SubscriptionGuid = $vm.subscriptionId
         ResourceGroupName = $vm.resourceGroup.ToLower()
         Zones = $vm.zones
+        Location = $vm.location
         VMName = $vm.name.ToLower()
         DeploymentModel = 'ARM'
         InstanceId = $vm.id.ToLower()
@@ -241,6 +242,7 @@ foreach ($vm in $classicVmsTotal)
         ResourceGroupName = $vm.resourceGroup.ToLower()
         VMName = $vm.name.ToLower()
         DeploymentModel = 'Classic'
+        Location = $vm.location
         InstanceId = $vm.id.ToLower()
         VMSize = $vmSize.name
         CoresCount = $vmSize.NumberOfCores
