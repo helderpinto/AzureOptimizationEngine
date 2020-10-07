@@ -167,8 +167,8 @@ foreach ($result in $results) {
         RecommendationType          = "BestPractices"
         RecommendationSubType       = $recommendationSubType
         RecommendationSubTypeId     = $result.RecommendationTypeId_g
-        RecommendationDescription   = $result.Description_s
-        RecommendationAction        = $result.RecommendationText_s
+        RecommendationDescription   = $result.Description_s.Replace("'","")
+        RecommendationAction        = $result.RecommendationText_s.Replace("'","")
         InstanceId                  = $result.InstanceId_s
         InstanceName                = $result.InstanceName_s
         AdditionalInfo              = $additionalInfoDictionary

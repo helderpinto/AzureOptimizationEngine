@@ -91,6 +91,7 @@ foreach ($blob in $allblobs) {
 
     $tries = 0
     $connectionSuccess = $false
+
     do {
         $tries++
         try {
@@ -129,6 +130,11 @@ foreach ($blob in $allblobs) {
     $lastProcessedLine = $controlRow.LastProcessedLine
     $lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     $newProcessedTime = $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+
+    if ($Conn)
+    {
+        $Conn.Close()
+    }
 
     if ($lastProcessedDateTime -lt $newProcessedTime) {
         Write-Output "About to process $($blob.Name)..."
@@ -218,11 +224,14 @@ foreach ($blob in $allblobs) {
 
                     Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
                     $sqlStatement = "UPDATE [$SqlServerIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
+                    $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+                    $Conn.Open() 
                     $Cmd=new-object system.Data.SqlClient.SqlCommand
                     $Cmd.Connection = $Conn
                     $Cmd.CommandText = $sqlStatement
                     $Cmd.CommandTimeout=$SqlTimeout 
                     $Cmd.ExecuteReader()
+                    $Conn.Close()
                 }
                 else
                 {
