@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 
+# Collect generic and recommendation-specific variables
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
@@ -107,6 +108,8 @@ if (-not($rightSizeRecommendationId)) {
     $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
 }
 
+# Authenticate against Azure
+
 Write-Output "Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
@@ -127,7 +130,8 @@ switch ($authenticationOption) {
 }
 
 
-# Get the reference to the exports Storage Account
+# Grab a context reference to the Storage Account where the recommendations file will be stored
+
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
@@ -139,6 +143,8 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 Write-Output "Getting Virtual Machine SKUs for the $referenceRegion region..."
 # Get all the VM SKUs information for the reference Azure region
 $skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
+
+# Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
 let advisorInterval = $($daysBackwards)d;
@@ -220,6 +226,8 @@ $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 Write-Output "Query finished with $($results.Count) results."
 
 Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
@@ -467,6 +475,8 @@ foreach ($result in $results) {
 
     $recommendations += $recommendation
 }
+
+# Export the recommendations as JSON to blob storage
 
 Write-Output "Exporting final results as a JSON file..."
 

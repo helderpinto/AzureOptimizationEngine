@@ -3,8 +3,9 @@ param(
     [string] $CategoryFilter = "HighAvailability,Security,Performance,OperationalExcellence" # comma-separated list of categories
 )
 
-$ErrorActionPreference = "Stop"
+# Collect generic and recommendation-specific variables
 
+$ErrorActionPreference = "Stop"
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
@@ -47,6 +48,8 @@ if (-not($daysBackwards -gt 0)) {
     $daysBackwards = 7
 }
 
+# Authenticate against Azure
+
 Write-Output "Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
@@ -66,7 +69,8 @@ switch ($authenticationOption) {
     }
 }
 
-# Get the reference to the exports Storage Account
+# Grab a context reference to the Storage Account where the recommendations file will be stored
+
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
@@ -74,6 +78,8 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 {
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
+
+# Execute the recommendation query against Log Analytics
 
 $FinalCategoryFilter = ""
 
@@ -108,6 +114,8 @@ $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 Write-Output "Query finished with $($results.Count) results."
 
 Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
@@ -181,6 +189,8 @@ foreach ($result in $results) {
 
     $recommendations += $recommendation
 }
+
+# Export the recommendations as JSON to blob storage
 
 Write-Output "Exporting final results as a JSON file..."
 
