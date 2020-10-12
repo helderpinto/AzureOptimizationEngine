@@ -1,5 +1,7 @@
 $ErrorActionPreference = "Stop"
 
+# Collect generic and recommendation-specific variables
+
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
@@ -34,6 +36,8 @@ $vmsTableName = $lognamePrefix + $vmsTableSuffix
 
 $recommendationSearchTimeSpan = 1
 
+# Authenticate against Azure
+
 Write-Output "Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
@@ -53,6 +57,8 @@ switch ($authenticationOption) {
     }
 }
 
+# Grab a context reference to the Storage Account where the recommendations file will be stored
+
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
@@ -60,6 +66,8 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 {
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
+
+# Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
     $vmsTableName 
@@ -69,6 +77,8 @@ $baseQuery = @"
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
 $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+
+# Build the recommendations objects
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
@@ -132,6 +142,8 @@ foreach ($result in $results)
 
     $recommendations += $recommendation
 }
+
+# Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
 $jsonExportPath = "unmanageddisks-$fileDate.json"
