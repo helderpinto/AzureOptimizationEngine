@@ -1,3 +1,4 @@
+#Requires -RunAsAdministrator
 param (
     [Parameter(Mandatory = $false)]
     [string] $TemplateUri,
