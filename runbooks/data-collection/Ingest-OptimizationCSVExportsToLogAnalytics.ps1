@@ -48,7 +48,6 @@ if (-not($StorageBlobsPageSize -gt 0))
 }
 
 $SqlTimeout = 120
-$Timestampfield = "Timestamp" 
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -87,7 +86,7 @@ Function Build-OMSSignature ($workspaceId, $sharedKey, $date, $contentLength, $m
 }
 
 # Function to create and post the request
-Function Post-OMSData($workspaceId, $sharedKey, $body, $logType) {
+Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField) {
     $method = "POST"
     $contentType = "application/json"
     $resource = "/api/logs"
@@ -98,7 +97,6 @@ Function Post-OMSData($workspaceId, $sharedKey, $body, $logType) {
         -sharedKey $sharedKey `
         -date $rfc1123date `
         -contentLength $contentLength `
-        -fileName $fileName `
         -method $method `
         -contentType $contentType `
         -resource $resource
@@ -214,7 +212,7 @@ foreach ($blob in $allblobs) {
             $currentObjectLines = $csvObjectSplitted[$i].Count
             if ($lastProcessedLine -lt $linesProcessed) {				
 			    $jsonObject = ConvertTo-Json -InputObject $csvObjectSplitted[$i]                
-                $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname
+                $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp"
                 If ($res -ge 200 -and $res -lt 300) {
                     Write-Output "Succesfully uploaded $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows to Log Analytics"    
                     $linesProcessed += $currentObjectLines
