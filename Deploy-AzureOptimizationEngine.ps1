@@ -118,7 +118,7 @@ else {
 
 Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
 
-$subscriptions = Get-AzSubscription
+$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
 
 if ($subscriptions.Count -gt 1) {
     for ($i = 0; $i -lt $subscriptions.Count; $i++) {

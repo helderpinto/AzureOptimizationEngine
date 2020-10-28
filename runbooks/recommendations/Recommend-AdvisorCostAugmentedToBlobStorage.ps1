@@ -193,7 +193,7 @@ let WindowsNetworkPerf = Perf
 
 let DiskPerf = Perf
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
-| where CounterName in ('Disk Reads/sec', 'Disk Writes/sec', 'Disk Read Bytes/sec', 'Disk Write Bytes/sec') and InstanceName !in ("_Total", "D:", "/mnt/resource", "/mnt")
+| where CounterName in ('Disk Reads/sec', 'Disk Writes/sec', 'Disk Read Bytes/sec', 'Disk Write Bytes/sec') and InstanceName !in ('_Total', 'D:', '/mnt/resource', '/mnt')
 | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, perfTimeGrain), CounterName, InstanceName, _ResourceId
 | summarize SumPCounter = sum(PCounter) by CounterName, TimeGenerated, _ResourceId
 | summarize MaxPReadIOPS = maxif(SumPCounter, CounterName == 'Disk Reads/sec'), 
