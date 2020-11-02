@@ -182,7 +182,7 @@ let MemoryPerf = $vmsTableName
 
 let ProcessorPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
-| where CounterName == '% Processor Time' and InstanceName == '_Total' 
+| where ObjectName == 'Processor' and CounterName == '% Processor Time' and InstanceName == '_Total' 
 | summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId;
 
 let WindowsNetworkPerf = Perf 
