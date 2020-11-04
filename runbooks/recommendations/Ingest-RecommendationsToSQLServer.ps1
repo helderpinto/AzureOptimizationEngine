@@ -140,6 +140,7 @@ foreach ($blob in $allblobs) {
         Write-Output "About to process $($blob.Name)..."
         Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
         $jsonObject = Get-Content -Path $blob.Name | ConvertFrom-Json
+        Write-Output "Blob contains $($jsonObject.Count) results..."
  
         if ($null -eq $jsonObject)
         {
@@ -204,11 +205,20 @@ foreach ($blob in $allblobs) {
                     $Cmd.Connection = $Conn2
                     $Cmd.CommandText = $sqlStatement
                     $Cmd.CommandTimeout=120 
-                    $Cmd.ExecuteReader()
+                    try
+                    {
+                        $Cmd.ExecuteReader()
+                    }
+                    catch
+                    {
+                        Write-Output "Failed statement: $sqlStatement"
+                        throw
+                    }
             
                     $Conn2.Close()                
              
                     $linesProcessed += $currentObjectLines
+                    Write-Output "Processed $linesProcessed lines..."
                     if ($j -eq ($jsonObjectSplitted.Count - 1)) {
                         $lastProcessedLine = -1    
                     }
