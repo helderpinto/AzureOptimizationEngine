@@ -13,11 +13,11 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[dbo].[Recommenda
 			[RecommendationSubType] [varchar](50) NOT NULL,
 			[RecommendationSubTypeId] [uniqueidentifier] NOT NULL,
 			[RecommendationDescription] [nvarchar](1000) NULL,
-			[RecommendationAction] [nvarchar](500) NULL,
-			[InstanceId] [varchar](500) NULL,
+			[RecommendationAction] [nvarchar](1000) NULL,
+			[InstanceId] [varchar](1000) NULL,
 			[InstanceName] [varchar](500) NULL,
 			[AdditionalInfo] [nvarchar](max) NULL,
-			[ResourceGroup] [varchar](100) NULL,
+			[ResourceGroup] [varchar](200) NULL,
 			[SubscriptionGuid] [varchar](50) NULL,
 			[ConfidenceScore] [real] NOT NULL,
 			[Tags] [nvarchar](max) NULL,
@@ -31,5 +31,8 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[dbo].[Recommenda
 	END
 ELSE
 	BEGIN
+		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [RecommendationAction] VARCHAR (1000) NULL
+		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceId] VARCHAR (1000) NULL
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceName] VARCHAR (500) NULL
+		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [ResourceGroup] VARCHAR (200) NULL
 	END

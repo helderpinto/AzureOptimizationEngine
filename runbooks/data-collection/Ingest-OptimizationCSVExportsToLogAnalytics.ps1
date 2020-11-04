@@ -183,6 +183,9 @@ foreach ($blob in $allblobs) {
 
     $controlRow = $controlRows[0]
 
+    $Conn.Close()    
+    $Conn.Dispose()            
+
     $lastProcessedLine = $controlRow.LastProcessedLine
     $lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     $newProcessedTime = $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
@@ -194,6 +197,19 @@ foreach ($blob in $allblobs) {
         $logname = $lognamePrefix + $controlRow.LogAnalyticsSuffix
         $linesProcessed = 0
         $csvObjectSplitted = @()
+
+        if ($null -eq $csvObject)
+        {
+            $recCount = 0
+        }
+        elseif ($null -eq $csvObject.Count)
+        {
+            $recCount = 1
+        }
+        else
+        {
+            $recCount = $csvObject.Count    
+        }
 
         if ($recCount -gt 1)
         {
@@ -230,11 +246,15 @@ foreach ($blob in $allblobs) {
                     }
                     Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
                     $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
+                    $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+                    $Conn.Open() 
                     $Cmd=new-object system.Data.SqlClient.SqlCommand
                     $Cmd.Connection = $Conn
                     $Cmd.CommandText = $sqlStatement
                     $Cmd.CommandTimeout=120 
                     $Cmd.ExecuteReader()
+                    $Conn.Close()    
+                    $Conn.Dispose()            
                 }
                 Else {
                     $linesProcessed += $currentObjectLines
@@ -247,6 +267,4 @@ foreach ($blob in $allblobs) {
             }            
         }
     }
-    $Conn.Close()    
-    $Conn.Dispose()            
 }
