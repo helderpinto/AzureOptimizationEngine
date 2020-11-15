@@ -21,3 +21,9 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('remediationlogs', '1901-01-01T00:00:00Z', -1, 'RemediationV1')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'consumptionexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('consumptionexports', '1901-01-01T00:00:00Z', -1, 'ConsumptionV1')
+END
