@@ -367,17 +367,17 @@
             {
                 "name": "AzureOptimization_LogAnalyticsChunkSize",
                 "description": "The size (in rows) for each chunk of Log Analytics ingestion request",
-                "value": "[concat('\"','10000','\"')]"
+                "value": 10000
             },
             {
                 "name": "AzureOptimization_StorageBlobsPageSize",
                 "description": "The size (in blobs count) for each page of Storage Account container blob listing",
-                "value": "[concat('\"','1000','\"')]"
+                "value": 1000
             },
             {
                 "name": "AzureOptimization_SQLServerInsertSize",
                 "description": "The size (in inserted lines) for each page of recommendations ingestion into the SQL Database",
-                "value": "[concat('\"','900','\"')]"
+                "value": 900
             },
             {
                 "name": "AzureOptimization_LogAnalyticsLogPrefix",
@@ -407,57 +407,57 @@
             {
                 "name": "AzureOptimization_RecommendAdvisorPeriodInDays",
                 "description": "The period (in days) to look back for Advisor exported recommendations",
-                "value": "[concat('\"','7','\"')]"
+                "value": 7
             },
             {
                 "name": "AzureOptimization_PerfPercentileCpu",
                 "description": "The percentile to be used for processor metrics",
-                "value": "[concat('\"','99','\"')]"
+                "value": 99
             },
             {
                 "name": "AzureOptimization_PerfPercentileMemory",
                 "description": "The percentile to be used for memory metrics",
-                "value": "[concat('\"','99','\"')]"
+                "value": 99
             },
             {
                 "name": "AzureOptimization_PerfPercentileNetwork",
                 "description": "The percentile to be used for network metrics",
-                "value": "[concat('\"','99','\"')]"
+                "value": 99
             },
             {
                 "name": "AzureOptimization_PerfPercentileDisk",
                 "description": "The percentile to be used for disk metrics",
-                "value": "[concat('\"','99','\"')]"
+                "value": 99
             },
             {
                 "name": "AzureOptimization_PerfThresholdCpuPercentage",
                 "description": "The processor usage percentage threshold above which the confidence score is decreased",
-                "value": "[concat('\"','30','\"')]"
+                "value": 30
             },
             {
                 "name": "AzureOptimization_PerfThresholdMemoryPercentage",
                 "description": "The memory usage percentage threshold above which the confidence score is decreased",
-                "value": "[concat('\"','50','\"')]"
+                "value": 50
             },
             {
                 "name": "AzureOptimization_PerfThresholdNetworkMbps",
                 "description": "The network usage threshold (in Mbps) above which the confidence score is decreased",
-                "value": "[concat('\"','750','\"')]"
+                "value": 750
             },
             {
                 "name": "AzureOptimization_PerfThresholdCpuShutdownPercentage",
                 "description": "The processor usage percentage threshold above which the confidence score is decreased (shutdown scenarios)",
-                "value": "[concat('\"','5','\"')]"
+                "value": 5
             },
             {
                 "name": "AzureOptimization_PerfThresholdMemoryShutdownPercentage",
                 "description": "The memory usage percentage threshold above which the confidence score is decreased (shutdown scenarios)",
-                "value": "[concat('\"','100','\"')]"
+                "value": 100
             },
             {
                 "name": "AzureOptimization_PerfThresholdNetworkShutdownMbps",
                 "description": "The network usage threshold (in Mbps) above which the confidence score is decreased (shutdown scenarios)",
-                "value": "[concat('\"','10','\"')]"
+                "value": 10
             },
             {
                 "name": "AzureOptimization_RemediateRightSizeMinConfidenceScore",
@@ -467,7 +467,7 @@
             {
                 "name": "AzureOptimization_RemediateRightSizeMinWeeksInARow",
                 "description": "The minimum number of weeks in a row required for a right-size recommendation to be remediated",
-                "value": "[concat('\"','4','\"')]"
+                "value": 4
             },
             {
                 "name": "AzureOptimization_RecommendationAdvisorCostRightSizeId",
