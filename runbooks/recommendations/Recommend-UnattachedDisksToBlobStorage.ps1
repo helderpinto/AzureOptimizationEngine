@@ -38,6 +38,9 @@ if ([string]::IsNullOrEmpty($lognamePrefix))
 $disksTableSuffix = "DisksV1_CL"
 $disksTableName = $lognamePrefix + $disksTableSuffix
 
+$consumptionTableSuffix = "ConsumptionV1_CL"
+$consumptionTableName = $lognamePrefix + $consumptionTableSuffix
+
 $recommendationSearchTimeSpan = 1
 
 # Authenticate against Azure
@@ -74,9 +77,18 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
-    $disksTableName 
+    let interval = 30d;
+    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let stime = etime-interval; 
+    
+    $disksTableName
     | where TimeGenerated > ago(1d) and isempty(OwnerVMId_s)
     | distinct DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
+    | join kind=leftouter (
+        $consumptionTableName
+        | where UsageDate_t > stime 
+    ) on InstanceId_s
+    | summarize Last30DaysCost=sum(todouble(Cost_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
@@ -104,10 +116,14 @@ foreach ($result in $results)
     $querySubscriptionId = $result.SubscriptionGuid_g
     $queryText = @"
     $disksTableName
-    | extend InstanceId = tolower(InstanceId_s)
-    | where InstanceId == tolower(`'$queryInstanceId`')  and OwnerVMId_s == ''
+    | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
     | project DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
     | summarize LastAttachedDate = min(TimeGenerated) by DiskName_s, DiskSizeGB_s, SKU_s
+    | join kind=inner (
+        $consumptionTableName
+    ) on InstanceId_s
+    | where UsageDate_t > LastAttachedDate
+    | summarize CostsSinceDetached = sum(todouble(Cost_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
@@ -119,6 +135,8 @@ foreach ($result in $results)
     $additionalInfoDictionary["DiskType"] = "Managed"
     $additionalInfoDictionary["currentSku"] = $result.SKU_s
     $additionalInfoDictionary["DiskSizeGB"] = [int] $result.DiskSizeGB_s 
+    $additionalInfoDictionary["CostsAmount"] = [int] $result.Last30DaysCost 
+    $additionalInfoDictionary["savingsAmount"] = [int] $result.Last30DaysCost 
 
     $confidenceScore = 5
 
