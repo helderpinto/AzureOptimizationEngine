@@ -71,12 +71,9 @@ switch ($authenticationOption) {
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
-$cloudSuffix = ""
-
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
     Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
-    $cloudSuffix = $externalCloudEnvironment.ToLower() + "-"
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
