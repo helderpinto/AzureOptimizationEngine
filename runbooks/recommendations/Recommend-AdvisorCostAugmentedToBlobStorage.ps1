@@ -39,6 +39,9 @@ $vmsTableName = $lognamePrefix + $vmsTableSuffix
 $advisorTableSuffix = "AdvisorV1_CL"
 $advisorTableName = $lognamePrefix + $advisorTableSuffix
 
+$consumptionTableSuffix = "ConsumptionV1_CL"
+$consumptionTableName = $lognamePrefix + $consumptionTableSuffix
+
 $referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion"
 
 # must be less than or equal to the advisor exports frequency
@@ -155,6 +158,9 @@ let memoryPercentileValue = $memoryPercentile;
 let networkPercentileValue = $networkPercentile;
 let diskPercentileValue = $diskPercentile;
 let rightSizeRecommendationId = '$rightSizeRecommendationId';
+let billingInterval = 30d;
+let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+let stime = etime-billingInterval; 
 
 let RightSizeInstanceIds = materialize($advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost' and RecommendationTypeId_g == rightSizeRecommendationId
@@ -204,6 +210,13 @@ let DiskPerf = Perf
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
 | join kind=leftouter (
+    $consumptionTableName
+    | where UsageDate_t > stime
+    | extend ConsumedQuantity = todouble(Quantity_s)
+    | extend UnreservedCost = iif(todouble(EffectivePrice_s) == 0.0, todouble(UnitPrice_s) * ConsumedQuantity, todouble(EffectivePrice_s) * ConsumedQuantity)
+    | project InstanceId_s, UnreservedCost, ConsumedQuantity
+) on InstanceId_s
+| join kind=leftouter (
     $vmsTableName 
     | where TimeGenerated > ago(1d) 
     | project InstanceId_s, NicCount_s, DataDiskCount_s, Tags_s
@@ -215,7 +228,7 @@ $advisorTableName
 | join kind=leftouter hint.strategy=broadcast ( DiskPerf ) on `$left.InstanceId_s == `$right._ResourceId
 | extend MaxPIOPS = MaxPReadIOPS + MaxPWriteIOPS, MaxPMiBps = MaxPReadMiBps + MaxPWriteMiBps
 | extend PNetworkMbps = PNetwork * 8 / 1000 / 1000
-| summarize by InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s            
+| summarize Last30DaysCost=sum(UnreservedCost), Last30DaysQuantity = sum(ConsumedQuantity) by InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s            
 "@
 
 Write-Output "Getting cost recommendations for $($daysBackwards)d Advisor and $($perfDaysBackwards)d Perf history and a $perfTimeGrain time grain..."
@@ -267,6 +280,8 @@ foreach ($result in $results) {
             $additionalInfoDictionary[$key] = $value
         }
     }
+
+    $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
 
     $confidenceScore = -1
     $hasCpuRamPerfMetrics = $false

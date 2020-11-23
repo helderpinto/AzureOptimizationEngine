@@ -135,8 +135,8 @@ foreach ($result in $results)
     $additionalInfoDictionary["DiskType"] = "Managed"
     $additionalInfoDictionary["currentSku"] = $result.SKU_s
     $additionalInfoDictionary["DiskSizeGB"] = [int] $result.DiskSizeGB_s 
-    $additionalInfoDictionary["CostsAmount"] = [int] $result.Last30DaysCost 
-    $additionalInfoDictionary["savingsAmount"] = [int] $result.Last30DaysCost 
+    $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
+    $additionalInfoDictionary["savingsAmount"] = [double] $result.Last30DaysCost 
 
     $confidenceScore = 5
 
