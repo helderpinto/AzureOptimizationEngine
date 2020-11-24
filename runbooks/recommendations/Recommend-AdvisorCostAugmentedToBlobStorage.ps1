@@ -1,5 +1,82 @@
 $ErrorActionPreference = "Stop"
 
+function Find-SkuHourlyPrice {
+    param (
+        [object] $SKUPriceSheet,
+        [string] $SKUName
+    )
+
+    $skuPriceObject = $null
+
+    if ($SKUPriceSheet)
+    {
+        $skuNameParts = $SKUName.Split('_')
+
+        if ($skuNameParts.Count -eq 3) # e.g., Standard_D1_v2
+        {
+            $skuNameFilter = "*" + $skuNameParts[1] + "*"
+            $skuVersionFilter = "*" + $skuNameParts[2]
+            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
+             -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
+             -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
+             -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
+            
+            if ($skuPrices.Count -eq 2)
+            {
+                $skuPriceObject = $skuPrices[0]
+            }
+            if ($skuPrices.Count -gt 2) # D1-like scenarios
+            {
+                $skuFilter = "*" + $skuNameParts[1] + " " + $skuNameParts[2] + "*"
+                $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilter }
+    
+                if ($skuPrices.Count -eq 2)
+                {
+                    $skuPriceObject = $skuPrices[0]
+                }
+            }
+        }
+    
+        if ($skuNameParts.Count -eq 2) # e.g., Standard_D1
+        {
+            $skuNameFilter = "*" + $skuNameParts[1] + "*"
+    
+            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
+             -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
+             -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
+             -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
+            
+            if ($skuPrices.Count -eq 2)
+            {
+                $skuPriceObject = $skuPrices[0]
+            }
+            if ($skuPrices.Count -gt 2) # D1-like scenarios
+            {
+                $skuFilterLeft = "*" + $skuNameParts[1] + "/*"
+                $skuFilterRight = "*/" + $skuNameParts[1] + "*"
+                $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilterLeft -or $_.MeterDetails.MeterName -like $skuFilterRight }
+                
+                if ($skuPrices.Count -eq 2)
+                {
+                    $skuPriceObject = $skuPrices[0]
+                }
+            }
+        }    
+    }
+
+    $targetHourlyPrice = [double]::MaxValue
+    if ($null -ne $skuPriceObject)
+    {
+        $targetUnitHours = [int] (Select-String -InputObject $skuPriceObject.UnitOfMeasure -Pattern "^\d+").Matches[0].Value
+        if ($targetUnitHours -gt 0)
+        {
+            $targetHourlyPrice = [double] ($skuPriceObject.UnitPrice / $targetUnitHours)
+        }
+    }
+
+    return $targetHourlyPrice
+}
+
 # Collect generic and recommendation-specific variables
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
@@ -143,9 +220,22 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
+
 Write-Output "Getting Virtual Machine SKUs for the $referenceRegion region..."
 # Get all the VM SKUs information for the reference Azure region
 $skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
+
+Write-Output "Getting the current Pricesheet..."
+
+try 
+{
+    $pricesheet = Get-AzConsumptionPriceSheet -ExpandMeterDetail
+}
+catch
+{
+    Write-Output "Consumption pricesheet not available, will revert to the Retail Prices API..."
+    $pricesheet = $null
+}
 
 # Execute the recommendation query against Log Analytics
 
@@ -254,6 +344,8 @@ if ($min -lt 10) {
 }
 $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
 
+$skuPricesFound = @{}
+
 Write-Output "Generating confidence score..."
 
 foreach ($result in $results) {  
@@ -305,8 +397,10 @@ foreach ($result in $results) {
 
         $targetSku = $null
         if ($additionalInfoDictionary.targetSku -ne "Shutdown") {
-
+            $currentSku = $skus | Where-Object { $_.Name -eq $additionalInfoDictionary.currentSku }
+            $currentSkuvCPUs = [double]($currentSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
             $targetSku = $skus | Where-Object { $_.Name -eq $additionalInfoDictionary.targetSku }
+            $targetSkuvCPUs = [double]($targetSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
             $targetMaxDataDiskCount = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'MaxDataDiskCount' }).Value
             if ($targetMaxDataDiskCount -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.DataDiskCount_s))) {
@@ -374,6 +468,52 @@ foreach ($result in $results) {
             else {
                 $additionalInfoDictionary["SupportsMiBps"] = "unknown:needs$($result.MaxPMiBps)"
             }
+
+            $savingCoefficient = $currentSkuvCPUs / $targetSkuvCPUs
+
+            if ($null -eq $skuPricesFound[$targetSku.Name])
+            {
+                $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheet
+            }
+
+            $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
+
+            if ($skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
+            {
+                $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
+
+                if ($null -eq $skuPricesFound[$currentSku.Name])
+                {
+                    $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheet
+                }
+
+                if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
+                {
+                    $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
+                    $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                }
+                else
+                {
+                    $targetSkuSavingsMonthly = $result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                }
+            }
+
+            $savingsMonthly = $targetSkuSavingsMonthly
+
+        }
+        else
+        {
+            $savingsMonthly = $result.Last30DaysCost
+
+            if ($null -eq $skuPricesFound[$currentSku.Name])
+            {
+                $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheet
+            }
+            if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
+            {
+                $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
+                $savingsMonthly = $currentSkuPrice * [double] $result.Last30DaysQuantity
+            }
         }
 
         $cpuThreshold = $cpuPercentageThreshold
@@ -420,6 +560,15 @@ foreach ($result in $results) {
 
         $confidenceScore = [Math]::max(0.0, $confidenceScore)
     }
+    else
+    {
+        if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["savingsAmount"])))
+        {
+            $savingsMonthly = [double] $additionalInfoDictionary["savingsAmount"] / 12
+        }            
+    }
+
+    $additionalInfoDictionary["savingsAmount"] = [double] $savingsMonthly     
 
     $queryInstanceId = $result.InstanceId_s
     if (-not($hasCpuRamPerfMetrics))
@@ -457,7 +606,7 @@ foreach ($result in $results) {
         | where CounterName == '% Processor Time' and InstanceName == '_Total' and _ResourceId =~ armId
         | summarize P$($cpuPercentile)CPUPercentage = percentile(CounterValue, $cpuPercentile) by bin(TimeGenerated, gInt);
         MemoryPerf
-        | union ProcessorPerf
+        | join kind=inner (ProcessorPerf) on TimeGenerated
         | render timechart
 "@
     
