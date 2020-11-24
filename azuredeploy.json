@@ -197,12 +197,16 @@
         },
         "Az.Accounts": {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.1.2"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.2.1"
         },
         "psModules": [
             {
                 "name": "Az.Advisor",
                 "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
+            },
+            {
+                "name": "Az.Billing",
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Billing/2.0.0"
             },
             {
                 "name": "Az.Compute",
