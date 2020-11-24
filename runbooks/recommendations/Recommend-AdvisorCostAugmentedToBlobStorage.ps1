@@ -565,6 +565,10 @@ foreach ($result in $results) {
         if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["savingsAmount"])))
         {
             $savingsMonthly = [double] $additionalInfoDictionary["savingsAmount"] / 12
+        }
+        else
+        {
+            $savingsMonthly = [double] $result.Last30DaysCost 
         }            
     }
 
