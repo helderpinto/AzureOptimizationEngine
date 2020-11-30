@@ -110,15 +110,6 @@ if ([string]::IsNullOrEmpty($lognamePrefix))
     $lognamePrefix = "AzureOptimization"
 }
 
-$vmsTableSuffix = "VMsV1_CL"
-$vmsTableName = $lognamePrefix + $vmsTableSuffix
-
-$advisorTableSuffix = "AdvisorV1_CL"
-$advisorTableName = $lognamePrefix + $advisorTableSuffix
-
-$consumptionTableSuffix = "ConsumptionV1_CL"
-$consumptionTableName = $lognamePrefix + $consumptionTableSuffix
-
 $referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion"
 
 # must be less than or equal to the advisor exports frequency
@@ -188,6 +179,19 @@ if (-not($rightSizeRecommendationId)) {
     $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
 }
 
+$sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
+$sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization_SQLServerCredential"
+$SqlUsername = $sqlserverCredential.UserName 
+$SqlPass = $sqlserverCredential.GetNetworkCredential().Password 
+$sqldatabase = Get-AutomationVariable -Name  "AzureOptimization_SQLServerDatabase" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($sqldatabase))
+{
+    $sqldatabase = "azureoptimization"
+}
+
+$SqlTimeout = 120
+$LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
+
 # Authenticate against Azure
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -209,6 +213,44 @@ switch ($authenticationOption) {
     }
 }
 
+$tries = 0
+$connectionSuccess = $false
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor','AzureConsumption')"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $controlRows = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($controlRows) | Out-Null           
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+$advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
+$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+
+Write-Output "Running query against tables $vmsTableName, $advisorTableName and $consumptionTableName"
+
+$Conn.Close()    
+$Conn.Dispose()            
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 

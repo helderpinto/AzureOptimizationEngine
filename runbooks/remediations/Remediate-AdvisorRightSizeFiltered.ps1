@@ -103,7 +103,7 @@ do {
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
         $vmsToRightSize = New-Object System.Data.DataTable
-        $sqlAdapter.Fill($vmsToRightSize)            
+        $sqlAdapter.Fill($vmsToRightSize) | Out-Null            
         $connectionSuccess = $true
     }
     catch {
