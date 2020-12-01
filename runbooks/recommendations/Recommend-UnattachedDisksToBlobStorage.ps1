@@ -164,8 +164,8 @@ foreach ($result in $results)
     $queryText = @"
     $disksTableName
     | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
-    | project DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
-    | summarize LastAttachedDate = min(TimeGenerated) by DiskName_s, DiskSizeGB_s, SKU_s
+    | project InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
+    | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
     | join kind=inner (
         $consumptionTableName
     ) on InstanceId_s
