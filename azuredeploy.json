@@ -147,6 +147,13 @@
                 "description": "GUID for the Augmented Advisor Cost Recommendation Generation job schedule creation - create a unique before deploy"
             }
         },
+        "advisorAsIsRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Advisor General Recommendations Generation job schedule creation - create a unique before deploy"
+            }
+        },
         "unmanagedDisksRecommendationJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -176,6 +183,7 @@
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
+        "advisorAsIsRecommendationsRunbookName": "Recommend-AdvisorAsIsToBlobStorage",
         "unmanagedDisksRecommendationsRunbookName": "Recommend-VMsWithUnmanagedDisksToBlobStorage",
         "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
         "advisorRightSizeFilteredRemediationRunbookName": "Remediate-AdvisorRightSizeFiltered",
@@ -274,6 +282,13 @@
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('advisorAsIsRecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates all types of Advisor recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorAsIsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unmanagedDisksRecommendationsRunbookName')]",
@@ -1258,6 +1273,27 @@
                 },
                 "runbook": {
                     "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Advisor Generic Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('advisorAsIsRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('advisorAsIsRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('advisorAsIsRecommendationsRunbookName')]"
                 }
             }
         },
