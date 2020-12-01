@@ -65,6 +65,8 @@ switch ($authenticationOption) {
     }
 }
 
+Write-Output "Finding tables where recommendations will be generated from..."
+
 $tries = 0
 $connectionSuccess = $false
 do {
@@ -97,7 +99,7 @@ if (-not($connectionSuccess))
 
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Running query against table $vmsTableName"
+Write-Output "Will run query against table $vmsTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            

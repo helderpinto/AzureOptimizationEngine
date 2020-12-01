@@ -213,6 +213,8 @@ switch ($authenticationOption) {
     }
 }
 
+Write-Output "Finding tables where recommendations will be generated from..."
+
 $tries = 0
 $connectionSuccess = $false
 do {
@@ -247,7 +249,7 @@ $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType
 $advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Running query against tables $vmsTableName, $advisorTableName and $consumptionTableName"
+Write-Output "Will run query against tables $vmsTableName, $advisorTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -275,7 +277,7 @@ try
 }
 catch
 {
-    Write-Output "Consumption pricesheet not available, will revert to the Retail Prices API..."
+    Write-Output "Consumption pricesheet not available, will estimate savings based in cores count..."
     $pricesheet = $null
 }
 
@@ -344,9 +346,10 @@ $advisorTableName
 | join kind=leftouter (
     $consumptionTableName
     | where UsageDate_t > stime
-    | extend ConsumedQuantity = todouble(Quantity_s)
-    | extend UnreservedCost = iif(todouble(EffectivePrice_s) == 0.0, todouble(UnitPrice_s) * ConsumedQuantity, todouble(EffectivePrice_s) * ConsumedQuantity)
-    | project InstanceId_s, UnreservedCost, ConsumedQuantity
+    | extend VMConsumedQuantity = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
+    | extend VMPrice = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
+    | extend FinalCost = iif(InstanceId_s contains 'virtualmachines', VMPrice * VMConsumedQuantity, todouble(Cost_s))
+    | summarize UnreservedCost = sum(FinalCost), ConsumedQuantity = sum(VMConsumedQuantity) by InstanceId_s
 ) on InstanceId_s
 | join kind=leftouter (
     $vmsTableName 
@@ -546,16 +549,6 @@ foreach ($result in $results) {
         else
         {
             $savingsMonthly = $result.Last30DaysCost
-
-            if ($null -eq $skuPricesFound[$currentSku.Name])
-            {
-                $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheet
-            }
-            if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
-            {
-                $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
-                $savingsMonthly = $currentSkuPrice * [double] $result.Last30DaysQuantity
-            }
         }
 
         $cpuThreshold = $cpuPercentageThreshold

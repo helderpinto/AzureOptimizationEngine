@@ -76,6 +76,8 @@ switch ($authenticationOption) {
     }
 }
 
+Write-Output "Finding tables where recommendations will be generated from..."
+
 $tries = 0
 $connectionSuccess = $false
 do {
@@ -109,7 +111,7 @@ if (-not($connectionSuccess))
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 $advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Running query against tables $vmsTableName and $advisorTableName"
+Write-Output "Will run query against tables $vmsTableName and $advisorTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            

@@ -69,6 +69,8 @@ switch ($authenticationOption) {
     }
 }
 
+Write-Output "Finding tables where recommendations will be generated from..."
+
 $tries = 0
 $connectionSuccess = $false
 do {
@@ -102,7 +104,7 @@ if (-not($connectionSuccess))
 $disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGManagedDisk' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Running query against tables $disksTableName and $consumptionTableName"
+Write-Output "Will run query against tables $disksTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
