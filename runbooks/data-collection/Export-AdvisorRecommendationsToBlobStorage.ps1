@@ -91,9 +91,7 @@ $recommendations = @()
 #>
 
 $datetime = (get-date).ToUniversalTime()
-$hour = $datetime.Hour
-$min = $datetime.Minute
-$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($subscription in $subscriptions)
 {

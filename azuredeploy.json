@@ -236,28 +236,28 @@
         "runbooks": [
             {
                 "name": "[variables('advisorExportsRunbookName')]",
-                "version": "1.2.0.0",
+                "version": "1.2.1.0",
                 "description": "Exports Azure Advisor recommendations to Blob Storage using the Advisor API",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argDisksExportsRunbookName')]",
-                "version": "1.2.0.0",
+                "version": "1.2.1.0",
                 "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argVmExportsRunbookName')]",
-                "version": "1.3.0.0",
+                "version": "1.3.1.0",
                 "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('consumptionExportsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Exports Azure Consumption events to Blob Storage using Azure Consumption API",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('consumptionExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -271,28 +271,28 @@
             },
             {
                 "name": "[variables('unattachedDisksRecommendationsRunbookName')]",
-                "version": "2.1.0.0",
+                "version": "2.1.1.0",
                 "description": "Generates unattached disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                "version": "2.1.0.0",
+                "version": "2.1.1.0",
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorAsIsRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates all types of Advisor recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorAsIsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unmanagedDisksRecommendationsRunbookName')]",
-                "version": "1.2.0.0",
+                "version": "1.2.1.0",
                 "description": "Generates unmanaged disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unmanagedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -372,6 +372,11 @@
                 "name": "AzureOptimization_RemediationLogsContainer",
                 "description": "The Storage Account container where remediation logs are dumped to",
                 "value": "[concat('\"',variables('remediationLogsContainerName'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_AdvisorFilter",
+                "description": "The category filter to use for Azure Advisor recommendations exports",
+                "value": "[concat('\"','all','\"')]"
             },
             {
                 "name": "AzureOptimization_ReferenceRegion",

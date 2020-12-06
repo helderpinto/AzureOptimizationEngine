@@ -145,17 +145,7 @@ $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
-$hour = $datetime.Hour
-if ($hour -lt 10)
-{
-    $hour = "0" + $hour
-}
-$min = $datetime.Minute
-if ($min -lt 10)
-{
-    $min = "0" + $min
-}
-$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
@@ -164,7 +154,7 @@ foreach ($result in $results)
     $queryText = @"
     $disksTableName
     | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
-    | project InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
+    | distinct InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
     | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
     | join kind=inner (
         $consumptionTableName
