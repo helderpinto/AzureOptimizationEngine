@@ -271,43 +271,43 @@
             },
             {
                 "name": "[variables('unattachedDisksRecommendationsRunbookName')]",
-                "version": "2.1.1.0",
+                "version": "2.2.0.0",
                 "description": "Generates unattached disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                "version": "2.1.1.0",
+                "version": "2.2.0.0",
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorAsIsRecommendationsRunbookName')]",
-                "version": "1.0.1.0",
+                "version": "1.1.0.0",
                 "description": "Generates all types of Advisor recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorAsIsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unmanagedDisksRecommendationsRunbookName')]",
-                "version": "1.2.1.0",
+                "version": "1.3.0.0",
                 "description": "Generates unmanaged disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unmanagedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('recommendationsIngestRunbookName')]",
-                "version": "1.4.0.0",
+                "version": "1.5.0.0",
                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorRightSizeFilteredRemediationRunbookName')]",
-                "version": "1.1.0.0",
-                "description": "Remediates Azure Advisor right-size recommendations given confidence and tag filters",
+                "version": "1.2.0.0",
+                "description": "Remediates Azure Advisor right-size recommendations given fit and tag filters",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('advisorRightSizeFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             }
@@ -455,37 +455,37 @@
             },
             {
                 "name": "AzureOptimization_PerfThresholdCpuPercentage",
-                "description": "The processor usage percentage threshold above which the confidence score is decreased",
+                "description": "The processor usage percentage threshold above which the fit score is decreased",
                 "value": 30
             },
             {
                 "name": "AzureOptimization_PerfThresholdMemoryPercentage",
-                "description": "The memory usage percentage threshold above which the confidence score is decreased",
+                "description": "The memory usage percentage threshold above which the fit score is decreased",
                 "value": 50
             },
             {
                 "name": "AzureOptimization_PerfThresholdNetworkMbps",
-                "description": "The network usage threshold (in Mbps) above which the confidence score is decreased",
+                "description": "The network usage threshold (in Mbps) above which the fit score is decreased",
                 "value": 750
             },
             {
                 "name": "AzureOptimization_PerfThresholdCpuShutdownPercentage",
-                "description": "The processor usage percentage threshold above which the confidence score is decreased (shutdown scenarios)",
+                "description": "The processor usage percentage threshold above which the fit score is decreased (shutdown scenarios)",
                 "value": 5
             },
             {
                 "name": "AzureOptimization_PerfThresholdMemoryShutdownPercentage",
-                "description": "The memory usage percentage threshold above which the confidence score is decreased (shutdown scenarios)",
+                "description": "The memory usage percentage threshold above which the fit score is decreased (shutdown scenarios)",
                 "value": 100
             },
             {
                 "name": "AzureOptimization_PerfThresholdNetworkShutdownMbps",
-                "description": "The network usage threshold (in Mbps) above which the confidence score is decreased (shutdown scenarios)",
+                "description": "The network usage threshold (in Mbps) above which the fit score is decreased (shutdown scenarios)",
                 "value": 10
             },
             {
-                "name": "AzureOptimization_RemediateRightSizeMinConfidenceScore",
-                "description": "The minimum confidence score for right-size remediation",
+                "name": "AzureOptimization_RemediateRightSizeMinFitScore",
+                "description": "The minimum fit score for right-size remediation",
                 "value": "[concat('\"','5.0','\"')]"
             },
             {

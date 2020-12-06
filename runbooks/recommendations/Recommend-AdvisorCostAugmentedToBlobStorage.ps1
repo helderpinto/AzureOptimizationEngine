@@ -384,7 +384,7 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 $skuPricesFound = @{}
 
-Write-Output "Generating confidence score..."
+Write-Output "Generating fit score..."
 
 foreach ($result in $results) {  
     $queryInstanceId = $result.InstanceId_s
@@ -413,11 +413,11 @@ foreach ($result in $results) {
 
     $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
 
-    $confidenceScore = -1
+    $fitScore = -1
     $hasCpuRamPerfMetrics = $false
 
     if ($additionalInfoDictionary.targetSku) {
-        $confidenceScore = 5
+        $fitScore = 5
         $additionalInfoDictionary["SupportsDataDisksCount"] = "true"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["SupportsNICCount"] = "true"
@@ -443,63 +443,63 @@ foreach ($result in $results) {
             if ($targetMaxDataDiskCount -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.DataDiskCount_s))) {
                     if ([int]$result.DataDiskCount_s -gt $targetMaxDataDiskCount) {
-                        $confidenceScore = 1
+                        $fitScore = 1
                         $additionalInfoDictionary["SupportsDataDisksCount"] = "false:needs$($result.DataDiskCount_s)-max$targetMaxDataDiskCount"
                     }
                 }
                 else {
-                    $confidenceScore -= 1
+                    $fitScore -= 1
                     $additionalInfoDictionary["SupportsDataDisksCount"] = "unknown:max$targetMaxDataDiskCount"
                 }
             }
             else {
-                $confidenceScore -= 1
+                $fitScore -= 1
                 $additionalInfoDictionary["SupportsDataDisksCount"] = "unknown:needs$($result.DataDiskCount_s)"
             }
             $targetMaxNICCount = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'MaxNetworkInterfaces' }).Value
             if ($targetMaxNICCount -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.NicCount_s))) {
                     if ([int]$result.NicCount_s -gt $targetMaxNICCount) {
-                        $confidenceScore = 1
+                        $fitScore = 1
                         $additionalInfoDictionary["SupportsNICCount"] = "false:needs$($result.NicCount_s)-max$targetMaxNICCount"
                     }
                 }
                 else {
-                    $confidenceScore -= 1
+                    $fitScore -= 1
                     $additionalInfoDictionary["SupportsNICCount"] = "unknown:max$targetMaxNICCount"
                 }
             }
             else {
-                $confidenceScore -= 1
+                $fitScore -= 1
                 $additionalInfoDictionary["SupportsNICCount"] = "unknown:needs$($result.NicCount_s)"
             }
             $targetUncachedDiskIOPS = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskIOPS' }).Value
             if ($targetUncachedDiskIOPS -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.MaxPIOPS))) {
                     if ([double]$result.MaxPIOPS -ge $targetUncachedDiskIOPS) {
-                        $confidenceScore -= 1
+                        $fitScore -= 1
                         $additionalInfoDictionary["SupportsIOPS"] = "false:needs$($result.MaxPIOPS)-max$targetUncachedDiskIOPS"            
                     }
                 }
                 else {
-                    $confidenceScore -= 0.5
+                    $fitScore -= 0.5
                     $additionalInfoDictionary["SupportsIOPS"] = "unknown:max$targetUncachedDiskIOPS"
                 }
             }
             else {
-                $confidenceScore -= 1
+                $fitScore -= 1
                 $additionalInfoDictionary["SupportsIOPS"] = "unknown:needs$($result.MaxPIOPS)" 
             }
             $targetUncachedDiskMiBps = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskBytesPerSecond' }).Value / 1024 / 1024
             if ($targetUncachedDiskMiBps -gt 0) { 
                 if (-not([string]::isNullOrEmpty($result.MaxPMiBps))) {
                     if ([double]$result.MaxPMiBps -ge $targetUncachedDiskMiBps) {
-                        $confidenceScore -= 1    
+                        $fitScore -= 1    
                         $additionalInfoDictionary["SupportsMiBps"] = "false:needs$($result.MaxPMiBps)-max$targetUncachedDiskMiBps"                    
                     }
                 }
                 else {
-                    $confidenceScore -= 0.5
+                    $fitScore -= 0.5
                     $additionalInfoDictionary["SupportsMiBps"] = "unknown:max$targetUncachedDiskMiBps"
                 }
             }
@@ -555,38 +555,38 @@ foreach ($result in $results) {
 
         if (-not([string]::isNullOrEmpty($result.PCPUPercentage))) {
             if ([double]$result.PCPUPercentage -ge [double]$cpuThreshold) {
-                $confidenceScore -= 0.5    
+                $fitScore -= 0.5    
                 $additionalInfoDictionary["BelowCPUThreshold"] = "false:needs$($result.PCPUPercentage)-max$cpuThreshold"                    
             }
             $hasCpuRamPerfMetrics = $true
         }
         else {
-            $confidenceScore -= 0.5
+            $fitScore -= 0.5
             $additionalInfoDictionary["BelowCPUThreshold"] = "unknown:max$cpuThreshold"
         }
         if (-not([string]::isNullOrEmpty($result.PMemoryPercentage))) {
             if ([double]$result.PMemoryPercentage -ge [double]$memoryThreshold) {
-                $confidenceScore -= 0.5    
+                $fitScore -= 0.5    
                 $additionalInfoDictionary["BelowMemoryThreshold"] = "false:needs$($result.PMemoryPercentage)-max$memoryThreshold"                    
             }
             $hasCpuRamPerfMetrics = $true
         }
         else {
-            $confidenceScore -= 0.5
+            $fitScore -= 0.5
             $additionalInfoDictionary["BelowMemoryThreshold"] = "unknown:max$memoryThreshold"
         }
         if (-not([string]::isNullOrEmpty($result.PNetworkMbps))) {
             if ([double]$result.PNetworkMbps -ge [double]$networkThreshold) {
-                $confidenceScore -= 0.1    
+                $fitScore -= 0.1    
                 $additionalInfoDictionary["BelowNetworkThreshold"] = "false:needs$($result.PNetworkMbps)-max$networkThreshold"                    
             }
         }
         else {
-            $confidenceScore -= 0.1
+            $fitScore -= 0.1
             $additionalInfoDictionary["BelowNetworkThreshold"] = "unknown:max$networkThreshold"
         }
 
-        $confidenceScore = [Math]::max(0.0, $confidenceScore)
+        $fitScore = [Math]::max(0.0, $fitScore)
     }
     else
     {
@@ -664,7 +664,7 @@ foreach ($result in $results) {
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionGuid_g
-        ConfidenceScore             = $confidenceScore
+        FitScore                    = $fitScore
         Tags                        = $tags
         DetailsURL                  = $detailsURL
     }

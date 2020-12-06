@@ -191,7 +191,7 @@ foreach ($blob in $allblobs) {
                         $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].RecommendationDescription)', '$($jsonObjectSplitted[$j][$i].RecommendationAction)'"
                         $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].InstanceId)', '$($jsonObjectSplitted[$j][$i].InstanceName)', '$additionalInfoString'"
                         $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].ResourceGroup)', '$($jsonObjectSplitted[$j][$i].SubscriptionGuid)'"
-                        $sqlStatement += ", $($jsonObjectSplitted[$j][$i].ConfidenceScore), '$tagsString', '$($jsonObjectSplitted[$j][$i].DetailsURL)')"
+                        $sqlStatement += ", $($jsonObjectSplitted[$j][$i].FitScore), '$tagsString', '$($jsonObjectSplitted[$j][$i].DetailsURL)')"
                         if ($i -ne ($jsonObjectSplitted[$j].Count-1))
                         {
                             $sqlStatement += ","

@@ -168,7 +168,7 @@ $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
-Write-Output "Generating confidence score..."
+Write-Output "Generating fit score..."
 
 foreach ($result in $results) {  
 
@@ -197,7 +197,7 @@ foreach ($result in $results) {
         }
     }
 
-    $confidenceScore = -1
+    $fitScore = -1
 
     $queryInstanceId = $result.InstanceId_s
 
@@ -221,7 +221,7 @@ foreach ($result in $results) {
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionGuid_g
-        ConfidenceScore             = $confidenceScore
+        FitScore                    = $fitScore
         Tags                        = $tags
         DetailsURL                  = $detailsURL
     }

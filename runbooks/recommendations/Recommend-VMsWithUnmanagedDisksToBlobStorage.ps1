@@ -142,7 +142,7 @@ foreach ($result in $results)
 
     $additionalInfoDictionary["DeploymentModel"] = $result.DeploymentModel_s
 
-    $confidenceScore = 5
+    $fitScore = 5
 
     $tags = @{}
 
@@ -174,7 +174,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
-        ConfidenceScore = $confidenceScore
+        FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL
     }
