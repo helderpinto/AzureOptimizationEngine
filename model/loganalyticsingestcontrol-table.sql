@@ -18,5 +18,8 @@ AND OBJECTPROPERTY(id, N'IsUserTable') = 1)
 	END
 ELSE
 	BEGIN
-		ALTER TABLE [dbo].[LogAnalyticsIngestControl] ADD [CollectedType] VARCHAR (50) NULL
+		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[LogAnalyticsIngestControl]') AND name = 'CollectedType'
+)		BEGIN
+			ALTER TABLE [dbo].[LogAnalyticsIngestControl] ADD [CollectedType] VARCHAR (50) NULL
+		END
 	END
