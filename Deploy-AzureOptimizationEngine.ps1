@@ -423,6 +423,17 @@ if ("Y", "y" -contains $continueInput) {
             $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
             $Conn.Open() 
     
+            $upgradeTableQuery = Get-Content -Path ".\model\loganalyticsingestcontrol-upgrade.sql"
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $upgradeTableQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+    
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+    
             $createTableQuery = Get-Content -Path ".\model\sqlserveringestcontrol-table.sql"
             $Cmd = new-object system.Data.SqlClient.SqlCommand
             $Cmd.Connection = $Conn

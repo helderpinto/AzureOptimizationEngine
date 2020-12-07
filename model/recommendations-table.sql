@@ -35,4 +35,8 @@ ELSE
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceId] VARCHAR (1000) NULL
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceName] VARCHAR (500) NULL
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [ResourceGroup] VARCHAR (200) NULL
+		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'FitScore'
+)		BEGIN
+			EXEC sp_rename '[dbo].[Recommendations].ConfidenceScore', 'FitScore', 'COLUMN'
+		END
 	END

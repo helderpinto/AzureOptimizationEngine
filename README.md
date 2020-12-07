@@ -1,8 +1,34 @@
 # Azure Optimization Engine
 
-The Azure Optimization Engine (AOE) is an extensible solution designed to generate optimization recommendations for your Azure environment. See it like a fully customizable Azure Advisor. Actually, the first recommendations use-case covered by this tool was augmenting Azure Advisor Cost recommendations, particularly Virtual Machine right-sizing, with a confidence score based on VM metrics and properties. Other recommendations can be easily added/augmented with this tool, not only for cost optimization but also for security, high availability and other areas.
+The Azure Optimization Engine (AOE) is an extensible solution designed to generate optimization recommendations for your Azure environment. See it like a fully customizable Azure Advisor. Actually, the first recommendations use-case covered by this tool was augmenting Azure Advisor Cost recommendations, particularly Virtual Machine right-sizing, with a fit score based on VM metrics and properties. Other recommendations can be easily added/augmented with this tool, not only for cost optimization but also for security, high availability and other [Well-Architected Framework](https://docs.microsoft.com/en-us/azure/architecture/framework/) areas.
 
 It is highly recommended that you read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298). You'll find all the information needed to correctly set up the whole environment.
+
+## What you can get
+
+A few hours after setting up the engine, you'll get a Power BI dashboard with all Azure optimization opportunities, coming from both Azure Advisor and from custom recommendations included in the engine. These recommendations are then updated every 7 days and you can add/develop your own custom ones if desired. Check below some examples of the Power BI dashboard pages.
+
+### Recommendations overview
+
+![An overview of all your optimization recommendations](./docs/powerbi-dashboard-overview.jpg "An overview of all your optimization recommendations")
+
+### Cost opportunities overview
+
+![An overview of your Cost optimization opportunities](./docs/powerbi-dashboard-costoverview.jpg "An overview of your Cost optimization opportunities")
+
+### Augmented VM right-size overview
+
+![An overview of your VM right-size recommendations](./docs/powerbi-dashboard-vmrightsizeoverview.jpg "An overview of your VM right-size recommendations")
+
+### Fit score history for a specific recommendation
+
+![Fit score history for a specific recommendation](./docs/powerbi-dashboard-fitscorehistory.jpg "Fit score history for a specific recommendation")
+
+## Releases
+
+* 12/2020 - added Azure Consumption dimension to cost recommendations and refactored Power BI dashboard
+* 11/2020 - support for automated VM right-size remediations and for other Well-Architected scopes, with unmanaged disks custom recommendation
+* 07/2020 - [initial release] Advisor Cost augmented VM right-size recommendations and orphaned disks custom recommendation
 
 ## Deployment instructions
 
@@ -48,15 +74,15 @@ You must publish the solution files into a publicly reachable URL. If you're usi
 
 ## Usage instructions
 
-Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the required performance counters, we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones!
+Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones!
 
 This solution currently supports several types of recommendations, not restricted to Cost optimization:
 
-* Advisor Cost recommendations augmented with a confidence score based on performance metrics and Azure properties
+* Advisor Cost recommendations augmented with a fit score based on Virtual Machine performance metrics (collected by Log Analytics agents) and Azure properties
 * Delete unattached disks
 * Upgrade Virtual Machines to Managed Disks
 
-For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the confidence score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables.
+For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the fit score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables.
 
 ### Visualizing recommendations with Power BI
 
@@ -80,3 +106,16 @@ By default, the Azure Automation Run As Account is created with Contributor role
 
 * Reader role in every subscription you want to gather recommendations from.
 * Contributor role in the resource group the solution was deployed to.
+
+## Frequently Asked Questions
+
+* **Why is my report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
+
+* **Why is my VM right-size recommendations overview page empty?** The AOE depends on Azure Advisor Cost recommendations for VM right-sizing. If no VMs are showing up, try increasing the CPU threshold in the Azure Advisor configuration... or maybe your infrastructure is not oversized after all!
+
+* **Why am I getting an SQL timeout whenever I try to refresh the Power BI report after some time?** The default AOE setup deploys the recommendations database in a serverless plan. The database is paused after 1 hour without usage. If you try to connect to SQL in a paused state, it will awake the database but will return a timeout at the first try. If you don't want this to happen, upgrade the database to a non-serverless SKU.
+
+* **Why am I getting values so small for costs and savings after setting up AOE?** The Azure consumption exports runbook has just begun its daily execution and only got one day of consumption data. After one month - or after manually kicking off the runbook for past dates -, you should see the correct consumption data.
+
+* **What is the currency used for costs and savings?** The currency used is the one that is reported by default by the Azure Consumption APIs. It should match the one you usually see in Azure Cost Management.
+

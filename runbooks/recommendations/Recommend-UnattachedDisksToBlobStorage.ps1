@@ -35,10 +35,18 @@ if ([string]::IsNullOrEmpty($lognamePrefix))
     $lognamePrefix = "AzureOptimization"
 }
 
-$disksTableSuffix = "DisksV1_CL"
-$disksTableName = $lognamePrefix + $disksTableSuffix
+$sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
+$sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization_SQLServerCredential"
+$SqlUsername = $sqlserverCredential.UserName 
+$SqlPass = $sqlserverCredential.GetNetworkCredential().Password 
+$sqldatabase = Get-AutomationVariable -Name  "AzureOptimization_SQLServerDatabase" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($sqldatabase))
+{
+    $sqldatabase = "azureoptimization"
+}
 
-$recommendationSearchTimeSpan = 1
+$SqlTimeout = 120
+$LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
 # Authenticate against Azure
 
@@ -61,6 +69,48 @@ switch ($authenticationOption) {
     }
 }
 
+Write-Output "Finding tables where recommendations will be generated from..."
+
+$tries = 0
+$connectionSuccess = $false
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','AzureConsumption')"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $controlRows = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($controlRows) | Out-Null            
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+$disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGManagedDisk' }).LogAnalyticsSuffix + "_CL"
+$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+
+Write-Output "Will run query against tables $disksTableName and $consumptionTableName"
+
+$Conn.Close()    
+$Conn.Dispose()            
+
+$recommendationSearchTimeSpan = 1
+
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
@@ -74,9 +124,18 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
-    $disksTableName 
+    let interval = 30d;
+    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let stime = etime-interval; 
+    
+    $disksTableName
     | where TimeGenerated > ago(1d) and isempty(OwnerVMId_s)
     | distinct DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
+    | join kind=leftouter (
+        $consumptionTableName
+        | where UsageDate_t > stime 
+    ) on InstanceId_s
+    | summarize Last30DaysCost=sum(todouble(Cost_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
@@ -86,17 +145,7 @@ $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
-$hour = $datetime.Hour
-if ($hour -lt 10)
-{
-    $hour = "0" + $hour
-}
-$min = $datetime.Minute
-if ($min -lt 10)
-{
-    $min = "0" + $min
-}
-$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
@@ -104,10 +153,14 @@ foreach ($result in $results)
     $querySubscriptionId = $result.SubscriptionGuid_g
     $queryText = @"
     $disksTableName
-    | extend InstanceId = tolower(InstanceId_s)
-    | where InstanceId == tolower(`'$queryInstanceId`')  and OwnerVMId_s == ''
-    | project DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
-    | summarize LastAttachedDate = min(TimeGenerated) by DiskName_s, DiskSizeGB_s, SKU_s
+    | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
+    | distinct InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
+    | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
+    | join kind=inner (
+        $consumptionTableName
+    ) on InstanceId_s
+    | where UsageDate_t > LastAttachedDate
+    | summarize CostsSinceDetached = sum(todouble(Cost_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
@@ -119,8 +172,10 @@ foreach ($result in $results)
     $additionalInfoDictionary["DiskType"] = "Managed"
     $additionalInfoDictionary["currentSku"] = $result.SKU_s
     $additionalInfoDictionary["DiskSizeGB"] = [int] $result.DiskSizeGB_s 
+    $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
+    $additionalInfoDictionary["savingsAmount"] = [double] $result.Last30DaysCost 
 
-    $confidenceScore = 5
+    $fitScore = 5
 
     $tags = @{}
 
@@ -152,7 +207,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
-        ConfidenceScore = $confidenceScore
+        FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL
     }

@@ -31,10 +31,18 @@ if ([string]::IsNullOrEmpty($lognamePrefix))
     $lognamePrefix = "AzureOptimization"
 }
 
-$vmsTableSuffix = "VMsV1_CL"
-$vmsTableName = $lognamePrefix + $vmsTableSuffix
+$sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
+$sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization_SQLServerCredential"
+$SqlUsername = $sqlserverCredential.UserName 
+$SqlPass = $sqlserverCredential.GetNetworkCredential().Password 
+$sqldatabase = Get-AutomationVariable -Name  "AzureOptimization_SQLServerDatabase" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($sqldatabase))
+{
+    $sqldatabase = "azureoptimization"
+}
 
-$recommendationSearchTimeSpan = 1
+$SqlTimeout = 120
+$LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
 # Authenticate against Azure
 
@@ -56,6 +64,47 @@ switch ($authenticationOption) {
         break
     }
 }
+
+Write-Output "Finding tables where recommendations will be generated from..."
+
+$tries = 0
+$connectionSuccess = $false
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor','AzureConsumption')"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $controlRows = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($controlRows) | Out-Null            
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+
+Write-Output "Will run query against table $vmsTableName"
+
+$Conn.Close()    
+$Conn.Dispose()            
+
+$recommendationSearchTimeSpan = 1
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
@@ -82,17 +131,7 @@ $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
-$hour = $datetime.Hour
-if ($hour -lt 10)
-{
-    $hour = "0" + $hour
-}
-$min = $datetime.Minute
-if ($min -lt 10)
-{
-    $min = "0" + $min
-}
-$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
@@ -103,7 +142,7 @@ foreach ($result in $results)
 
     $additionalInfoDictionary["DeploymentModel"] = $result.DeploymentModel_s
 
-    $confidenceScore = 5
+    $fitScore = 5
 
     $tags = @{}
 
@@ -135,7 +174,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
-        ConfidenceScore = $confidenceScore
+        FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL
     }

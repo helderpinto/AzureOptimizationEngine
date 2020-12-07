@@ -33,9 +33,9 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "remediationlogs"
 }
 
-$minConfidenceScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinConfidenceScore" -ErrorAction SilentlyContinue)
-if (-not($minConfidenceScore -gt 0.0)) {
-    $minConfidenceScore = 5.0
+$minFitScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinFitScore" -ErrorAction SilentlyContinue)
+if (-not($minFitScore -gt 0.0)) {
+    $minFitScore = 5.0
 }
 
 $minWeeksInARow = [int] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinWeeksInARow" -ErrorAction SilentlyContinue)
@@ -81,7 +81,7 @@ switch ($authenticationOption) {
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
-Write-Output "Querying for right-size recommendations with confidence score >= $minConfidenceScore made consecutively for the last $minWeeksInARow weeks."
+Write-Output "Querying for right-size recommendations with fit score >= $minFitScore made consecutively for the last $minWeeksInARow weeks."
 
 $tries = 0
 $connectionSuccess = $false
@@ -96,14 +96,14 @@ do {
         $Cmd.CommandText = @"
         SELECT RecommendationId, InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags, COUNT(InstanceId)
         FROM [dbo].[$recommendationsTable] 
-        WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND ConfidenceScore >= $minConfidenceScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
+        WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
         GROUP BY InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags
         HAVING COUNT(InstanceId) >= $minWeeksInARow
 "@    
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
         $vmsToRightSize = New-Object System.Data.DataTable
-        $sqlAdapter.Fill($vmsToRightSize)            
+        $sqlAdapter.Fill($vmsToRightSize) | Out-Null            
         $connectionSuccess = $true
     }
     catch {

@@ -1,5 +1,82 @@
 $ErrorActionPreference = "Stop"
 
+function Find-SkuHourlyPrice {
+    param (
+        [object] $SKUPriceSheet,
+        [string] $SKUName
+    )
+
+    $skuPriceObject = $null
+
+    if ($SKUPriceSheet)
+    {
+        $skuNameParts = $SKUName.Split('_')
+
+        if ($skuNameParts.Count -eq 3) # e.g., Standard_D1_v2
+        {
+            $skuNameFilter = "*" + $skuNameParts[1] + "*"
+            $skuVersionFilter = "*" + $skuNameParts[2]
+            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
+             -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
+             -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
+             -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
+            
+            if ($skuPrices.Count -eq 2)
+            {
+                $skuPriceObject = $skuPrices[0]
+            }
+            if ($skuPrices.Count -gt 2) # D1-like scenarios
+            {
+                $skuFilter = "*" + $skuNameParts[1] + " " + $skuNameParts[2] + "*"
+                $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilter }
+    
+                if ($skuPrices.Count -eq 2)
+                {
+                    $skuPriceObject = $skuPrices[0]
+                }
+            }
+        }
+    
+        if ($skuNameParts.Count -eq 2) # e.g., Standard_D1
+        {
+            $skuNameFilter = "*" + $skuNameParts[1] + "*"
+    
+            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
+             -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
+             -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
+             -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
+            
+            if ($skuPrices.Count -eq 2)
+            {
+                $skuPriceObject = $skuPrices[0]
+            }
+            if ($skuPrices.Count -gt 2) # D1-like scenarios
+            {
+                $skuFilterLeft = "*" + $skuNameParts[1] + "/*"
+                $skuFilterRight = "*/" + $skuNameParts[1] + "*"
+                $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilterLeft -or $_.MeterDetails.MeterName -like $skuFilterRight }
+                
+                if ($skuPrices.Count -eq 2)
+                {
+                    $skuPriceObject = $skuPrices[0]
+                }
+            }
+        }    
+    }
+
+    $targetHourlyPrice = [double]::MaxValue
+    if ($null -ne $skuPriceObject)
+    {
+        $targetUnitHours = [int] (Select-String -InputObject $skuPriceObject.UnitOfMeasure -Pattern "^\d+").Matches[0].Value
+        if ($targetUnitHours -gt 0)
+        {
+            $targetHourlyPrice = [double] ($skuPriceObject.UnitPrice / $targetUnitHours)
+        }
+    }
+
+    return $targetHourlyPrice
+}
+
 # Collect generic and recommendation-specific variables
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
@@ -32,12 +109,6 @@ if ([string]::IsNullOrEmpty($lognamePrefix))
 {
     $lognamePrefix = "AzureOptimization"
 }
-
-$vmsTableSuffix = "VMsV1_CL"
-$vmsTableName = $lognamePrefix + $vmsTableSuffix
-
-$advisorTableSuffix = "AdvisorV1_CL"
-$advisorTableName = $lognamePrefix + $advisorTableSuffix
 
 $referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion"
 
@@ -108,6 +179,19 @@ if (-not($rightSizeRecommendationId)) {
     $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
 }
 
+$sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
+$sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization_SQLServerCredential"
+$SqlUsername = $sqlserverCredential.UserName 
+$SqlPass = $sqlserverCredential.GetNetworkCredential().Password 
+$sqldatabase = Get-AutomationVariable -Name  "AzureOptimization_SQLServerDatabase" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($sqldatabase))
+{
+    $sqldatabase = "azureoptimization"
+}
+
+$SqlTimeout = 120
+$LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
+
 # Authenticate against Azure
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -129,6 +213,46 @@ switch ($authenticationOption) {
     }
 }
 
+Write-Output "Finding tables where recommendations will be generated from..."
+
+$tries = 0
+$connectionSuccess = $false
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor','AzureConsumption')"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $controlRows = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($controlRows) | Out-Null           
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+$advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
+$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+
+Write-Output "Will run query against tables $vmsTableName, $advisorTableName and $consumptionTableName"
+
+$Conn.Close()    
+$Conn.Dispose()            
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
@@ -140,9 +264,22 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
+
 Write-Output "Getting Virtual Machine SKUs for the $referenceRegion region..."
 # Get all the VM SKUs information for the reference Azure region
 $skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
+
+Write-Output "Getting the current Pricesheet..."
+
+try 
+{
+    $pricesheet = Get-AzConsumptionPriceSheet -ExpandMeterDetail
+}
+catch
+{
+    Write-Output "Consumption pricesheet not available, will estimate savings based in cores count..."
+    $pricesheet = $null
+}
 
 # Execute the recommendation query against Log Analytics
 
@@ -155,6 +292,9 @@ let memoryPercentileValue = $memoryPercentile;
 let networkPercentileValue = $networkPercentile;
 let diskPercentileValue = $diskPercentile;
 let rightSizeRecommendationId = '$rightSizeRecommendationId';
+let billingInterval = 30d;
+let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+let stime = etime-billingInterval; 
 
 let RightSizeInstanceIds = materialize($advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost' and RecommendationTypeId_g == rightSizeRecommendationId
@@ -203,10 +343,19 @@ let DiskPerf = Perf
 
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
+| distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g
+| join kind=leftouter (
+    $consumptionTableName
+    | where UsageDate_t > stime
+    | extend VMConsumedQuantity = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
+    | extend VMPrice = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
+    | extend FinalCost = iif(InstanceId_s contains 'virtualmachines', VMPrice * VMConsumedQuantity, todouble(Cost_s))
+    | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(VMConsumedQuantity) by InstanceId_s
+) on InstanceId_s
 | join kind=leftouter (
     $vmsTableName 
     | where TimeGenerated > ago(1d) 
-    | project InstanceId_s, NicCount_s, DataDiskCount_s, Tags_s
+    | distinct InstanceId_s, NicCount_s, DataDiskCount_s, Tags_s
 ) on InstanceId_s 
 | where RecommendationTypeId_g != rightSizeRecommendationId or (RecommendationTypeId_g == rightSizeRecommendationId and toint(NicCount_s) >= 0 and toint(DataDiskCount_s) >= 0)
 | join kind=leftouter hint.strategy=broadcast ( MemoryPerf ) on `$left.InstanceId_s == `$right._ResourceId
@@ -215,7 +364,7 @@ $advisorTableName
 | join kind=leftouter hint.strategy=broadcast ( DiskPerf ) on `$left.InstanceId_s == `$right._ResourceId
 | extend MaxPIOPS = MaxPReadIOPS + MaxPWriteIOPS, MaxPMiBps = MaxPReadMiBps + MaxPWriteMiBps
 | extend PNetworkMbps = PNetwork * 8 / 1000 / 1000
-| summarize by InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s            
+| distinct Last30DaysCost, Last30DaysQuantity, InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s
 "@
 
 Write-Output "Getting cost recommendations for $($daysBackwards)d Advisor and $($perfDaysBackwards)d Perf history and a $perfTimeGrain time grain..."
@@ -231,17 +380,11 @@ Write-Output "Query statistics: $($queryResults.Statistics.query)"
 
 $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
-$hour = $datetime.Hour
-if ($hour -lt 10) {
-    $hour = "0" + $hour
-}
-$min = $datetime.Minute
-if ($min -lt 10) {
-    $min = "0" + $min
-}
-$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
-Write-Output "Generating confidence score..."
+$skuPricesFound = @{}
+
+Write-Output "Generating fit score..."
 
 foreach ($result in $results) {  
     $queryInstanceId = $result.InstanceId_s
@@ -268,11 +411,13 @@ foreach ($result in $results) {
         }
     }
 
-    $confidenceScore = -1
+    $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
+
+    $fitScore = -1
     $hasCpuRamPerfMetrics = $false
 
     if ($additionalInfoDictionary.targetSku) {
-        $confidenceScore = 5
+        $fitScore = 5
         $additionalInfoDictionary["SupportsDataDisksCount"] = "true"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["SupportsNICCount"] = "true"
@@ -290,75 +435,113 @@ foreach ($result in $results) {
 
         $targetSku = $null
         if ($additionalInfoDictionary.targetSku -ne "Shutdown") {
-
+            $currentSku = $skus | Where-Object { $_.Name -eq $additionalInfoDictionary.currentSku }
+            $currentSkuvCPUs = [double]($currentSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
             $targetSku = $skus | Where-Object { $_.Name -eq $additionalInfoDictionary.targetSku }
+            $targetSkuvCPUs = [double]($targetSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
             $targetMaxDataDiskCount = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'MaxDataDiskCount' }).Value
             if ($targetMaxDataDiskCount -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.DataDiskCount_s))) {
                     if ([int]$result.DataDiskCount_s -gt $targetMaxDataDiskCount) {
-                        $confidenceScore = 1
+                        $fitScore = 1
                         $additionalInfoDictionary["SupportsDataDisksCount"] = "false:needs$($result.DataDiskCount_s)-max$targetMaxDataDiskCount"
                     }
                 }
                 else {
-                    $confidenceScore -= 1
+                    $fitScore -= 1
                     $additionalInfoDictionary["SupportsDataDisksCount"] = "unknown:max$targetMaxDataDiskCount"
                 }
             }
             else {
-                $confidenceScore -= 1
+                $fitScore -= 1
                 $additionalInfoDictionary["SupportsDataDisksCount"] = "unknown:needs$($result.DataDiskCount_s)"
             }
             $targetMaxNICCount = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'MaxNetworkInterfaces' }).Value
             if ($targetMaxNICCount -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.NicCount_s))) {
                     if ([int]$result.NicCount_s -gt $targetMaxNICCount) {
-                        $confidenceScore = 1
+                        $fitScore = 1
                         $additionalInfoDictionary["SupportsNICCount"] = "false:needs$($result.NicCount_s)-max$targetMaxNICCount"
                     }
                 }
                 else {
-                    $confidenceScore -= 1
+                    $fitScore -= 1
                     $additionalInfoDictionary["SupportsNICCount"] = "unknown:max$targetMaxNICCount"
                 }
             }
             else {
-                $confidenceScore -= 1
+                $fitScore -= 1
                 $additionalInfoDictionary["SupportsNICCount"] = "unknown:needs$($result.NicCount_s)"
             }
             $targetUncachedDiskIOPS = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskIOPS' }).Value
             if ($targetUncachedDiskIOPS -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.MaxPIOPS))) {
                     if ([double]$result.MaxPIOPS -ge $targetUncachedDiskIOPS) {
-                        $confidenceScore -= 1
+                        $fitScore -= 1
                         $additionalInfoDictionary["SupportsIOPS"] = "false:needs$($result.MaxPIOPS)-max$targetUncachedDiskIOPS"            
                     }
                 }
                 else {
-                    $confidenceScore -= 0.5
+                    $fitScore -= 0.5
                     $additionalInfoDictionary["SupportsIOPS"] = "unknown:max$targetUncachedDiskIOPS"
                 }
             }
             else {
-                $confidenceScore -= 1
+                $fitScore -= 1
                 $additionalInfoDictionary["SupportsIOPS"] = "unknown:needs$($result.MaxPIOPS)" 
             }
             $targetUncachedDiskMiBps = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskBytesPerSecond' }).Value / 1024 / 1024
             if ($targetUncachedDiskMiBps -gt 0) { 
                 if (-not([string]::isNullOrEmpty($result.MaxPMiBps))) {
                     if ([double]$result.MaxPMiBps -ge $targetUncachedDiskMiBps) {
-                        $confidenceScore -= 1    
+                        $fitScore -= 1    
                         $additionalInfoDictionary["SupportsMiBps"] = "false:needs$($result.MaxPMiBps)-max$targetUncachedDiskMiBps"                    
                     }
                 }
                 else {
-                    $confidenceScore -= 0.5
+                    $fitScore -= 0.5
                     $additionalInfoDictionary["SupportsMiBps"] = "unknown:max$targetUncachedDiskMiBps"
                 }
             }
             else {
                 $additionalInfoDictionary["SupportsMiBps"] = "unknown:needs$($result.MaxPMiBps)"
             }
+
+            $savingCoefficient = $currentSkuvCPUs / $targetSkuvCPUs
+
+            if ($null -eq $skuPricesFound[$targetSku.Name])
+            {
+                $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheet
+            }
+
+            $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
+
+            if ($skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
+            {
+                $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
+
+                if ($null -eq $skuPricesFound[$currentSku.Name])
+                {
+                    $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheet
+                }
+
+                if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
+                {
+                    $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
+                    $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                }
+                else
+                {
+                    $targetSkuSavingsMonthly = $result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                }
+            }
+
+            $savingsMonthly = $targetSkuSavingsMonthly
+
+        }
+        else
+        {
+            $savingsMonthly = $result.Last30DaysCost
         }
 
         $cpuThreshold = $cpuPercentageThreshold
@@ -372,39 +555,52 @@ foreach ($result in $results) {
 
         if (-not([string]::isNullOrEmpty($result.PCPUPercentage))) {
             if ([double]$result.PCPUPercentage -ge [double]$cpuThreshold) {
-                $confidenceScore -= 0.5    
+                $fitScore -= 0.5    
                 $additionalInfoDictionary["BelowCPUThreshold"] = "false:needs$($result.PCPUPercentage)-max$cpuThreshold"                    
             }
             $hasCpuRamPerfMetrics = $true
         }
         else {
-            $confidenceScore -= 0.5
+            $fitScore -= 0.5
             $additionalInfoDictionary["BelowCPUThreshold"] = "unknown:max$cpuThreshold"
         }
         if (-not([string]::isNullOrEmpty($result.PMemoryPercentage))) {
             if ([double]$result.PMemoryPercentage -ge [double]$memoryThreshold) {
-                $confidenceScore -= 0.5    
+                $fitScore -= 0.5    
                 $additionalInfoDictionary["BelowMemoryThreshold"] = "false:needs$($result.PMemoryPercentage)-max$memoryThreshold"                    
             }
             $hasCpuRamPerfMetrics = $true
         }
         else {
-            $confidenceScore -= 0.5
+            $fitScore -= 0.5
             $additionalInfoDictionary["BelowMemoryThreshold"] = "unknown:max$memoryThreshold"
         }
         if (-not([string]::isNullOrEmpty($result.PNetworkMbps))) {
             if ([double]$result.PNetworkMbps -ge [double]$networkThreshold) {
-                $confidenceScore -= 0.1    
+                $fitScore -= 0.1    
                 $additionalInfoDictionary["BelowNetworkThreshold"] = "false:needs$($result.PNetworkMbps)-max$networkThreshold"                    
             }
         }
         else {
-            $confidenceScore -= 0.1
+            $fitScore -= 0.1
             $additionalInfoDictionary["BelowNetworkThreshold"] = "unknown:max$networkThreshold"
         }
 
-        $confidenceScore = [Math]::max(0.0, $confidenceScore)
+        $fitScore = [Math]::max(0.0, $fitScore)
     }
+    else
+    {
+        if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["savingsAmount"])))
+        {
+            $savingsMonthly = [double] $additionalInfoDictionary["savingsAmount"] / 12
+        }
+        else
+        {
+            $savingsMonthly = [double] $result.Last30DaysCost 
+        }            
+    }
+
+    $additionalInfoDictionary["savingsAmount"] = [double] $savingsMonthly     
 
     $queryInstanceId = $result.InstanceId_s
     if (-not($hasCpuRamPerfMetrics))
@@ -442,7 +638,7 @@ foreach ($result in $results) {
         | where CounterName == '% Processor Time' and InstanceName == '_Total' and _ResourceId =~ armId
         | summarize P$($cpuPercentile)CPUPercentage = percentile(CounterValue, $cpuPercentile) by bin(TimeGenerated, gInt);
         MemoryPerf
-        | union ProcessorPerf
+        | join kind=inner (ProcessorPerf) on TimeGenerated
         | render timechart
 "@
     
@@ -468,7 +664,7 @@ foreach ($result in $results) {
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionGuid_g
-        ConfidenceScore             = $confidenceScore
+        FitScore                    = $fitScore
         Tags                        = $tags
         DetailsURL                  = $detailsURL
     }

@@ -176,9 +176,7 @@ do
 #>
 
 $datetime = (Get-Date).ToUniversalTime()
-$hour = $datetime.Hour
-$min = $datetime.Minute
-$timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
 Write-Output "Building $($armVmsTotal.Count) ARM VM entries"

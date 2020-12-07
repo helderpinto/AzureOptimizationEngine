@@ -166,7 +166,7 @@ foreach ($blob in $allblobs) {
             $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
             $sqlAdapter.SelectCommand = $Cmd
             $controlRows = New-Object System.Data.DataTable
-            $sqlAdapter.Fill($controlRows)            
+            $sqlAdapter.Fill($controlRows) | Out-Null
             $connectionSuccess = $true
         }
         catch {
