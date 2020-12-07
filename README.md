@@ -4,6 +4,26 @@ The Azure Optimization Engine (AOE) is an extensible solution designed to genera
 
 It is highly recommended that you read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298). You'll find all the information needed to correctly set up the whole environment.
 
+## What you can get
+
+A few hours after setting up the engine, you'll get a Power BI dashboard with all Azure optimization opportunities, coming from both Azure Advisor and from custom recommendations included in the engine. These recommendations are then updated every 7 days and you can add/develop your own custom ones if desired. Check below some examples of the Power BI dashboard pages.
+
+### Recommendations overview
+
+![An overview of all your optimization recommendations](./docs/powerbi-dashboard-overview.jpg "An overview of all your optimization recommendations")
+
+### Cost opportunities overview
+
+![An overview of your Cost optimization opportunities](./docs/powerbi-dashboard-costoverview.jpg "An overview of your Cost optimization opportunities")
+
+### Augmented VM right-size overview
+
+![An overview of your VM right-size recommendations](./docs/powerbi-dashboard-vmrightsizeoverview.jpg "An overview of your VM right-size recommendations")
+
+### Fit score history for a specific recommendation
+
+![Fit score history for a specific recommendation](./docs/powerbi-dashboard-fitscorehistory.jpg "Fit score history for a specific recommendation")
+
 ## Releases
 
 * 12/2020 - added Azure Consumption dimension to cost recommendations and refactored Power BI dashboard
