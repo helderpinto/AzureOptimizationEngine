@@ -106,3 +106,9 @@ By default, the Azure Automation Run As Account is created with Contributor role
 
 * Reader role in every subscription you want to gather recommendations from.
 * Contributor role in the resource group the solution was deployed to.
+
+## Frequently Asked Questions
+
+* **Why am I getting values so small for costs and savings after setting up AOE?** The Azure consumption exports runbook has just begun its daily execution and only got one day of consumption data. After one month - or after manually kicking the runbook for past dates -, you should see the correct consumption data.
+
+* **What is the currency used for costs and savings?** The currency used is the one that is reported by default by the Azure Consumption APIs. It should match the one you usually see in Azure Cost Management.
