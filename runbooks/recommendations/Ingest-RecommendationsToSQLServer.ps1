@@ -181,7 +181,8 @@ foreach ($blob in $allblobs) {
                     $sqlStatement = "INSERT INTO [$recommendationsTable] VALUES"
                     for ($i = 0; $i -lt $jsonObjectSplitted[$j].Count; $i++)
                     {
-            
+                        $jsonObjectSplitted[$j][$i].RecommendationDescription = $jsonObjectSplitted[$j][$i].RecommendationDescription.Replace("'", "")
+                        $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
                         $additionalInfoString = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json
                         $tagsString = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json
                         $sqlStatement += " (NEWID(), CONVERT(DATETIME, '$($jsonObjectSplitted[$j][$i].Timestamp)'), '$($jsonObjectSplitted[$j][$i].Cloud)'"
