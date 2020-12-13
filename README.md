@@ -30,6 +30,13 @@ A few hours after setting up the engine, you'll get a Power BI dashboard with al
 * 11/2020 - support for automated VM right-size remediations and for other Well-Architected scopes, with unmanaged disks custom recommendation
 * 07/2020 - [initial release] Advisor Cost augmented VM right-size recommendations and orphaned disks custom recommendation
 
+## Architecture
+
+The AOE runs mostly on top of Azure Automation and Log Analytics. The diagram below depicts the architectural components. For a more detailed description, please
+read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298).
+
+![Azure Optimization Engine architecture](./docs/architecture.jpg "Azure Optimization Engine architecture")
+
 ## Deployment instructions
 
 You must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)). Then, you can either choose to deploy all the dependencies from the GitHub repository or from your own. In any case, you must clone/download the solution locally, to be able to call the deployment script from a PowerShell **elevated prompt**.
