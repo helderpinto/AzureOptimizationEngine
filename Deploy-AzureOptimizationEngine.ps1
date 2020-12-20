@@ -11,7 +11,7 @@ param (
 )
 
 function CreateSelfSignedCertificate([string] $certificateName, [string] $selfSignedCertPlainPassword,
-    [string] $certPath, [string] $certPathCer, [string] $selfSignedCertNoOfMonthsUntilExpired ) {
+    [string] $certPath, [string] $certPathCer, [int] $selfSignedCertNoOfMonthsUntilExpired ) {
 
     if ($IsWindows)
     {
