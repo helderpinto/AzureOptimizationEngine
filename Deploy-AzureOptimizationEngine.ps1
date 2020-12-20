@@ -401,7 +401,7 @@ if ("Y", "y" -contains $continueInput) {
             $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
             $Conn.Open() 
     
-            $createTableQuery = Get-Content -Path ".\model\loganalyticsingestcontrol-table.sql"
+            $createTableQuery = Get-Content -Path "./model/loganalyticsingestcontrol-table.sql"
             $Cmd = new-object system.Data.SqlClient.SqlCommand
             $Cmd.Connection = $Conn
             $Cmd.CommandTimeout = $SqlTimeout
@@ -412,7 +412,7 @@ if ("Y", "y" -contains $continueInput) {
             $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
             $Conn.Open() 
     
-            $initTableQuery = Get-Content -Path ".\model\loganalyticsingestcontrol-initialize.sql"
+            $initTableQuery = Get-Content -Path "./model/loganalyticsingestcontrol-initialize.sql"
             $Cmd = new-object system.Data.SqlClient.SqlCommand
             $Cmd.Connection = $Conn
             $Cmd.CommandTimeout = $SqlTimeout
@@ -423,7 +423,7 @@ if ("Y", "y" -contains $continueInput) {
             $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
             $Conn.Open() 
     
-            $upgradeTableQuery = Get-Content -Path ".\model\loganalyticsingestcontrol-upgrade.sql"
+            $upgradeTableQuery = Get-Content -Path "./model/loganalyticsingestcontrol-upgrade.sql"
             $Cmd = new-object system.Data.SqlClient.SqlCommand
             $Cmd.Connection = $Conn
             $Cmd.CommandTimeout = $SqlTimeout
@@ -434,7 +434,7 @@ if ("Y", "y" -contains $continueInput) {
             $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
             $Conn.Open() 
     
-            $createTableQuery = Get-Content -Path ".\model\sqlserveringestcontrol-table.sql"
+            $createTableQuery = Get-Content -Path "./model/sqlserveringestcontrol-table.sql"
             $Cmd = new-object system.Data.SqlClient.SqlCommand
             $Cmd.Connection = $Conn
             $Cmd.CommandTimeout = $SqlTimeout
@@ -445,7 +445,7 @@ if ("Y", "y" -contains $continueInput) {
             $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
             $Conn.Open() 
     
-            $initTableQuery = Get-Content -Path ".\model\sqlserveringestcontrol-initialize.sql"
+            $initTableQuery = Get-Content -Path "./model/sqlserveringestcontrol-initialize.sql"
             $Cmd = new-object system.Data.SqlClient.SqlCommand
             $Cmd.Connection = $Conn
             $Cmd.CommandTimeout = $SqlTimeout
@@ -456,7 +456,7 @@ if ("Y", "y" -contains $continueInput) {
             $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
             $Conn.Open() 
     
-            $createTableQuery = Get-Content -Path ".\model\recommendations-table.sql"
+            $createTableQuery = Get-Content -Path "./model/recommendations-table.sql"
             $Cmd = new-object system.Data.SqlClient.SqlCommand
             $Cmd.Connection = $Conn
             $Cmd.CommandTimeout = $SqlTimeout
