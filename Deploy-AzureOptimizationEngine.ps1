@@ -396,9 +396,7 @@ if ("Y", "y" -contains $continueInput) {
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
-    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sqlPass)
-    $sqlPassPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-    
+    $sqlPassPlain = (New-Object PSCredential "user",$sqlPass).GetNetworkCredential().Password    
     $sqlServerEndpoint = "$sqlServerName.database.windows.net"
     $databaseName = $sqlDatabaseName
     $SqlTimeout = 60
