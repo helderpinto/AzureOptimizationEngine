@@ -358,9 +358,10 @@ if ("Y", "y" -contains $continueInput) {
         $runasAppName = "$automationAccountName-runasaccount"
 
         $CertificateName = $automationAccountName + $CertificateAssetName
-        $PfxCertPathForRunAsAccount = Join-Path $env:TEMP ($CertificateName + ".pfx")
+        $TempDir = [System.IO.Path]::GetTempPath()
+        $PfxCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".pfx")
         $PfxCertPlainPasswordForRunAsAccount = -join ((65..90) + (97..122) | Get-Random -Count 20 | % {[char]$_})
-        $CerCertPathForRunAsAccount = Join-Path $env:TEMP ($CertificateName + ".cer")
+        $CerCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".cer")
 
         try {
             CreateSelfSignedCertificate $CertificateName $PfxCertPlainPasswordForRunAsAccount $PfxCertPathForRunAsAccount $CerCertPathForRunAsAccount $SelfSignedCertNoOfMonthsUntilExpired   
