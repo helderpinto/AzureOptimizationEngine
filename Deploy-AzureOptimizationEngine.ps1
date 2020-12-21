@@ -308,10 +308,16 @@ if ("Y", "y" -contains $continueInput) {
     }
 
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
+    $upgradingSchedules = $false
     $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
     if ($schedules.Count -gt 0)
     {
-        $baseTime = ($schedules | Sort-Object -Property StartTime | Select-Object -First 1).StartTime.AddHours(-1).ToString("u")
+        $upgradingSchedules = $true
+        $originalBaseTime = ($schedules | Sort-Object -Property StartTime | Select-Object -First 1).StartTime.AddHours(-1).DateTime
+        $now = (Get-Date).ToUniversalTime()
+        $diff = $now - $originalBaseTime
+        $nextWeekDays = [Math]::Ceiling($diff.TotalDays / 7) * 7
+        $baseTime = $now.AddDays($nextWeekDays - $diff.TotalDays).ToString("u")
         Write-Host "Existing schedules found. Keeping original base time: $baseTime." -ForegroundColor Green
     }
     else
