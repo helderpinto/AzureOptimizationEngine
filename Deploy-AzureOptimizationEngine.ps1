@@ -13,24 +13,21 @@ param (
 function CreateSelfSignedCertificate([string] $certificateName, [string] $selfSignedCertPlainPassword,
     [string] $certPath, [string] $certPathCer, [int] $selfSignedCertNoOfMonthsUntilExpired ) {
 
-    if ($IsWindows -or $env:OS -like "Win*" -or [System.Environment]::OSVersion.Platform -like "Win*")
-    {
+    if ($IsWindows -or $env:OS -like "Win*" -or [System.Environment]::OSVersion.Platform -like "Win*") {
         $Cert = New-SelfSignedCertificate -DnsName $certificateName -CertStoreLocation cert:\LocalMachine\My `
-        -KeyExportPolicy Exportable -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" `
-        -NotAfter (Get-Date).AddMonths($selfSignedCertNoOfMonthsUntilExpired) -HashAlgorithm SHA256
+            -KeyExportPolicy Exportable -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" `
+            -NotAfter (Get-Date).AddMonths($selfSignedCertNoOfMonthsUntilExpired) -HashAlgorithm SHA256
 
         $CertPassword = ConvertTo-SecureString $selfSignedCertPlainPassword -AsPlainText -Force
         Export-PfxCertificate -Cert ("Cert:\localmachine\my\" + $Cert.Thumbprint) -FilePath $certPath -Password $CertPassword -Force | Write-Verbose
         Export-Certificate -Cert ("Cert:\localmachine\my\" + $Cert.Thumbprint) -FilePath $certPathCer -Type CERT | Write-Verbose
     }
-    elseif ($IsLinux -or $IsMacOs -or [System.Environment]::OSVersion.Platform -eq "Unix")
-    {
+    elseif ($IsLinux -or $IsMacOs -or [System.Environment]::OSVersion.Platform -eq "Unix") {
         $ValidityDays = $selfSignedCertNoOfMonthsUntilExpired * 30
         openssl req -x509 -sha256 -nodes -days $ValidityDays -newkey rsa:2048 -subj "/CN=$certificateName" -keyout "$certPathCer.key" -out $certPathCer
         openssl pkcs12 -export -out $certPath -password pass:$selfSignedCertPlainPassword -inkey "$certPathCer.key" -in $certPathCer
     }
-    else
-    {
+    else {
         throw "Unsupported OS type"
     }
 }
@@ -79,23 +76,19 @@ $ErrorActionPreference = "Stop"
 
 $GitHubOriginalUri = "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/master/azuredeploy.json"
 
-if ([string]::IsNullOrEmpty($TemplateUri))
-{
+if ([string]::IsNullOrEmpty($TemplateUri)) {
     $TemplateUri = $GitHubOriginalUri
 }
 
 $isTemplateAvailable = $false
 
-try
-{
+try {
     Invoke-WebRequest -Uri $TemplateUri | Out-Null
     $isTemplateAvailable = $true
 }
-catch
-{
+catch {
     $saNameEnd = $TemplateUri.IndexOf(".blob.core.")
-    if ($saNameEnd -gt 0)
-    {
+    if ($saNameEnd -gt 0) {
         $FullTemplateUri = $TemplateUri + $ArtifactsSasToken
         try {
             Invoke-WebRequest -Uri $FullTemplateUri | Out-Null
@@ -111,8 +104,7 @@ catch
     }
 }
 
-if (!$isTemplateAvailable)
-{
+if (!$isTemplateAvailable) {
     throw "Terminating due to template unavailability."
 }
 
@@ -122,8 +114,7 @@ if (-not($ctx)) {
     $ctx = Get-AzContext
 }
 else {
-    if ($ctx.Environment.Name -ne $AzureEnvironment)
-    {
+    if ($ctx.Environment.Name -ne $AzureEnvironment) {
         Disconnect-AzAccount -ContextName $ctx.Name
         Connect-AzAccount -Environment $AzureEnvironment
         $ctx = Get-AzContext
@@ -149,8 +140,7 @@ else {
     $selectedSubscription = 0
 }
 
-if ($subscriptions.Count -eq 0)
-{
+if ($subscriptions.Count -eq 0) {
     throw "No subscriptions found. Check if you are logged in with the right Azure AD account."
 }
 
@@ -177,8 +167,7 @@ do {
         $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
     }
 
-    if ([string]::IsNullOrEmpty($namePrefix))
-    {
+    if ([string]::IsNullOrEmpty($namePrefix)) {
         $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
         $deploymentName = $deploymentNameTemplate -f $resourceGroupName
         $storageAccountName = Read-Host "Enter the Storage Account name"
@@ -189,8 +178,7 @@ do {
             $laWorkspaceName = Read-Host "Log Analytics Workspace"
         }
     }
-    else
-    {
+    else {
         if ($namePrefix.Length -gt 21) {
             throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
         }
@@ -273,10 +261,9 @@ if ("Y", "y" -contains $workspaceReuse) {
 
 $rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue 
 
-if (-not($rg.Location))
-{
+if (-not($rg.Location)) {
     Write-Host "Getting Azure locations..." -ForegroundColor Green
-    $locations = Get-AzLocation | Where-Object {$_.Providers -contains "Microsoft.Automation"} | Sort-Object -Property Location
+    $locations = Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.Automation" } | Sort-Object -Property Location
     
     for ($i = 0; $i -lt $locations.Count; $i++) {
         Write-Output "[$i] $($locations[$i].location)"    
@@ -290,8 +277,7 @@ if (-not($rg.Location))
     
     $targetLocation = $locations[$selectedLocation].location    
 }
-else
-{
+else {
     $targetLocation = $rg.Location    
 }
 
@@ -310,8 +296,7 @@ if ("Y", "y" -contains $continueInput) {
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
     $upgradingSchedules = $false
     $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
-    if ($schedules.Count -gt 0)
-    {
+    if ($schedules.Count -gt 0) {
         $upgradingSchedules = $true
         $originalBaseTime = ($schedules | Sort-Object -Property StartTime | Select-Object -First 1).StartTime.AddHours(-1).DateTime
         $now = (Get-Date).ToUniversalTime()
@@ -320,43 +305,65 @@ if ("Y", "y" -contains $continueInput) {
         $baseTime = $now.AddDays($nextWeekDays - $diff.TotalDays).ToString("u")
         Write-Host "Existing schedules found. Keeping original base time: $baseTime." -ForegroundColor Green
     }
-    else
-    {
+    else {
         Write-Host "Automation schedules base time automatically set to $baseTime." -ForegroundColor Green
     }
     $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
-    if ($jobSchedules.Count -gt 0)
-    {
+    if ($jobSchedules.Count -gt 0) {
         Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
-        foreach ($jobSchedule in $jobSchedules)
-        {
-            if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization"))
-            {
+        foreach ($jobSchedule in $jobSchedules) {
+            if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization")) {
                 Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                -JobScheduleId $jobSchedule.JobScheduleId -Force
+                    -JobScheduleId $jobSchedule.JobScheduleId -Force
             }
         }    
     }
 
     Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
-    if ([string]::IsNullOrEmpty($ArtifactsSasToken))
-    {
+    if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
-        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+            -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+            -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+            -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+            -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
+            -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
     }
-    else
-    {
+    else {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
-        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-    }        
+            -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+            -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+            -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+            -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
+            -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
+    }
+
+    if ($upgradingSchedules) {
+        $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
+        $dailySchedules = $schedules | Where-Object { $_.Frequency -eq "Day" }
+        foreach ($schedule in $dailySchedules) {
+            $now = (Get-Date).ToUniversalTime()
+            $newStartTime = [System.DateTimeOffset]::Parse($now.ToString("yyyy-MM-ddT00:00:00Z"))
+            $newStartTime = $newStartTime.AddHours($schedule.StartTime.Hour).AddMinutes($schedule.StartTime.Minute)
+            if ($newStartTime.AddMinutes(-5) -lt $now) {
+                $newStartTime = $newStartTime.AddDays(1)
+            }
+            $expiryTime = $schedule.ExpiryTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            $startTime = $newStartTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            $automationPath = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroupName/providers/Microsoft.Automation/automationAccounts/$automationAccountName/schedules/$($schedule.Name)?api-version=2015-10-31"
+            $body = "{
+                `"name`": `"$($schedule.Name)`",
+                `"properties`": {
+                  `"description`": `"$($schedule.Description)`",
+                  `"startTime`": `"$startTime`",
+                  `"expiryTime`": `"$expiryTime`",
+                  `"interval`": 1,
+                  `"frequency`": `"Day`",
+                  `"advancedSchedule`": {}
+                }
+              }"
+            Invoke-AzRestMethod -Path $automationPath -Method PUT -Payload $body | Out-Null
+        }
+    }
         
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
@@ -391,7 +398,7 @@ if ("Y", "y" -contains $continueInput) {
         $CertificateName = $automationAccountName + $CertificateAssetName
         $TempDir = [System.IO.Path]::GetTempPath()
         $PfxCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".pfx")
-        $PfxCertPlainPasswordForRunAsAccount = -join ((65..90) + (97..122) | Get-Random -Count 20 | % {[char]$_})
+        $PfxCertPlainPasswordForRunAsAccount = -join ((65..90) + (97..122) | Get-Random -Count 20 | % { [char]$_ })
         $CerCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".cer")
 
         try {
@@ -408,7 +415,7 @@ if ("Y", "y" -contains $continueInput) {
         
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
-        $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id}
+        $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id }
 
         CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
     }
@@ -418,7 +425,7 @@ if ("Y", "y" -contains $continueInput) {
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
-    $sqlPassPlain = (New-Object PSCredential "user",$sqlPass).GetNetworkCredential().Password    
+    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password    
     $sqlServerEndpoint = "$sqlServerName.database.windows.net"
     $databaseName = $sqlDatabaseName
     $SqlTimeout = 60
