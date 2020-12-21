@@ -10,6 +10,12 @@ BEGIN
     VALUES ('argdiskexports', '1901-01-01T00:00:00Z', -1, 'DisksV1', 'ARGManagedDisk')
 END
 
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argvhdexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argvhdexports', '1901-01-01T00:00:00Z', -1, 'VhdDisksV1', 'ARGUnmanagedDisk')
+END
+
 IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'advisorexports')
 BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 

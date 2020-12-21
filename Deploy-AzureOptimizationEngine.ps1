@@ -307,6 +307,17 @@ if ("Y", "y" -contains $continueInput) {
         New-AzResourceGroup -Name $resourceGroupName -Location $targetLocation
     }
 
+    $baseTime = (Get-Date).ToUniversalTime().ToString("u")
+    $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
+    if ($schedules.Count -gt 0)
+    {
+        $baseTime = ($schedules | Sort-Object -Property StartTime | Select-Object -First 1).StartTime.AddHours(-1).ToString("u")
+        Write-Host "Existing schedules found. Keeping original base time: $baseTime." -ForegroundColor Green
+    }
+    else
+    {
+        Write-Host "Automation schedules base time automatically set to $baseTime." -ForegroundColor Green
+    }
     $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
     if ($jobSchedules.Count -gt 0)
     {
@@ -325,7 +336,7 @@ if ("Y", "y" -contains $continueInput) {
     if ([string]::IsNullOrEmpty($ArtifactsSasToken))
     {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
+        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
         -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
         -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
@@ -334,7 +345,7 @@ if ("Y", "y" -contains $continueInput) {
     else
     {
         New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse `
+        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
         -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
         -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
@@ -352,7 +363,7 @@ if ("Y", "y" -contains $continueInput) {
     $deploymentDateVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $deploymentDateVariableName -ErrorAction SilentlyContinue
     
     if ($null -eq $deploymentDateVariable) {
-        $deploymentDate = (get-date).ToUniversalTime().ToString("yyyy-MM-dd")
+        $deploymentDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
         Write-Host "Setting initial deployment date ($deploymentDate)..." -ForegroundColor Green
         New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
