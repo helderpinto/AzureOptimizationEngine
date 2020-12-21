@@ -77,6 +77,13 @@
                 "description": "GUID for the ARG Disk Export job schedule creation - create a unique before deploy"
             }
         },
+        "argVhdExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VHD Export job schedule creation - create a unique before deploy"
+            }
+        },
         "argVmExportJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -103,6 +110,13 @@
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the ARG Disk Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argVhdIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VHD Ingest job schedule creation - create a unique before deploy"
             }
         },
         "argVmIngestJobId": {
@@ -173,12 +187,14 @@
         "advisorContainerName": "advisorexports",
         "argVmContainerName": "argvmexports",
         "argDiskContainerName": "argdiskexports",
+        "argVhdContainerName": "argvhdexports",
         "consumptionContainerName": "consumptionexports",
         "recommendationsContainerName": "recommendationsexports",
         "remediationLogsContainerName": "remediationlogs",
         "advisorExportsRunbookName": "Export-AdvisorRecommendationsToBlobStorage",
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
+        "argVhdExportsRunbookName": "Export-ARGUnmanagedDisksPropertiesToBlobStorage",
         "consumptionExportsRunbookName": "Export-ConsumptionToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
@@ -191,6 +207,7 @@
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "consumptionExportsScheduleName": "AzureOptimization_ExportConsumptionDaily",
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
+        "argVhdIngestScheduleName": "AzureOptimization_IngestARGVHDsDaily",
         "argVmIngestScheduleName": "AzureOptimization_IngestARGVMsDaily",
         "remediationLogsIngestScheduleName": "AzureOptimization_IngestRemediationLogsDaily",
         "consumptionIngestScheduleName": "AzureOptimization_IngestConsumptionDaily",
@@ -247,6 +264,13 @@
                 "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argVhdExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Unmanaged Disks (owned by a VM) properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVhdExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argVmExportsRunbookName')]",
@@ -347,6 +371,11 @@
                 "name": "AzureOptimization_ARGDiskContainer",
                 "description": "The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to",
                 "value": "[concat('\"',variables('argDiskContainerName'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_ARGVhdContainer",
+                "description": "The Storage Account container where Azure Resource Graph Unmanaged Disks exports are dumped to",
+                "value": "[concat('\"',variables('argVhdContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ARGVMContainer",
@@ -576,6 +605,19 @@
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
             "name": "[concat(parameters('storageAccountName'), '/default/', variables('argDiskContainerName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Storage Account ARG VHD exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argVhdContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
@@ -933,6 +975,23 @@
                 "frequency": "Day"
             }
         },
+        // Automation ARG VHD Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argVhdIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily Azure Resource Graph Unmanaged Disks ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
         // Automation ARG VM Ingest Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', variables('argVmIngestScheduleName'))]",
@@ -1056,6 +1115,27 @@
                 }
             }
         },
+        // Automation ARG VHD Exports Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argVhdExportJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argExportsScheduleName')]",
+                "modulesLoop",
+                "[variables('argVhdExportsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argExportsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('argVhdExportsRunbookName')]"
+                }
+            }
+        },
         // Automation ARG VM Exports Job Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', parameters('argVmExportJobId'))]",
@@ -1140,6 +1220,30 @@
                 },
                 "parameters": {
                     "StorageSinkContainer": "[variables('argDiskContainerName')]"
+                }
+            }
+        },
+        // Automation ARG VHD Ingest Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argVhdIngestJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argVhdIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argVhdIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('argVhdContainerName')]"
                 }
             }
         },
