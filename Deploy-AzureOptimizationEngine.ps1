@@ -340,6 +340,7 @@ if ("Y", "y" -contains $continueInput) {
     if ($upgradingSchedules) {
         $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
         $dailySchedules = $schedules | Where-Object { $_.Frequency -eq "Day" }
+        Write-Host "Fixing daily schedules after upgrade..." -ForegroundColor Green
         foreach ($schedule in $dailySchedules) {
             $now = (Get-Date).ToUniversalTime()
             $newStartTime = [System.DateTimeOffset]::Parse($now.ToString("yyyy-MM-ddT00:00:00Z"))
