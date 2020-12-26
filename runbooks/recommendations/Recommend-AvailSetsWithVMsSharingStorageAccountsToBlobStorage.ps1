@@ -123,14 +123,15 @@ $baseQuery = @"
     $vhdsTableName
     | where TimeGenerated > ago(1d)
     | extend StorageAccountName = tostring(split(InstanceId_s, '/')[0])
-    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s
-    | summarize TimeGenerated = any(TimeGenerated), StorageAcccountCount = count() by OwnerVMId_s
-    | where StorageAcccountCount > 1
+    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s, SubscriptionGuid_g, ResourceGroupName_s
     | join kind=inner (
         $vmsTableName
-        | where TimeGenerated > ago(1d)
-        | distinct VMName_s, InstanceId_s, Cloud_s, SubscriptionGuid_g, ResourceGroupName_s, Tags_s
+        | where TimeGenerated > ago(1d) and isnotempty(AvailabilitySetId_s) 
+        | distinct VMName_s, InstanceId_s, AvailabilitySetId_s, Cloud_s, Tags_s
     ) on `$left.OwnerVMId_s == `$right.InstanceId_s
+    | extend AvailabilitySetName = tostring(split(AvailabilitySetId_s,'/')[8])
+    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by AvailabilitySetName, AvailabilitySetId_s, StorageAccountName, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s
+    | where VMCount > 1
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
@@ -144,12 +145,12 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-    $queryInstanceId = $result.InstanceId_s
+    $queryInstanceId = $result.AvailabilitySetId_s
     $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["StorageAccountsUsed"] = $result.StorageAcccountCount
+    $additionalInfoDictionary["SharedStorageAccountName"] = $result.StorageAccountName
 
     $fitScore = 5
 
@@ -172,14 +173,14 @@ foreach ($result in $results)
         Cloud = $result.Cloud_s
         Category = "HighAvailability"
         ImpactedArea = "Microsoft.Compute/virtualMachines"
-        Impact = "Medium"
+        Impact = "High"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "DisksMultipleStorageAccounts"
-        RecommendationSubTypeId = "024049e7-f63a-4e1c-b620-f011aafbc576"
-        RecommendationDescription = "Each Virtual Machine should have its unmanaged disks stored in a single Storage Account for higher availability and manageability"
-        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or move VHDs to the same Storage Account"
-        InstanceId = $result.InstanceId_s
-        InstanceName = $result.VMName_s
+        RecommendationSubType = "AvailSetSharedStorageAccount"
+        RecommendationSubTypeId = "e530029f-9b6a-413a-99ed-81af54502bb9"
+        RecommendationDescription = "Virtual Machines in unmanaged Availability Sets should not share the same Storage Account"
+        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or keep the disks in a dedicated Storage Account per VM"
+        InstanceId = $result.AvailabilitySetId_s
+        InstanceName = $result.AvailabilitySetName
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -194,7 +195,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "disksmultiplesa-$fileDate.json"
+$jsonExportPath = "availsetsharedsa-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath

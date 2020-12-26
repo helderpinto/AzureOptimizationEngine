@@ -100,7 +100,7 @@ if (-not($connectionSuccess))
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 $vhdsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGUnmanagedDisk' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tabled $vmsTableName and $vhdsTableName"
+Write-Output "Will run query against tables $vmsTableName and $vhdsTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -124,14 +124,14 @@ $baseQuery = @"
     | where TimeGenerated > ago(1d)
     | extend StorageAccountName = tostring(split(InstanceId_s, '/')[0])
     | distinct TimeGenerated, StorageAccountName, OwnerVMId_s, SubscriptionGuid_g, ResourceGroupName_s
-    | join kind=inner (
+    | join kind=inner ( 
         $vmsTableName
-        | where TimeGenerated > ago(1d) and isnotempty(AvailabilitySetId_s) 
-        | distinct VMName_s, InstanceId_s, AvailabilitySetId_s, Cloud_s, Tags_s
+        | where TimeGenerated > ago(1d)
+        | distinct InstanceId_s, Tags_s
     ) on `$left.OwnerVMId_s == `$right.InstanceId_s
-    | extend AvailabilitySetName = tostring(split(AvailabilitySetId_s,'/')[8])
-    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by AvailabilitySetName, AvailabilitySetId_s, StorageAccountName, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s
+    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by StorageAccountName, SubscriptionGuid_g, ResourceGroupName_s
     | where VMCount > 1
+    | extend StorageAccountId = strcat('/subscriptions/', SubscriptionGuid_g, '/resourcegroups/', ResourceGroupName_s, '/providers/microsoft.storage/storageaccounts/', StorageAccountName)
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan)
@@ -145,12 +145,12 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-    $queryInstanceId = $result.AvailabilitySetId_s
+    $queryInstanceId = $result.StorageAccountId
     $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["SharedStorageAccountName"] = $result.StorageAccountName
+    $additionalInfoDictionary["VirtualMachineCount"] = $result.VMCount
 
     $fitScore = 5
 
@@ -173,14 +173,14 @@ foreach ($result in $results)
         Cloud = $result.Cloud_s
         Category = "HighAvailability"
         ImpactedArea = "Microsoft.Compute/virtualMachines"
-        Impact = "High"
+        Impact = "Medium"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "AvailSetSharedStorageAccount"
-        RecommendationSubTypeId = "e530029f-9b6a-413a-99ed-81af54502bb9"
-        RecommendationDescription = "Virtual Machines in unmanaged Availability Sets should not share the same Storage Account"
-        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or keep each VM disks in a dedicated Storage Account"
-        InstanceId = $result.AvailabilitySetId_s
-        InstanceName = $result.AvailabilitySetName
+        RecommendationSubType = "StorageAccountsMultipleVMs"
+        RecommendationSubTypeId = "b70f44fa-5ef9-4180-b2f9-9cc6be07ab3e"
+        RecommendationDescription = "Virtual Machines with unmanaged disks should not share the same Storage Account"
+        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or keep the disks in a dedicated Storage Account per VM"
+        InstanceId = $result.StorageAccountId
+        InstanceName = $result.StorageAccountName
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -195,7 +195,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "availsetsharedsa-$fileDate.json"
+$jsonExportPath = "storageaccountsmultiplevms-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
