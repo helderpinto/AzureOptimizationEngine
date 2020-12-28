@@ -91,6 +91,13 @@
                 "description": "GUID for the ARG VM Export job schedule creation - create a unique before deploy"
             }
         },
+        "argAvailSetExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG Availability Set Export job schedule creation - create a unique before deploy"
+            }
+        },
         "advisorExportJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -124,6 +131,13 @@
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the ARG VM Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argAvailSetIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG Availability Set Ingest job schedule creation - create a unique before deploy"
             }
         },
         "advisorIngestJobId": {
@@ -188,6 +202,7 @@
         "argVmContainerName": "argvmexports",
         "argDiskContainerName": "argdiskexports",
         "argVhdContainerName": "argvhdexports",
+        "argAvailSetContainerName": "argavailsetexports",
         "consumptionContainerName": "consumptionexports",
         "recommendationsContainerName": "recommendationsexports",
         "remediationLogsContainerName": "remediationlogs",
@@ -195,6 +210,7 @@
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
         "argVhdExportsRunbookName": "Export-ARGUnmanagedDisksPropertiesToBlobStorage",
+        "argAvailSetExportsRunbookName": "Export-ARGAvailabilitySetPropertiesToBlobStorage",
         "consumptionExportsRunbookName": "Export-ConsumptionToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
@@ -209,6 +225,7 @@
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
         "argVhdIngestScheduleName": "AzureOptimization_IngestARGVHDsDaily",
         "argVmIngestScheduleName": "AzureOptimization_IngestARGVMsDaily",
+        "argAvailSetIngestScheduleName": "AzureOptimization_IngestARGAvailSetsDaily",
         "remediationLogsIngestScheduleName": "AzureOptimization_IngestRemediationLogsDaily",
         "consumptionIngestScheduleName": "AzureOptimization_IngestConsumptionDaily",
         "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorWeekly",
@@ -276,6 +293,13 @@
                 "name": "[variables('argVmExportsRunbookName')]",
                 "version": "1.3.1.0",
                 "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argAvailSetExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Availability Set properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
@@ -381,6 +405,11 @@
                 "name": "AzureOptimization_ARGVMContainer",
                 "description": "The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to",
                 "value": "[concat('\"',variables('argVmContainerName'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_ARGAvailabilitySetContainer",
+                "description": "The Storage Account container where Azure Resource Graph Availability Set exports are dumped to",
+                "value": "[concat('\"',variables('argAvailSetContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ConsumptionContainer",
@@ -631,6 +660,19 @@
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
             "name": "[concat(parameters('storageAccountName'), '/default/', variables('argVmContainerName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Storage Account ARG Availability Set exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argAvailSetContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
@@ -1009,6 +1051,23 @@
                 "frequency": "Day"
             }
         },
+        // Automation ARG Availability Set Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argAvailSetIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily Azure Resource Graph Availability Set ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
         // Automation Remediation Logs Ingest Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', variables('remediationLogsIngestScheduleName'))]",
@@ -1157,6 +1216,27 @@
                 }
             }
         },
+        // Automation ARG Availability Set Exports Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAvailSetExportJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argExportsScheduleName')]",
+                "modulesLoop",
+                "[variables('argAvailSetExportsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argExportsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('argAvailSetExportsRunbookName')]"
+                }
+            }
+        },
         // Automation Advisor Exports Job Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', parameters('advisorExportJobId'))]",
@@ -1268,6 +1348,30 @@
                 },
                 "parameters": {
                     "StorageSinkContainer": "[variables('argVmContainerName')]"
+                }
+            }
+        },
+        // Automation ARG Availability Set Ingest Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAvailSetIngestJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argAvailSetIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argAvailSetIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('argAvailSetContainerName')]"
                 }
             }
         },
