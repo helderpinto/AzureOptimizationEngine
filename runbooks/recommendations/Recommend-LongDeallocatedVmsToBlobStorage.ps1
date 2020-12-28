@@ -204,6 +204,7 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
+    $additionalInfoDictionary["LongDeallocatedThreshold"] = $deallocatedIntervalDays
     $additionalInfoDictionary["CostsAmount"] = [double] $result.TotalDisksCosts 
     $additionalInfoDictionary["savingsAmount"] = [double] $result.TotalDisksCosts 
 
