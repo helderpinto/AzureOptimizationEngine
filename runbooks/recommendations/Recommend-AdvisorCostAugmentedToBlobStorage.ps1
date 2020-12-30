@@ -397,9 +397,12 @@ foreach ($result in $results) {
         foreach ($tagPairString in $tagPairs)
         {
             $tagPair = $tagPairString.Split('=')
-            $tagName = $tagPair[0].Trim()
-            $tagValue = $tagPair[1].Trim()
-            $tags[$tagName] = $tagValue
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
         }
     }
     

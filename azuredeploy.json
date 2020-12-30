@@ -383,84 +383,84 @@
             },
             {
                 "name": "[variables('unattachedDisksRecommendationsRunbookName')]",
-                "version": "2.2.0.0",
+                "version": "2.2.1.0",
                 "description": "Generates unattached disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                "version": "2.2.0.0",
+                "version": "2.2.1.0",
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorAsIsRecommendationsRunbookName')]",
-                "version": "1.1.0.0",
+                "version": "1.1.1.0",
                 "description": "Generates all types of Advisor recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorAsIsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unmanagedDisksRecommendationsRunbookName')]",
-                "version": "1.3.1.0",
+                "version": "1.3.2.0",
                 "description": "Generates unmanaged disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unmanagedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('availSetsLowFaultDomainRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates low fault domain Availability Set recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsLowFaultDomainRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('availSetsLowUpdateDomainRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates low update domain Availability Set recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsLowUpdateDomainRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('availSetsSharingStorageRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates Availability Set VMs sharing storage recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsSharingStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('longDeallocatedVmsRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates long deallocated VMs recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('longDeallocatedVmsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('storageAccountsMultipleVmsRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates storage accounts with multiple VMs recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('storageAccountsMultipleVmsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('vmsNoAvailSetRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates VMs without Availability Set recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsNoAvailSetRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('vmsSingleInAvailSetRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates VMs single in Availability Set recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsSingleInAvailSetRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates VMs with disks in multiple storage accounts recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsDisksMultipleStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
