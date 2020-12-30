@@ -47,7 +47,7 @@ if ([string]::IsNullOrEmpty($sqldatabase))
 
 $deallocatedIntervalDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationLongDeallocatedVmsIntervalDays")
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
-$consumptionOffsetDaysStart = $consumptionOffsetDays
+$consumptionOffsetDaysStart = $consumptionOffsetDays + 1
 
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
