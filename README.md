@@ -26,6 +26,18 @@ A few hours after setting up the engine, you'll get a Power BI dashboard with al
 
 ## Releases
 
+* 01/2020 - solution deployment improvements and several new recommendations added
+    * Support for Azure Cloud Shell (PowerShell) deployment
+    * Solution upgrade keeps original runbook schedules
+    * Eight new recommendations added
+        * **Cost** - VMs that have been deallocated for a long time
+        * **HA** - Availability Sets with a small fault domain count
+        * **HA** - Availability Sets with a small update domain count
+        * **HA** - Unmanaged Availability Sets with VMs sharing storage accounts
+        * **HA** - Storage Accounts containing unmanaged disks from multiple VMs
+        * **HA** - VMs without Availability Set
+        * **HA** - Single VM Availability Sets
+        * **HA** - VMs with unmanaged disks spanning multiple storage accounts
 * 12/2020 - added Azure Consumption dimension to cost recommendations and refactored Power BI dashboard
 * 11/2020 - support for automated VM right-size remediations and for other Well-Architected scopes, with unmanaged disks custom recommendation
 * 07/2020 - [initial release] Advisor Cost augmented VM right-size recommendations and orphaned disks custom recommendation
