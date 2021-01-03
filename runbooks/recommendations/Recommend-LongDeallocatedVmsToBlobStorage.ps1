@@ -153,12 +153,12 @@ $baseQuery = @"
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
     | where InstanceId_s !in (BilledVMs) 
     | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s 
-    | join kind=inner (
+    | join kind=leftouter (
         $disksTableName 
         | where TimeGenerated > ago(1d)
         | project DiskInstanceId = InstanceId_s, SKU_s, OwnerVMId_s
     ) on `$left.InstanceId_s == `$right.OwnerVMId_s
-    | join kind=inner (
+    | join kind=leftouter (
         BilledDisks
     ) on `$left.DiskInstanceId == `$right.BillingInstanceId
     | summarize TotalDisksCosts = sum(DisksCosts) by InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s
