@@ -14,6 +14,8 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 }
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
+$workspaceName = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceName"
+$workspaceRG = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceRG"
 $workspaceSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceSubId"
 $workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceTenantId"
 
@@ -24,6 +26,8 @@ $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "recommendationsexports"
 }
+
+$deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # yyyy-MM-dd format
 
 $lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))
@@ -40,6 +44,10 @@ if ([string]::IsNullOrEmpty($sqldatabase))
 {
     $sqldatabase = "azureoptimization"
 }
+
+$deallocatedIntervalDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationLongDeallocatedVmsIntervalDays")
+$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
+$consumptionOffsetDaysStart = $consumptionOffsetDays + 1
 
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
@@ -77,7 +85,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','ARGVirtualMachine','AzureConsumption')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -98,13 +106,17 @@ if (-not($connectionSuccess))
 }
 
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+$disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGManagedDisk' }).LogAnalyticsSuffix + "_CL"
+$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against table $vmsTableName"
+Write-Output "Will run query against tables $vmsTableName, $disksTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
 
-$recommendationSearchTimeSpan = 1
+$recommendationSearchTimeSpan = $deallocatedIntervalDays + $consumptionOffsetDaysStart
+$offlineInterval = $deallocatedIntervalDays + $consumptionOffsetDays
+$billingInterval = 30 + $consumptionOffsetDays
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
@@ -119,9 +131,37 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
-    $vmsTableName 
-    | where TimeGenerated > ago(1d) and UsesManagedDisks_s == 'false'
-    | distinct InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, DeploymentModel_s, Tags_s, Cloud_s
+    let offlineInterval = $($offlineInterval)d;
+    let billingInterval = $($billingInterval)d;
+    let billingWindowIntervalEnd = $($consumptionOffsetDays)d; 
+    let billingWindowIntervalStart = $($consumptionOffsetDaysStart)d; 
+    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let stime = etime-offlineInterval;
+
+    let BilledVMs = $consumptionTableName 
+    | where UsageDate_t between (stime..etime)
+    | where InstanceId_s like 'microsoft.compute/virtualmachines/' 
+    | distinct InstanceId_s;
+
+    let BilledDisks = $consumptionTableName 
+    | where UsageDate_t > ago(billingInterval)
+    | where InstanceId_s like 'microsoft.compute/disks/'
+    | extend BillingInstanceId = InstanceId_s
+    | summarize DisksCosts = sum(todouble(Cost_s)) by BillingInstanceId;
+
+    $vmsTableName
+    | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
+    | where InstanceId_s !in (BilledVMs) 
+    | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s 
+    | join kind=leftouter (
+        $disksTableName 
+        | where TimeGenerated > ago(1d)
+        | project DiskInstanceId = InstanceId_s, SKU_s, OwnerVMId_s
+    ) on `$left.InstanceId_s == `$right.OwnerVMId_s
+    | join kind=leftouter (
+        BilledDisks
+    ) on `$left.DiskInstanceId == `$right.BillingInstanceId
+    | summarize TotalDisksCosts = sum(DisksCosts) by InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -140,11 +180,37 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
+    $querySubscriptionId = $result.SubscriptionGuid_g
+    $queryText = @"
+        let offlineInterval = $($offlineInterval)d;
+        $consumptionTableName
+        | where InstanceId_s == '$queryInstanceId'
+        | join kind=inner (
+            $disksTableName
+            | extend DiskInstanceId = InstanceId_s
+        )
+        on `$left.InstanceId_s == `$right.OwnerVMId_s
+        | summarize DeallocatedSince = max(UsageDate_t) by DiskName_s, DiskSizeGB_s, SKU_s, DiskInstanceId 
+        | join kind=inner
+        (
+            $consumptionTableName
+            | where UsageDate_t > ago(offlineInterval)
+            | extend DiskInstanceId = InstanceId_s
+            | summarize DiskCosts = sum(todouble(Cost_s)) by DiskInstanceId
+        )
+        on DiskInstanceId
+        | project DeallocatedSince, DiskName_s, DiskSizeGB_s, SKU_s, MonthlyCosts = DiskCosts
+"@
+    $encodedQuery = [System.Uri]::EscapeDataString($queryText)
+    $detailsQueryStart = $deploymentDate
+    $detailsQueryEnd = $datetime.AddDays(1).ToString("yyyy-MM-dd")
+    $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$querySubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["DeploymentModel"] = $result.DeploymentModel_s
+    $additionalInfoDictionary["LongDeallocatedThreshold"] = $deallocatedIntervalDays
+    $additionalInfoDictionary["CostsAmount"] = [double] $result.TotalDisksCosts 
+    $additionalInfoDictionary["savingsAmount"] = [double] $result.TotalDisksCosts 
 
     $fitScore = 5
 
@@ -168,14 +234,14 @@ foreach ($result in $results)
     $recommendation = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
-        Category = "HighAvailability"
+        Category = "Cost"
         ImpactedArea = "Microsoft.Compute/virtualMachines"
-        Impact = "High"
-        RecommendationType = "BestPractices"
-        RecommendationSubType = "UnmanagedDisks"
-        RecommendationSubTypeId = "b576a069-b1f2-43a6-9134-5ee75376402a"
-        RecommendationDescription = "Virtual Machines should use Managed Disks for higher availability and manageability"
-        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks"
+        Impact = "Medium"
+        RecommendationType = "Saving"
+        RecommendationSubType = "LongDeallocatedVms"
+        RecommendationSubTypeId = "c320b790-2e58-452a-aa63-7b62c383ad8a"
+        RecommendationDescription = "Virtual Machine has been deallocated for long with disks still incurring costs"
+        RecommendationAction = "Delete Virtual Machine or downgrade its disks to Standard HDD SKU"
         InstanceId = $result.InstanceId_s
         InstanceName = $result.VMName_s
         AdditionalInfo = $additionalInfoDictionary
@@ -192,7 +258,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unmanageddisks-$fileDate.json"
+$jsonExportPath = "longdeallocatedvms-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath

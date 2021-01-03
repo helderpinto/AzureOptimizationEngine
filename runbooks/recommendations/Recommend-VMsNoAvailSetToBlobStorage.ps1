@@ -119,9 +119,9 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
-    $vmsTableName 
-    | where TimeGenerated > ago(1d) and UsesManagedDisks_s == 'false'
-    | distinct InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, DeploymentModel_s, Tags_s, Cloud_s
+    $vmsTableName
+    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s)
+    | project TimeGenerated, VMName_s, InstanceId_s, Tags_s, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -143,8 +143,6 @@ foreach ($result in $results)
     $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
 
     $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["DeploymentModel"] = $result.DeploymentModel_s
 
     $fitScore = 5
 
@@ -170,12 +168,12 @@ foreach ($result in $results)
         Cloud = $result.Cloud_s
         Category = "HighAvailability"
         ImpactedArea = "Microsoft.Compute/virtualMachines"
-        Impact = "High"
+        Impact = "Medium"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "UnmanagedDisks"
-        RecommendationSubTypeId = "b576a069-b1f2-43a6-9134-5ee75376402a"
-        RecommendationDescription = "Virtual Machines should use Managed Disks for higher availability and manageability"
-        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks"
+        RecommendationSubType = "VMsNoAvailSet"
+        RecommendationSubTypeId = "998b50d8-e654-417b-ab20-a31cb11629c0"
+        RecommendationDescription = "Virtual Machines should be placed in an Availability Set together with other instances with the same role"
+        RecommendationAction = "Add VM to an Availability Set together with other VMs of the same role"
         InstanceId = $result.InstanceId_s
         InstanceName = $result.VMName_s
         AdditionalInfo = $additionalInfoDictionary
@@ -192,7 +190,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unmanageddisks-$fileDate.json"
+$jsonExportPath = "vmsnoavailset-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath

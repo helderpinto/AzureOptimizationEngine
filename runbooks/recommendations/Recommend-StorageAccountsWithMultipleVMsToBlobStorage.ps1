@@ -77,7 +77,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','ARGUnmanagedDisk')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -98,8 +98,9 @@ if (-not($connectionSuccess))
 }
 
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+$vhdsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGUnmanagedDisk' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against table $vmsTableName"
+Write-Output "Will run query against tables $vmsTableName and $vhdsTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -119,9 +120,18 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
-    $vmsTableName 
-    | where TimeGenerated > ago(1d) and UsesManagedDisks_s == 'false'
-    | distinct InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, DeploymentModel_s, Tags_s, Cloud_s
+    $vhdsTableName
+    | where TimeGenerated > ago(1d)
+    | extend StorageAccountName = tostring(split(InstanceId_s, '/')[0])
+    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s, SubscriptionGuid_g, ResourceGroupName_s
+    | join kind=inner ( 
+        $vmsTableName
+        | where TimeGenerated > ago(1d)
+        | distinct InstanceId_s, Tags_s
+    ) on `$left.OwnerVMId_s == `$right.InstanceId_s
+    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by StorageAccountName, SubscriptionGuid_g, ResourceGroupName_s
+    | where VMCount > 1
+    | extend StorageAccountId = strcat('/subscriptions/', SubscriptionGuid_g, '/resourcegroups/', ResourceGroupName_s, '/providers/microsoft.storage/storageaccounts/', StorageAccountName)
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -139,12 +149,12 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-    $queryInstanceId = $result.InstanceId_s
+    $queryInstanceId = $result.StorageAccountId
     $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["DeploymentModel"] = $result.DeploymentModel_s
+    $additionalInfoDictionary["VirtualMachineCount"] = $result.VMCount
 
     $fitScore = 5
 
@@ -170,14 +180,14 @@ foreach ($result in $results)
         Cloud = $result.Cloud_s
         Category = "HighAvailability"
         ImpactedArea = "Microsoft.Compute/virtualMachines"
-        Impact = "High"
+        Impact = "Medium"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "UnmanagedDisks"
-        RecommendationSubTypeId = "b576a069-b1f2-43a6-9134-5ee75376402a"
-        RecommendationDescription = "Virtual Machines should use Managed Disks for higher availability and manageability"
-        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks"
-        InstanceId = $result.InstanceId_s
-        InstanceName = $result.VMName_s
+        RecommendationSubType = "StorageAccountsMultipleVMs"
+        RecommendationSubTypeId = "b70f44fa-5ef9-4180-b2f9-9cc6be07ab3e"
+        RecommendationDescription = "Virtual Machines with unmanaged disks should not share the same Storage Account"
+        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or keep the disks in a dedicated Storage Account per VM"
+        InstanceId = $result.StorageAccountId
+        InstanceName = $result.StorageAccountName
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -192,7 +202,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unmanageddisks-$fileDate.json"
+$jsonExportPath = "storageaccountsmultiplevms-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath

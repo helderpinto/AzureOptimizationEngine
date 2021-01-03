@@ -202,7 +202,7 @@ foreach ($vm in $armVmsTotal)
         VMName = $vm.name.ToLower()
         DeploymentModel = 'ARM'
         InstanceId = $vm.id.ToLower()
-        VMSize = $vmSize.name
+        VMSize = $vm.properties.hardwareProfile.vmSize
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.osDisk.osType
@@ -242,7 +242,7 @@ foreach ($vm in $classicVmsTotal)
         DeploymentModel = 'Classic'
         Location = $vm.location
         InstanceId = $vm.id.ToLower()
-        VMSize = $vmSize.name
+        VMSize = $vm.properties.hardwareProfile.size
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.operatingSystemDisk.operatingSystem

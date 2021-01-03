@@ -77,11 +77,25 @@
                 "description": "GUID for the ARG Disk Export job schedule creation - create a unique before deploy"
             }
         },
+        "argVhdExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VHD Export job schedule creation - create a unique before deploy"
+            }
+        },
         "argVmExportJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the ARG VM Export job schedule creation - create a unique before deploy"
+            }
+        },
+        "argAvailSetExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG Availability Set Export job schedule creation - create a unique before deploy"
             }
         },
         "advisorExportJobId": {
@@ -105,11 +119,25 @@
                 "description": "GUID for the ARG Disk Ingest job schedule creation - create a unique before deploy"
             }
         },
+        "argVhdIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VHD Ingest job schedule creation - create a unique before deploy"
+            }
+        },
         "argVmIngestJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the ARG VM Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argAvailSetIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG Availability Set Ingest job schedule creation - create a unique before deploy"
             }
         },
         "advisorIngestJobId": {
@@ -161,6 +189,62 @@
                 "description": "GUID for the Unmanaged Disks Recommendation Generation job schedule creation - create a unique before deploy"
             }
         },
+        "availSetsLowFaultDomainRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Availability Sets with Low Fault Domains Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "availSetsLowUpdateDomainRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Availability Sets with Low Update Domains Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "availSetsSharingStorageRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Availability Sets with VMs Sharing Storage Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "longDeallocatedVmsRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Long Deallocated VMs Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "storageAccountsMultipleVmsRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Storage Accounts with Multiple VMs Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "vmsNoAvailSetRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the VMs without Availability Set Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "vmsSingleInAvailSetRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the VMs single in Availability Set Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
+        "vmsDisksMultipleStorageRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the VMs with Disks in Multiple Storage Accounts Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
         "recommendationsIngestJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -173,25 +257,39 @@
         "advisorContainerName": "advisorexports",
         "argVmContainerName": "argvmexports",
         "argDiskContainerName": "argdiskexports",
+        "argVhdContainerName": "argvhdexports",
+        "argAvailSetContainerName": "argavailsetexports",
         "consumptionContainerName": "consumptionexports",
         "recommendationsContainerName": "recommendationsexports",
         "remediationLogsContainerName": "remediationlogs",
         "advisorExportsRunbookName": "Export-AdvisorRecommendationsToBlobStorage",
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
+        "argVhdExportsRunbookName": "Export-ARGUnmanagedDisksPropertiesToBlobStorage",
+        "argAvailSetExportsRunbookName": "Export-ARGAvailabilitySetPropertiesToBlobStorage",
         "consumptionExportsRunbookName": "Export-ConsumptionToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
         "advisorAsIsRecommendationsRunbookName": "Recommend-AdvisorAsIsToBlobStorage",
         "unmanagedDisksRecommendationsRunbookName": "Recommend-VMsWithUnmanagedDisksToBlobStorage",
+        "availSetsLowFaultDomainRecommendationsRunbookName": "Recommend-AvailSetsWithLowFaultDomainCountToBlobStorage",
+        "availSetsLowUpdateDomainRecommendationsRunbookName": "Recommend-AvailSetsWithLowUpdateDomainCountToBlobStorage",
+        "availSetsSharingStorageRecommendationsRunbookName": "Recommend-AvailSetsWithVMsSharingStorageAccountsToBlobStorage",
+        "longDeallocatedVmsRecommendationsRunbookName": "Recommend-LongDeallocatedVmsToBlobStorage",
+        "storageAccountsMultipleVmsRecommendationsRunbookName": "Recommend-StorageAccountsWithMultipleVMsToBlobStorage",
+        "vmsNoAvailSetRecommendationsRunbookName": "Recommend-VMsNoAvailSetToBlobStorage",
+        "vmsSingleInAvailSetRecommendationsRunbookName": "Recommend-VMsSingleInAvailSetToBlobStorage",
+        "vmsDisksMultipleStorageRecommendationsRunbookName": "Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage",
         "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
         "advisorRightSizeFilteredRemediationRunbookName": "Remediate-AdvisorRightSizeFiltered",
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "consumptionExportsScheduleName": "AzureOptimization_ExportConsumptionDaily",
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
+        "argVhdIngestScheduleName": "AzureOptimization_IngestARGVHDsDaily",
         "argVmIngestScheduleName": "AzureOptimization_IngestARGVMsDaily",
+        "argAvailSetIngestScheduleName": "AzureOptimization_IngestARGAvailSetsDaily",
         "remediationLogsIngestScheduleName": "AzureOptimization_IngestRemediationLogsDaily",
         "consumptionIngestScheduleName": "AzureOptimization_IngestConsumptionDaily",
         "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorWeekly",
@@ -249,11 +347,25 @@
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
+                "name": "[variables('argVhdExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Unmanaged Disks (owned by a VM) properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVhdExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
                 "name": "[variables('argVmExportsRunbookName')]",
                 "version": "1.3.1.0",
                 "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argAvailSetExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Availability Set properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argAvailSetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('consumptionExportsRunbookName')]",
@@ -271,31 +383,87 @@
             },
             {
                 "name": "[variables('unattachedDisksRecommendationsRunbookName')]",
-                "version": "2.2.0.0",
+                "version": "2.2.1.0",
                 "description": "Generates unattached disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                "version": "2.2.0.0",
+                "version": "2.2.1.0",
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorAsIsRecommendationsRunbookName')]",
-                "version": "1.1.0.0",
+                "version": "1.1.1.0",
                 "description": "Generates all types of Advisor recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorAsIsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unmanagedDisksRecommendationsRunbookName')]",
-                "version": "1.3.0.0",
+                "version": "1.3.2.0",
                 "description": "Generates unmanaged disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unmanagedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('availSetsLowFaultDomainRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates low fault domain Availability Set recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsLowFaultDomainRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('availSetsLowUpdateDomainRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates low update domain Availability Set recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsLowUpdateDomainRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('availSetsSharingStorageRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates Availability Set VMs sharing storage recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsSharingStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('longDeallocatedVmsRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates long deallocated VMs recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('longDeallocatedVmsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('storageAccountsMultipleVmsRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates storage accounts with multiple VMs recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('storageAccountsMultipleVmsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('vmsNoAvailSetRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates VMs without Availability Set recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsNoAvailSetRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('vmsSingleInAvailSetRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates VMs single in Availability Set recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsSingleInAvailSetRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]",
+                "version": "1.0.1.0",
+                "description": "Generates VMs with disks in multiple storage accounts recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsDisksMultipleStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('recommendationsIngestRunbookName')]",
@@ -349,9 +517,19 @@
                 "value": "[concat('\"',variables('argDiskContainerName'),'\"')]"
             },
             {
+                "name": "AzureOptimization_ARGVhdContainer",
+                "description": "The Storage Account container where Azure Resource Graph Unmanaged Disks exports are dumped to",
+                "value": "[concat('\"',variables('argVhdContainerName'),'\"')]"
+            },
+            {
                 "name": "AzureOptimization_ARGVMContainer",
                 "description": "The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to",
                 "value": "[concat('\"',variables('argVmContainerName'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_ARGAvailabilitySetContainer",
+                "description": "The Storage Account container where Azure Resource Graph Availability Set exports are dumped to",
+                "value": "[concat('\"',variables('argAvailSetContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ConsumptionContainer",
@@ -432,6 +610,11 @@
                 "name": "AzureOptimization_RecommendAdvisorPeriodInDays",
                 "description": "The period (in days) to look back for Advisor exported recommendations",
                 "value": 7
+            },
+            {
+                "name": "AzureOptimization_RecommendationLongDeallocatedVmsIntervalDays",
+                "description": "The period (in days) for considering a VM long deallocated",
+                "value": 30
             },
             {
                 "name": "AzureOptimization_PerfPercentileCpu",
@@ -584,11 +767,37 @@
                 "publicAccess": "None"
             }
         },
+        // Storage Account ARG VHD exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argVhdContainerName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
         // Storage Account ARG VM exports container
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
             "name": "[concat(parameters('storageAccountName'), '/default/', variables('argVmContainerName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Storage Account ARG Availability Set exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argAvailSetContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
@@ -933,6 +1142,23 @@
                 "frequency": "Day"
             }
         },
+        // Automation ARG VHD Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argVhdIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily Azure Resource Graph Unmanaged Disks ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
         // Automation ARG VM Ingest Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', variables('argVmIngestScheduleName'))]",
@@ -943,6 +1169,23 @@
             ],
             "properties": {
                 "description": "Starts the daily Azure Resource Graph Virtual Machine ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
+        // Automation ARG Availability Set Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argAvailSetIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily Azure Resource Graph Availability Set ingests",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
                 "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
@@ -1056,6 +1299,27 @@
                 }
             }
         },
+        // Automation ARG VHD Exports Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argVhdExportJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argExportsScheduleName')]",
+                "modulesLoop",
+                "[variables('argVhdExportsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argExportsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('argVhdExportsRunbookName')]"
+                }
+            }
+        },
         // Automation ARG VM Exports Job Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', parameters('argVmExportJobId'))]",
@@ -1074,6 +1338,27 @@
                 },
                 "runbook": {
                     "name": "[variables('argVmExportsRunbookName')]"
+                }
+            }
+        },
+        // Automation ARG Availability Set Exports Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAvailSetExportJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argExportsScheduleName')]",
+                "modulesLoop",
+                "[variables('argAvailSetExportsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argExportsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('argAvailSetExportsRunbookName')]"
                 }
             }
         },
@@ -1143,6 +1428,30 @@
                 }
             }
         },
+        // Automation ARG VHD Ingest Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argVhdIngestJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argVhdIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argVhdIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('argVhdContainerName')]"
+                }
+            }
+        },
         // Automation ARG VM Ingest Job Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', parameters('argVmIngestJobId'))]",
@@ -1164,6 +1473,30 @@
                 },
                 "parameters": {
                     "StorageSinkContainer": "[variables('argVmContainerName')]"
+                }
+            }
+        },
+        // Automation ARG Availability Set Ingest Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAvailSetIngestJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('argAvailSetIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('argAvailSetIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('argAvailSetContainerName')]"
                 }
             }
         },
@@ -1320,6 +1653,174 @@
                 },
                 "runbook": {
                     "name": "[variables('unmanagedDisksRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Availability Set Low Fault Domain Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('availSetsLowFaultDomainRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('availSetsLowFaultDomainRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('availSetsLowFaultDomainRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Availability Set Low Update Domain Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('availSetsLowUpdateDomainRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('availSetsLowUpdateDomainRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('availSetsLowUpdateDomainRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Availability Sets with VMs Sharing Storage Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('availSetsSharingStorageRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('availSetsSharingStorageRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('availSetsSharingStorageRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Long Deallocated VMs Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('longDeallocatedVmsRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('longDeallocatedVmsRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('longDeallocatedVmsRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation Storage Accounts with Multiple VMs Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('storageAccountsMultipleVmsRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('storageAccountsMultipleVmsRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('storageAccountsMultipleVmsRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation VMs with no Availability Set Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('vmsNoAvailSetRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('vmsNoAvailSetRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('vmsNoAvailSetRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation VMs single in Availability Set Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('vmsSingleInAvailSetRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('vmsSingleInAvailSetRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('vmsSingleInAvailSetRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation VMs with Disks in Multiple Storage Accounts Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('vmsDisksMultipleStorageRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]"
                 }
             }
         },

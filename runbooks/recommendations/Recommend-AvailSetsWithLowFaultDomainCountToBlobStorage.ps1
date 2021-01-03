@@ -77,7 +77,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGAvailabilitySet')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -97,9 +97,9 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+$availSetTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGAvailabilitySet' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against table $vmsTableName"
+Write-Output "Will run query against tables $availSetTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -119,9 +119,9 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
-    $vmsTableName 
-    | where TimeGenerated > ago(1d) and UsesManagedDisks_s == 'false'
-    | distinct InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, DeploymentModel_s, Tags_s, Cloud_s
+    $availSetTableName
+    | where TimeGenerated > ago(1d) and toint(FaultDomains_s) < 3 and toint(FaultDomains_s) < toint(VmCount_s)/2
+    | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s, FaultDomains_s, VmCount_s
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -144,7 +144,8 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["DeploymentModel"] = $result.DeploymentModel_s
+    $additionalInfoDictionary["FaultDomainCount"] = $result.FaultDomains_s
+    $additionalInfoDictionary["VMCount"] = $result.VmCount_s
 
     $fitScore = 5
 
@@ -172,12 +173,12 @@ foreach ($result in $results)
         ImpactedArea = "Microsoft.Compute/virtualMachines"
         Impact = "High"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "UnmanagedDisks"
-        RecommendationSubTypeId = "b576a069-b1f2-43a6-9134-5ee75376402a"
-        RecommendationDescription = "Virtual Machines should use Managed Disks for higher availability and manageability"
-        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks"
+        RecommendationSubType = "AvailSetLowFaultDomainCount"
+        RecommendationSubTypeId = "255de20b-d5e4-4be5-9695-620b4a905774"
+        RecommendationDescription = "Availability Sets should have a fault domain count of 3 or equal or greater than half of the Virtual Machines count"
+        RecommendationAction = "Increase the fault domain count of your Availability Set"
         InstanceId = $result.InstanceId_s
-        InstanceName = $result.VMName_s
+        InstanceName = $result.InstanceName_s
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -192,7 +193,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unmanageddisks-$fileDate.json"
+$jsonExportPath = "availsetsfaultdomaincount-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
