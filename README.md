@@ -26,7 +26,7 @@ A few hours after setting up the engine, you'll get a Power BI dashboard with al
 
 ## Releases
 
-* 01/2020 - solution deployment improvements and several new recommendations added
+* 01/2021 - solution deployment improvements and several new recommendations added
     * Support for Azure Cloud Shell (PowerShell) deployment
     * Solution upgrade keeps original runbook schedules
     * Eight new recommendations added
