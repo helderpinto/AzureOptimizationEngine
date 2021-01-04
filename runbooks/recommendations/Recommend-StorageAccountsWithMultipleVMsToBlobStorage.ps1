@@ -134,8 +134,11 @@ $baseQuery = @"
     | extend StorageAccountId = strcat('/subscriptions/', SubscriptionGuid_g, '/resourcegroups/', ResourceGroupName_s, '/providers/microsoft.storage/storageaccounts/', StorageAccountName)
 "@
 
-$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-$results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics -ErrorAction Continue
+if ($queryResults)
+{
+    $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+}
 
 Write-Output "Query finished with $($results.Count) results."
 
