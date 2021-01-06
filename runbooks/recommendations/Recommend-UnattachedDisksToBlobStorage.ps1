@@ -45,6 +45,9 @@ if ([string]::IsNullOrEmpty($sqldatabase))
     $sqldatabase = "azureoptimization"
 }
 
+$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
+$consumptionOffsetDaysStart = $consumptionOffsetDays + 1
+
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
@@ -109,7 +112,7 @@ Write-Output "Will run query against tables $disksTableName and $consumptionTabl
 $Conn.Close()    
 $Conn.Dispose()            
 
-$recommendationSearchTimeSpan = 1
+$recommendationSearchTimeSpan = 30 + $consumptionOffsetDaysStart
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
@@ -133,7 +136,7 @@ $baseQuery = @"
     | distinct DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
     | join kind=leftouter (
         $consumptionTableName
-        | where UsageDate_t > stime 
+        | where UsageDate_t between (stime..etime)
     ) on InstanceId_s
     | summarize Last30DaysCost=sum(todouble(Cost_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
 "@

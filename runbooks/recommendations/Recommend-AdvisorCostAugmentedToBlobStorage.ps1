@@ -189,6 +189,9 @@ if ([string]::IsNullOrEmpty($sqldatabase))
     $sqldatabase = "azureoptimization"
 }
 
+$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
+$consumptionOffsetDaysStart = $consumptionOffsetDays + 1
+
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
@@ -253,6 +256,8 @@ Write-Output "Will run query against tables $vmsTableName, $advisorTableName and
 
 $Conn.Close()    
 $Conn.Dispose()            
+
+$recommendationSearchTimeSpan = 30 + $consumptionOffsetDaysStart
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
@@ -346,7 +351,7 @@ $advisorTableName
 | distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g
 | join kind=leftouter (
     $consumptionTableName
-    | where UsageDate_t > stime
+    | where UsageDate_t between (stime..etime)
     | extend VMConsumedQuantity = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
     | extend VMPrice = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
     | extend FinalCost = iif(InstanceId_s contains 'virtualmachines', VMPrice * VMConsumedQuantity, todouble(Cost_s))
@@ -369,7 +374,7 @@ $advisorTableName
 
 Write-Output "Getting cost recommendations for $($daysBackwards)d Advisor and $($perfDaysBackwards)d Perf history and a $perfTimeGrain time grain..."
 
-$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days ([Math]::max($daysBackwards,$perfDaysBackwards))) -Wait 600 -IncludeStatistics
+$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
 $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 
 Write-Output "Query finished with $($results.Count) results."

@@ -144,7 +144,7 @@ $baseQuery = @"
     | distinct InstanceId_s;
 
     let BilledDisks = $consumptionTableName 
-    | where UsageDate_t > ago(billingInterval)
+    | where UsageDate_t between (stime..etime)
     | where InstanceId_s like 'microsoft.compute/disks/'
     | extend BillingInstanceId = InstanceId_s
     | summarize DisksCosts = sum(todouble(Cost_s)) by BillingInstanceId;
