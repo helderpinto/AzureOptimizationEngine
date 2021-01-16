@@ -151,7 +151,8 @@ $baseQuery = @"
 
     $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
-    | where InstanceId_s !in (BilledVMs) 
+    | join kind=leftouter (BilledVMs) on InstanceId_s
+    | where isempty(InstanceId_s1)
     | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s 
     | join kind=leftouter (
         $disksTableName 
