@@ -390,14 +390,14 @@
             },
             {
                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                "version": "2.2.1.0",
+                "version": "2.3.0.0",
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorAsIsRecommendationsRunbookName')]",
-                "version": "1.1.1.0",
+                "version": "1.2.0.0",
                 "description": "Generates all types of Advisor recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorAsIsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"

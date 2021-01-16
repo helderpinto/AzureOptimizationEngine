@@ -54,6 +54,7 @@ if ([string]::IsNullOrEmpty($sqldatabase))
 
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
+$FiltersTable = "Filters"
 
 # Authenticate against Azure
 
@@ -94,6 +95,46 @@ do {
         $sqlAdapter.SelectCommand = $Cmd
         $controlRows = New-Object System.Data.DataTable
         $sqlAdapter.Fill($controlRows) | Out-Null            
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+$advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
+
+Write-Output "Will run query against tables $vmsTableName and $advisorTableName"
+
+$Conn.Close()    
+$Conn.Dispose()            
+
+Write-Output "Getting excluded recommendation sub-type IDs..."
+
+$tries = 0
+$connectionSuccess = $false
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$FiltersTable] WHERE FilterType = 'Exclude' AND IsEnabled = 1 AND (FilterEndDate IS NULL OR FilterEndDate > GETDATE())"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $filters = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($filters) | Out-Null            
         $connectionSuccess = $true
     }
     catch {
@@ -172,6 +213,11 @@ Write-Output "Generating fit score..."
 
 foreach ($result in $results) {  
 
+    if ($filters | Where-Object { $_.RecommendationSubTypeId -eq $result.RecommendationTypeId_g})
+    {
+        continue
+    }
+
     $tags = @{}
 
     if (-not([string]::IsNullOrEmpty($result.Tags_s)))
@@ -226,12 +272,12 @@ foreach ($result in $results) {
         DetailsURL                  = $detailsURL
     }
 
-    $recommendations += $recommendation
+    $recommendations += $recommendation    
 }
 
 # Export the recommendations as JSON to blob storage
 
-Write-Output "Exporting final results as a JSON file..."
+Write-Output "Exporting final $($recommendations.Count) results as a JSON file..."
 
 $fileDate = $datetime.ToString("yyyyMMdd")
 $jsonExportPath = "advisor-asis-$fileDate.json"
