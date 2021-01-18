@@ -4,7 +4,16 @@ The Azure Optimization Engine (AOE) is an extensible solution designed to genera
 
 It is highly recommended that you read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298). You'll find all the information needed to correctly set up the whole environment.
 
-## What you can get
+## README index
+
+* [What you can get](#whatyoucanget)
+* [Releases](#releases)
+* [Architecture](#architecture)
+* [Deployment instructions](#deployment)
+* [Usage instructions](#usage)
+* [Frequently Asked Questions](#faq)
+
+## <a id="whatyoucanget"></a>What you can get ##
 
 A few hours after setting up the engine, you'll get a Power BI dashboard with all Azure optimization opportunities, coming from both Azure Advisor and from custom recommendations included in the engine. These recommendations are then updated every 7 days and you can add/develop your own custom ones if desired. Check below some examples of the Power BI dashboard pages.
 
@@ -24,7 +33,7 @@ A few hours after setting up the engine, you'll get a Power BI dashboard with al
 
 ![Fit score history for a specific recommendation](./docs/powerbi-dashboard-fitscorehistory.jpg "Fit score history for a specific recommendation")
 
-## Releases
+## <a id="releases"></a>Releases ##
 
 * 01/2021 - solution deployment improvements and several new recommendations added
     * Support for Azure Cloud Shell (PowerShell) deployment
@@ -42,14 +51,14 @@ A few hours after setting up the engine, you'll get a Power BI dashboard with al
 * 11/2020 - support for automated VM right-size remediations and for other Well-Architected scopes, with unmanaged disks custom recommendation
 * 07/2020 - [initial release] Advisor Cost augmented VM right-size recommendations and orphaned disks custom recommendation
 
-## Architecture
+## <a id="architecture"></a>Architecture ##
 
 The AOE runs mostly on top of Azure Automation and Log Analytics. The diagram below depicts the architectural components. For a more detailed description, please
 read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298).
 
 ![Azure Optimization Engine architecture](./docs/architecture.jpg "Azure Optimization Engine architecture")
 
-## Deployment instructions
+## <a id="deployment"></a>Deployment instructions ##
 
 The simplest, quickest and recommended method for installing the AOE is by using the Azure Cloud Shell (PowerShell). If, for some reason, you prefer to use your workstation, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)).
 
@@ -93,7 +102,7 @@ You must publish the solution files into a publicly reachable URL. If you're usi
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://aoesa.blob.core.windows.net/files/azuredeploy.json" -ArtifactsSasToken "?sv=2019-10-10&ss=bfqt&srt=o&sp=rwdlacupx&se=2020-06-13T23:27:18Z&st=2020-06-13T15:27:18Z&spr=https&sig=4cvPayBlF67aYvifwu%2BIUw8Ldh5txpFGgXlhzvKF3%2BI%3D"
 ```
 
-## Usage instructions
+## <a id="usage"></a>Usage instructions ##
 
 Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones!
 
@@ -139,7 +148,7 @@ By default, the Azure Automation Run As Account is created with Contributor role
 * Reader role in every subscription you want to gather recommendations from.
 * Contributor role in the resource group the solution was deployed to.
 
-## Frequently Asked Questions
+## <a id="faq"></a>Frequently Asked Questions ##
 
 * **Is the AOE supported by Microsoft?** No, the Azure Optimization Engine is not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind. The entire risk arising out of the use or performance of the scripts and documentation remains with you.
 
