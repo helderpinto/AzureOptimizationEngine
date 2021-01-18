@@ -553,8 +553,8 @@
             },
             {
                 "name": "AzureOptimization_AdvisorFilter",
-                "description": "The category filter to use for Azure Advisor recommendations exports",
-                "value": "[concat('\"','all','\"')]"
+                "description": "The category filter to use for Azure Advisor (non-Cost) recommendations exports",
+                "value": "[concat('\"','HighAvailability,Security,Performance,OperationalExcellence','\"')]"
             },
             {
                 "name": "AzureOptimization_ReferenceRegion",

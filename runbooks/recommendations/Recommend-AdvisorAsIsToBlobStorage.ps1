@@ -1,10 +1,3 @@
-param(
-    [Parameter(Mandatory = $false)]
-    [string] $CategoryFilter = "HighAvailability,Security,Performance,OperationalExcellence" # comma-separated list of categories
-)
-
-# Collect generic and recommendation-specific variables
-
 $ErrorActionPreference = "Stop"
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
@@ -50,6 +43,12 @@ $sqldatabase = Get-AutomationVariable -Name  "AzureOptimization_SQLServerDatabas
 if ([string]::IsNullOrEmpty($sqldatabase))
 {
     $sqldatabase = "azureoptimization"
+}
+
+$CategoryFilter = Get-AutomationVariable -Name  "AzureOptimization_AdvisorFilter" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($CategoryFilter))
+{
+    $CategoryFilter = "HighAvailability,Security,Performance,OperationalExcellence" # comma-separated list of categories
 }
 
 $SqlTimeout = 120

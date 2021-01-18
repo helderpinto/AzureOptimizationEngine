@@ -51,11 +51,13 @@ read the whole blog series dedicated to this project, starting [here](https://te
 
 ## Deployment instructions
 
-You must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)). Then, you can either choose to deploy all the dependencies from the GitHub repository or from your own. In any case, you must clone/download the solution locally, to be able to call the deployment script from a PowerShell **elevated prompt**.
+The simplest, quickest and recommended method for installing the AOE is by using the Azure Cloud Shell (PowerShell). If, for some reason, you prefer to use your workstation, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)).
+
+Then, you can either choose to deploy all the dependencies from the GitHub repository or from your own. In any case, you must clone/download the solution locally, to be able to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell runs elevated).
 
 During deployment, you'll be asked several questions. You must plan for the following:
 
-* Whether you're going to reuse an existing Log Analytics Workspace or a create a new one
+* Whether you're going to reuse an existing Log Analytics Workspace or a create a new one. **IMPORTANT**: you should ideally reuse a workspace where you have VMs onboarded and already sending performance metrics (`Perf` table), otherwise you will not fully leverage the augmented right-size recommendations capability.
 * Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
 * A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
 * Azure datacenter location
@@ -98,10 +100,21 @@ Once successfully deployed, and assuming you have your VMs onboarded to Log Anal
 This solution currently supports several types of recommendations, not restricted to Cost optimization:
 
 * Advisor Cost recommendations augmented with a fit score based on Virtual Machine performance metrics (collected by Log Analytics agents) and Azure properties
+* Advisor recommendations from other pillars (Security, Performance, Reliability and Operational Excellence)
 * Delete unattached disks
 * Upgrade Virtual Machines to Managed Disks
+* Delete Virtual Machines that have been deallocated for a long time
+* Fix Availability Sets with a small update or fault domain count
+* Ensure Availability Sets do not have VMs sharing the same Storage Account
+* Ensure Storage Accounts are not used by multiple VMs to store unmanaged disks
+* Place Virtual Machines in an Availability Set with multiple VMs
+* Ensure a Virtual Machine is not using multiple Storage Accounts to store its unmanaged disks
 
-For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the fit score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables.
+For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the fit score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables (`AzureOptimization_PerfPercentile*` and `AzureOptimization_PerfThreshold*`).
+
+If you are not interested in getting recommendations for all the non-Cost Advisor pillars, you can specify a pillar-level filter in the `AzureOptimization_AdvisorFilter` variable (comma-separated list with at least one of the following: `HighAvailability,Security,Performance,OperationalExcellence`).
+
+For the VMs that have been deallocated for a long time, the default deallocated interval is 30 days, but you can change this in the `AzureOptimization_RecommendationLongDeallocatedVmsIntervalDays` variable.
 
 ### Visualizing recommendations with Power BI
 
