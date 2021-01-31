@@ -71,10 +71,24 @@ function CreateAutomationConnectionAsset ([string] $resourceGroup, [string] $aut
     New-AzAutomationConnection -ResourceGroupName $ResourceGroup -AutomationAccountName $automationAccountName -Name $connectionAssetName -ConnectionTypeName $connectionTypeName -ConnectionFieldValues $connectionFieldValues
 }
 
-
 $ErrorActionPreference = "Stop"
 
+$lastDeploymentStatePath = ".\last-deployment-state.json"
 $deploymentOptions = @{}
+
+if (Test-Path -Path $lastDeploymentStatePath)
+{
+    $depOptions = Get-Content -Path $lastDeploymentStatePath | ConvertFrom-Json
+    Write-Host $depOptions -ForegroundColor Gray
+    $depOptionsReuse = Read-Host "Found last deployment options above. Do you want to repeat/upgrade last deployment (Y/N)?"
+    if ("Y", "y" -contains $depOptionsReuse)
+    {
+        foreach ($property in $depOptions.PSObject.Properties)
+        {
+            $deploymentOptions[$property.Name] = $property.Value
+        }    
+    }
+}
 
 $GitHubOriginalUri = "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/master/azuredeploy.json"
 
@@ -128,14 +142,34 @@ Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
 $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
 
 if ($subscriptions.Count -gt 1) {
-    for ($i = 0; $i -lt $subscriptions.Count; $i++) {
-        Write-Output "[$i] $($subscriptions[$i].Name)"    
-    }
+
     $selectedSubscription = -1
-    $lastSubscriptionIndex = $subscriptions.Count - 1
-    while ($selectedSubscription -lt 0 -or $selectedSubscription -gt $lastSubscriptionIndex) {
-        Write-Output "---"
-        $selectedSubscription = [int] (Read-Host "Please, select the target subscription for this deployment [0..$lastSubscriptionIndex]")
+    for ($i = 0; $i -lt $subscriptions.Count; $i++)
+    {
+        if (-not($deploymentOptions["SubscriptionId"]))
+        {
+            Write-Output "[$i] $($subscriptions[$i].Name)"    
+        }
+        else
+        {
+            if ($subscriptions[$i].Id -eq $deploymentOptions["SubscriptionId"])
+            {
+                $selectedSubscription = $i
+                break
+            }
+        }
+    }
+    if (-not($deploymentOptions["SubscriptionId"]))
+    {
+        $lastSubscriptionIndex = $subscriptions.Count - 1
+        while ($selectedSubscription -lt 0 -or $selectedSubscription -gt $lastSubscriptionIndex) {
+            Write-Output "---"
+            $selectedSubscription = [int] (Read-Host "Please, select the target subscription for this deployment [0..$lastSubscriptionIndex]")
+        }    
+    }
+    if ($selectedSubscription -eq -1)
+    {
+        throw "The selected subscription does not exist. Check if you are logged in with the right Azure AD account."        
     }
 }
 else {
@@ -148,7 +182,10 @@ if ($subscriptions.Count -eq 0) {
 
 $subscriptionId = $subscriptions[$selectedSubscription].Id
 
-$deploymentOptions.Add("SubscriptionId", $subscriptionId)
+if (-not($deploymentOptions["SubscriptionId"]))
+{
+    $deploymentOptions.Add("SubscriptionId", $subscriptionId)
+}
 
 if ($ctx.Subscription.Id -ne $subscriptionId) {
     Select-AzSubscription -SubscriptionId $subscriptionId
@@ -165,45 +202,81 @@ $sqlServerNameTemplate = "{0}-sql"
 
 do {
     $nameAvailable = $true
-    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
-    $deploymentOptions.Add("NamePrefix", $namePrefix)
-
-    if ($null -eq $workspaceReuse) {
-        $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
-    }
-    $deploymentOptions.Add("WorkspaceReuse", $workspaceReuse)
-
-    if ([string]::IsNullOrEmpty($namePrefix)) {
-        $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
-        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
-        $storageAccountName = Read-Host "Enter the Storage Account name"
-        $automationAccountName = Read-Host "Automation Account name"
-        $sqlServerName = Read-Host "Azure SQL Server name"
-        $sqlDatabaseName = Read-Host "Azure SQL Database name"
-        if ("N", "n" -contains $workspaceReuse) {
-            $laWorkspaceName = Read-Host "Log Analytics Workspace"
-            $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
+    if (-not($deploymentOptions["NamePrefix"]))
+    {
+        $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
+        if (-not($namePrefix))
+        {
+            $namePrefix = "EmptyNamePrefix"
         }
+        $deploymentOptions.Add("NamePrefix", $namePrefix)
     }
     else {
-        if ($namePrefix.Length -gt 21) {
-            throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
+        if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
+        {
+            $namePrefix = $null
         }
-    
-        $deploymentName = $deploymentNameTemplate -f $namePrefix
-        $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
-        $storageAccountName = $storageAccountNameTemplate -f $namePrefix
-        $automationAccountName = $automationAccountNameTemplate -f $namePrefix
-        $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
-        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
-        $sqlDatabaseName = "azureoptimization"
+        else
+        {
+            $namePrefix = $deploymentOptions["NamePrefix"]            
+        }
     }
 
-    $deploymentOptions.Add("ResourceGroupName", $resourceGroupName)
-    $deploymentOptions.Add("StorageAccountName", $storageAccountName)
-    $deploymentOptions.Add("AutomationAccountName", $automationAccountName)
-    $deploymentOptions.Add("SqlServerName", $sqlServerName)
-    $deploymentOptions.Add("SqlDatabaseName", $sqlDatabaseName)
+    if (-not($deploymentOptions["WorkspaceReuse"]))
+    {
+        if ($null -eq $workspaceReuse) {
+            $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
+        }
+        $deploymentOptions.Add("WorkspaceReuse", $workspaceReuse)    
+    }
+    else
+    {
+        $workspaceReuse = $deploymentOptions["WorkspaceReuse"]
+    }
+
+    if (-not($deploymentOptions["ResourceGroupName"]))
+    {
+        if ([string]::IsNullOrEmpty($namePrefix)) {
+            $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
+            $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+            $storageAccountName = Read-Host "Enter the Storage Account name"
+            $automationAccountName = Read-Host "Automation Account name"
+            $sqlServerName = Read-Host "Azure SQL Server name"
+            $sqlDatabaseName = Read-Host "Azure SQL Database name"
+            if ("N", "n" -contains $workspaceReuse) {
+                $laWorkspaceName = Read-Host "Log Analytics Workspace"
+            }
+        }
+        else {
+            if ($namePrefix.Length -gt 21) {
+                throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
+            }
+        
+            $deploymentName = $deploymentNameTemplate -f $namePrefix
+            $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
+            $storageAccountName = $storageAccountNameTemplate -f $namePrefix
+            $automationAccountName = $automationAccountNameTemplate -f $namePrefix
+            $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
+            $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+            $sqlDatabaseName = "azureoptimization"
+        }
+    
+        $deploymentOptions.Add("ResourceGroupName", $resourceGroupName)
+        $deploymentOptions.Add("StorageAccountName", $storageAccountName)
+        $deploymentOptions.Add("AutomationAccountName", $automationAccountName)
+        $deploymentOptions.Add("SqlServerName", $sqlServerName)
+        $deploymentOptions.Add("SqlDatabaseName", $sqlDatabaseName)    
+        $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
+    }
+    else
+    {
+        $resourceGroupName = $deploymentOptions["ResourceGroupName"]
+        $storageAccountName = $deploymentOptions["StorageAccountName"]
+        $automationAccountName = $deploymentOptions["AutomationAccountName"]
+        $sqlServerName = $deploymentOptions["SqlServerName"]
+        $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
+        $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
+    }
 
     Write-Host "Checking name prefix availability..." -ForegroundColor Green
 
@@ -263,44 +336,65 @@ while (-not($nameAvailable))
 
 Write-Host "Chosen resource names are available for all services" -ForegroundColor Green
 
-if ("Y", "y" -contains $workspaceReuse) {
-    $laWorkspaceName = Read-Host "Please, enter the name of the Log Analytics workspace to be reused"
-    $laWorkspaceResourceGroup = Read-Host "Please, enter the name of the resource group containing Log Analytics $laWorkspaceName"
-    $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName -ErrorAction SilentlyContinue
-    if (-not($la)) {
-        throw "Could not find $laWorkspaceName in resource group $laWorkspaceResourceGroup for the chosen subscription. Aborting."
-    }        
-    $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
-    $deploymentOptions.Add("WorkspaceResourceGroupName", $laWorkspaceResourceGroup)
+if (-not($deploymentOptions["WorkspaceResourceGroupName"]))
+{
+    if ("Y", "y" -contains $workspaceReuse) {
+        $laWorkspaceName = Read-Host "Please, enter the name of the Log Analytics workspace to be reused"
+        $laWorkspaceResourceGroup = Read-Host "Please, enter the name of the resource group containing Log Analytics $laWorkspaceName"
+        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName -ErrorAction SilentlyContinue
+        if (-not($la)) {
+            throw "Could not find $laWorkspaceName in resource group $laWorkspaceResourceGroup for the chosen subscription. Aborting."
+        }        
+        $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
+        $deploymentOptions.Add("WorkspaceResourceGroupName", $laWorkspaceResourceGroup)
+    }    
+}
+else
+{
+    $laWorkspaceResourceGroup = $deploymentOptions["WorkspaceResourceGroupName"]
 }
 
 $rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue 
 
-if (-not($rg.Location)) {
-    Write-Host "Getting Azure locations..." -ForegroundColor Green
-    $locations = Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.Automation" } | Sort-Object -Property Location
-    
-    for ($i = 0; $i -lt $locations.Count; $i++) {
-        Write-Output "[$i] $($locations[$i].location)"    
+if (-not($deploymentOptions["TargetLocation"]))
+{
+    if (-not($rg.Location)) {
+        Write-Host "Getting Azure locations..." -ForegroundColor Green
+        $locations = Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.Automation" } | Sort-Object -Property Location
+        
+        for ($i = 0; $i -lt $locations.Count; $i++) {
+            Write-Output "[$i] $($locations[$i].location)"    
+        }
+        $selectedLocation = -1
+        $lastLocationIndex = $locations.Count - 1
+        while ($selectedLocation -lt 0 -or $selectedLocation -gt $lastLocationIndex) {
+            Write-Output "---"
+            $selectedLocation = [int] (Read-Host "Please, select the target location for this deployment [0..$lastLocationIndex]")
+        }
+        
+        $targetLocation = $locations[$selectedLocation].location    
     }
-    $selectedLocation = -1
-    $lastLocationIndex = $locations.Count - 1
-    while ($selectedLocation -lt 0 -or $selectedLocation -gt $lastLocationIndex) {
-        Write-Output "---"
-        $selectedLocation = [int] (Read-Host "Please, select the target location for this deployment [0..$lastLocationIndex]")
+    else {
+        $targetLocation = $rg.Location    
     }
     
-    $targetLocation = $locations[$selectedLocation].location    
+    $deploymentOptions.Add("TargetLocation", $targetLocation)    
 }
-else {
-    $targetLocation = $rg.Location    
+else
+{
+    $targetLocation = $deploymentOptions["TargetLocation"]    
 }
 
-$deploymentOptions.Add("TargetLocation", $targetLocation)
-
-$sqlAdmin = Read-Host "Please, input the SQL Admin username"
-$deploymentOptions.Add("SqlAdmin", $sqlAdmin)
-$sqlPass = Read-Host "Please, input the SQL Admin password" -AsSecureString
+if (-not($deploymentOptions["SqlAdmin"]))
+{
+    $sqlAdmin = Read-Host "Please, input the SQL Admin username"
+    $deploymentOptions.Add("SqlAdmin", $sqlAdmin)    
+}
+else
+{
+    $sqlAdmin = $deploymentOptions["SqlAdmin"]    
+}
+$sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
 
 $continueInput = Read-Host "Deploying Azure Optimization Engine to subscription $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
 if ("Y", "y" -contains $continueInput) {
@@ -553,10 +647,10 @@ if ("Y", "y" -contains $continueInput) {
     try
     {
         Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account..." -ForegroundColor Green
+        $spnName = "$automationAccountName-runasaccount"
         Connect-AzureAD
         $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRoleId.ObjectId
-        $spnName = "$automationAccountName-runasaccount"
         $spn = Get-AzureADServicePrincipal -SearchString $spnName
         if (-not($globalReaders | Where-Object { $_.ObjectId -eq $spn.ObjectId }))
         {
@@ -570,7 +664,8 @@ if ("Y", "y" -contains $continueInput) {
     }
     catch
     {
-        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the role manually to the $spnName Service Principal." -ForegroundColor Red
+        Write-Host $Error[0] -ForegroundColor Yellow
+        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $spnName Service Principal." -ForegroundColor Red
     }
 
     Write-Host "Deployment completed!" -ForegroundColor Green
