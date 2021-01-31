@@ -651,7 +651,7 @@ if ("Y", "y" -contains $continueInput) {
         $spnName = "$automationAccountName-runasaccount"
         Connect-AzureAD
         $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
-        $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRoleId.ObjectId
+        $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId
         $spn = Get-AzureADServicePrincipal -SearchString $spnName
         if (-not($globalReaders | Where-Object { $_.ObjectId -eq $spn.ObjectId }))
         {
