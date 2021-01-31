@@ -39,3 +39,9 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('consumptionexports', '1901-01-01T00:00:00Z', -1, 'ConsumptionV1', 'AzureConsumption')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'aadobjectsexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('aadobjectsexports', '1901-01-01T00:00:00Z', -1, 'AADObjectsV1', 'AADObjects')
+END
