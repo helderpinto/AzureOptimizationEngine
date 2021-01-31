@@ -74,6 +74,8 @@ function CreateAutomationConnectionAsset ([string] $resourceGroup, [string] $aut
 
 $ErrorActionPreference = "Stop"
 
+$deploymentOptions = @{}
+
 $GitHubOriginalUri = "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/master/azuredeploy.json"
 
 if ([string]::IsNullOrEmpty($TemplateUri)) {
@@ -146,6 +148,8 @@ if ($subscriptions.Count -eq 0) {
 
 $subscriptionId = $subscriptions[$selectedSubscription].Id
 
+$deploymentOptions.Add("SubscriptionId", $subscriptionId)
+
 if ($ctx.Subscription.Id -ne $subscriptionId) {
     Select-AzSubscription -SubscriptionId $subscriptionId
 }
@@ -162,10 +166,12 @@ $sqlServerNameTemplate = "{0}-sql"
 do {
     $nameAvailable = $true
     $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
+    $deploymentOptions.Add("NamePrefix", $namePrefix)
 
     if ($null -eq $workspaceReuse) {
         $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
     }
+    $deploymentOptions.Add("WorkspaceReuse", $workspaceReuse)
 
     if ([string]::IsNullOrEmpty($namePrefix)) {
         $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
@@ -176,6 +182,7 @@ do {
         $sqlDatabaseName = Read-Host "Azure SQL Database name"
         if ("N", "n" -contains $workspaceReuse) {
             $laWorkspaceName = Read-Host "Log Analytics Workspace"
+            $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
         }
     }
     else {
@@ -191,6 +198,12 @@ do {
         $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
         $sqlDatabaseName = "azureoptimization"
     }
+
+    $deploymentOptions.Add("ResourceGroupName", $resourceGroupName)
+    $deploymentOptions.Add("StorageAccountName", $storageAccountName)
+    $deploymentOptions.Add("AutomationAccountName", $automationAccountName)
+    $deploymentOptions.Add("SqlServerName", $sqlServerName)
+    $deploymentOptions.Add("SqlDatabaseName", $sqlDatabaseName)
 
     Write-Host "Checking name prefix availability..." -ForegroundColor Green
 
@@ -257,6 +270,8 @@ if ("Y", "y" -contains $workspaceReuse) {
     if (-not($la)) {
         throw "Could not find $laWorkspaceName in resource group $laWorkspaceResourceGroup for the chosen subscription. Aborting."
     }        
+    $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
+    $deploymentOptions.Add("WorkspaceResourceGroupName", $laWorkspaceResourceGroup)
 }
 
 $rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue 
@@ -281,11 +296,16 @@ else {
     $targetLocation = $rg.Location    
 }
 
+$deploymentOptions.Add("TargetLocation", $targetLocation)
+
 $sqlAdmin = Read-Host "Please, input the SQL Admin username"
+$deploymentOptions.Add("SqlAdmin", $sqlAdmin)
 $sqlPass = Read-Host "Please, input the SQL Admin password" -AsSecureString
 
 $continueInput = Read-Host "Deploying Azure Optimization Engine to subscription $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
 if ("Y", "y" -contains $continueInput) {
+
+    $deploymentOptions | ConvertTo-Json | Out-File -FilePath "last-deployment-state.json"
     
     if ($null -eq $rg) {
         Write-Host "Resource group $resourceGroupName does not exist." -ForegroundColor Yellow
@@ -529,6 +549,29 @@ if ("Y", "y" -contains $continueInput) {
     
     Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
     Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
+
+    try
+    {
+        Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account..." -ForegroundColor Green
+        Connect-AzureAD
+        $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
+        $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRoleId.ObjectId
+        $spnName = "$automationAccountName-runasaccount"
+        $spn = Get-AzureADServicePrincipal -SearchString $spnName
+        if (-not($globalReaders | Where-Object { $_.ObjectId -eq $spn.ObjectId }))
+        {
+            Add-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId -RefObjectId $spn.ObjectId
+            Write-Host "Role granted." -ForegroundColor Green
+        }
+        else
+        {
+            Write-Host "Role was already granted." -ForegroundColor Green            
+        }        
+    }
+    catch
+    {
+        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the role manually to the $spnName Service Principal." -ForegroundColor Red
+    }
 
     Write-Host "Deployment completed!" -ForegroundColor Green
 }
