@@ -276,6 +276,7 @@ do {
         $sqlServerName = $deploymentOptions["SqlServerName"]
         $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
         $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
+        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
     }
 
     Write-Host "Checking name prefix availability..." -ForegroundColor Green
