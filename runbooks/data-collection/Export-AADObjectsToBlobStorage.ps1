@@ -102,6 +102,7 @@ foreach ($spn in $spns)
         DisplayName = $spn.DisplayName
         ApplicationId = $spn.ApplicationId
         Keys = $spnCred | ConvertTo-Json
+        PrincipalNames = $spn.ServicePrincipalNames | ConvertTo-Json
     }
     $aadObjects += $aadObject    
 }
