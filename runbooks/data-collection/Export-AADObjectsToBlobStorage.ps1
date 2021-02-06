@@ -86,6 +86,7 @@ foreach ($app in $apps)
         DisplayName = $app.DisplayName
         ApplicationId = $app.ApplicationId
         Keys = $appCred | ConvertTo-Json
+        PrincipalNames = $app.HomePage
     }
     $aadObjects += $aadObject    
 }
