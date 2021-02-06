@@ -93,6 +93,14 @@ foreach ($app in $apps)
 foreach ($spn in $spns)
 {
     $spnCred = Get-AzADSpCredential -ObjectId $spn.Id
+    if ($spn.ServicePrincipalNames)
+    {
+        $principalNames = $spn.ServicePrincipalNames | ConvertTo-Json
+    }
+    else
+    {
+        $principalNames = $spn.PrincipalNames | ConvertTo-Json        
+    }
     $aadObject = New-Object PSObject -Property @{
         Timestamp = $timestamp
         TenantId = $tenantId
@@ -102,7 +110,7 @@ foreach ($spn in $spns)
         DisplayName = $spn.DisplayName
         ApplicationId = $spn.ApplicationId
         Keys = $spnCred | ConvertTo-Json
-        PrincipalNames = $spn.ServicePrincipalNames | ConvertTo-Json
+        PrincipalNames = $principalNames
     }
     $aadObjects += $aadObject    
 }

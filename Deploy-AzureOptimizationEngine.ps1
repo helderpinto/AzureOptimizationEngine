@@ -79,7 +79,7 @@ $deploymentOptions = @{}
 if (Test-Path -Path $lastDeploymentStatePath)
 {
     $depOptions = Get-Content -Path $lastDeploymentStatePath | ConvertFrom-Json
-    Write-Host $depOptions -ForegroundColor Gray
+    Write-Host $depOptions -ForegroundColor Green
     $depOptionsReuse = Read-Host "Found last deployment options above. Do you want to repeat/upgrade last deployment (Y/N)?"
     if ("Y", "y" -contains $depOptionsReuse)
     {
@@ -184,7 +184,7 @@ $subscriptionId = $subscriptions[$selectedSubscription].Id
 
 if (-not($deploymentOptions["SubscriptionId"]))
 {
-    $deploymentOptions.Add("SubscriptionId", $subscriptionId)
+    $deploymentOptions["SubscriptionId"] = $subscriptionId
 }
 
 if ($ctx.Subscription.Id -ne $subscriptionId) {
@@ -209,7 +209,7 @@ do {
         {
             $namePrefix = "EmptyNamePrefix"
         }
-        $deploymentOptions.Add("NamePrefix", $namePrefix)
+        $deploymentOptions["NamePrefix"] = $namePrefix
     }
     else {
         if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
@@ -227,7 +227,7 @@ do {
         if ($null -eq $workspaceReuse) {
             $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
         }
-        $deploymentOptions.Add("WorkspaceReuse", $workspaceReuse)    
+        $deploymentOptions["WorkspaceReuse"] = $workspaceReuse
     }
     else
     {
@@ -261,12 +261,12 @@ do {
             $sqlDatabaseName = "azureoptimization"
         }
     
-        $deploymentOptions.Add("ResourceGroupName", $resourceGroupName)
-        $deploymentOptions.Add("StorageAccountName", $storageAccountName)
-        $deploymentOptions.Add("AutomationAccountName", $automationAccountName)
-        $deploymentOptions.Add("SqlServerName", $sqlServerName)
-        $deploymentOptions.Add("SqlDatabaseName", $sqlDatabaseName)    
-        $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
+        $deploymentOptions["ResourceGroupName"] = $resourceGroupName
+        $deploymentOptions["StorageAccountName"] = $storageAccountName
+        $deploymentOptions["AutomationAccountName"] = $automationAccountName
+        $deploymentOptions["SqlServerName"] = $sqlServerName
+        $deploymentOptions["SqlDatabaseName"] = $sqlDatabaseName
+        $deploymentOptions["WorkspaceName"] = $laWorkspaceName
     }
     else
     {
@@ -346,8 +346,8 @@ if (-not($deploymentOptions["WorkspaceResourceGroupName"]))
         if (-not($la)) {
             throw "Could not find $laWorkspaceName in resource group $laWorkspaceResourceGroup for the chosen subscription. Aborting."
         }        
-        $deploymentOptions.Add("WorkspaceName", $laWorkspaceName)
-        $deploymentOptions.Add("WorkspaceResourceGroupName", $laWorkspaceResourceGroup)
+        $deploymentOptions["WorkspaceName"] = $laWorkspaceName
+        $deploymentOptions["WorkspaceResourceGroupName"] = $laWorkspaceResourceGroup
     }    
 }
 else
@@ -379,7 +379,7 @@ if (-not($deploymentOptions["TargetLocation"]))
         $targetLocation = $rg.Location    
     }
     
-    $deploymentOptions.Add("TargetLocation", $targetLocation)    
+    $deploymentOptions["TargetLocation"] = $targetLocation
 }
 else
 {
@@ -389,7 +389,7 @@ else
 if (-not($deploymentOptions["SqlAdmin"]))
 {
     $sqlAdmin = Read-Host "Please, input the SQL Admin username"
-    $deploymentOptions.Add("SqlAdmin", $sqlAdmin)    
+    $deploymentOptions["SqlAdmin"] = $sqlAdmin
 }
 else
 {
