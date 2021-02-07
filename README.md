@@ -127,7 +127,7 @@ For the VMs that have been deallocated for a long time, the default deallocated 
 
 ### Visualizing recommendations with Power BI
 
-The AOE includes a [Power BI sample report](./views/GenericReport.pbix) for visualizing recommendations. To use it, you have first to change the data source connection to the SQL Database you deployed with the AOE. In the Power BI top menu, choose Transform Data > Data source settings.
+The AOE includes a [Power BI sample report](./views/AzureOptimizationEngine.pbix) for visualizing recommendations. To use it, you have first to change the data source connection to the SQL Database you deployed with the AOE. In the Power BI top menu, choose Transform Data > Data source settings.
 
 ![Open the Transform Data > Data source settings menu item](./docs/powerbi-transformdatamenu.jpg "Transform Data menu options")
 
