@@ -11,6 +11,27 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Build-CredObjectWithDates {
+    param (
+        [object[]] $credObjectWithStrings
+    )
+    
+    $credObjects = @()
+
+    foreach ($obj in $credObjectWithStrings)
+    {
+        $credObject = New-Object PSObject -Property @{
+            KeyId = $obj.KeyId
+            KeyType = $obj.Type
+            StartDate = (Get-Date($obj.StartDate)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+            EndDate = (Get-Date($obj.EndDate)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+        }
+        $credObjects += $credObject        
+    }
+
+    return $credObjects
+}
+
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
@@ -85,7 +106,7 @@ foreach ($app in $apps)
         ObjectType = $app.ObjectType
         DisplayName = $app.DisplayName
         ApplicationId = $app.ApplicationId
-        Keys = $appCred | ConvertTo-Json
+        Keys = (Build-CredObjectWithDates -credObjectWithStrings $appCred) | ConvertTo-Json
         PrincipalNames = $app.HomePage
     }
     $aadObjects += $aadObject    
@@ -110,7 +131,7 @@ foreach ($spn in $spns)
         ObjectType = $spn.ObjectType
         DisplayName = $spn.DisplayName
         ApplicationId = $spn.ApplicationId
-        Keys = $spnCred | ConvertTo-Json
+        Keys = (Build-CredObjectWithDates -credObjectWithStrings $spnCred) | ConvertTo-Json
         PrincipalNames = $principalNames
     }
     $aadObjects += $aadObject    
