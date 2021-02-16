@@ -29,10 +29,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGAvailabilitySetContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGAppGatewayContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argavailsetexports"
+    $storageAccountSinkContainer = "argappgwexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -73,7 +73,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
-$allAvSets = @()
+$allAppGWs = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
@@ -87,17 +87,15 @@ else
     $subscriptionSuffix = $cloudSuffix + "all"
 }
 
-$avSetsTotal = @()
+$appGWsTotal = @()
 $resultsSoFar = 0
 
-Write-Output "Querying for Load Balancer properties"
+Write-Output "Querying for Application Gateways properties"
 
 $argQuery = @"
 resources
 | where type =~ 'Microsoft.Network/applicationGateways'
 | extend gatewayIPsCount = array_length(properties.gatewayIPConfigurations)
-| extend sslCertsCount = array_length(properties.sslCertificates)
-| extend authCertsCount = array_length(properties.authenticationCertificates)
 | extend frontendIPsCount = array_length(properties.frontendIPConfigurations)
 | extend frontendPortsCount = array_length(properties.frontendPorts)
 | extend backendPoolsCount = array_length(properties.backendAddressPools)
@@ -108,7 +106,7 @@ resources
 | extend probesCount = array_length(properties.probes)
 | extend rewriteRulesCount = array_length(properties.rewriteRuleSets)
 | extend redirectConfsCount = array_length(properties.redirectConfigurations)
-| project id, name, resourceGroup, subscriptionId, location, skuName = properties.sku.name, skuTier = properties.sku.tier, skuCapacity = properties.sku.capacity, enableHttp2 = properties.enableHttp2, gatewayIPsCount, sslCertsCount, authCertsCount, frontendIPsCount, frontendPortsCount, httpSettingsCount, httpListenersCount, backendPoolsCount, urlPathMapsCount, requestRoutingRulesCount, probesCount, rewriteRulesCount, redirectConfsCount
+| project id, name, resourceGroup, subscriptionId, tenantId, location, skuName = properties.sku.name, skuTier = properties.sku.tier, skuCapacity = properties.sku.capacity, enableHttp2 = properties.enableHttp2, gatewayIPsCount, frontendIPsCount, frontendPortsCount, httpSettingsCount, httpListenersCount, backendPoolsCount, urlPathMapsCount, requestRoutingRulesCount, probesCount, rewriteRulesCount, redirectConfsCount, tags
 | join kind=leftouter (
 	resources
 	| where type =~ 'Microsoft.Network/applicationGateways'
@@ -124,17 +122,19 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $avSets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $appGWs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $avSets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $appGWs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
     }
-    $resultsCount = $avSets.Count
+    $resultsCount = $appGWs.Count
     $resultsSoFar += $resultsCount
-    $avSetsTotal += $avSets
+    $appGWsTotal += $appGWs
 
 } while ($resultsCount -eq $ARGPageSize)
+
+Write-Output "Found $($appGWsTotal.Count) Application Gateway entries"
 
 <#
     Building CSV entries 
@@ -144,27 +144,38 @@ $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-foreach ($avSet in $avSetsTotal)
+foreach ($appGW in $appGWsTotal)
 {
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $avSet.tenantId
-        SubscriptionGuid = $avSet.subscriptionId
-        ResourceGroupName = $avSet.resourceGroup.ToLower()
-        InstanceName = $avSet.name.ToLower()
-        InstanceId = $avSet.id.ToLower()
-        SkuName = $avSet.skuName
-        Location = $avSet.location
-        FaultDomains = $avSet.faultDomains
-        UpdateDomains = $avSet.updateDomains
-        VmCount = $avSet.vmCount
+        TenantGuid = $appGW.tenantId
+        SubscriptionGuid = $appGW.subscriptionId
+        ResourceGroupName = $appGW.resourceGroup.ToLower()
+        InstanceName = $appGW.name.ToLower()
+        InstanceId = $appGW.id.ToLower()
+        SkuName = $appGW.skuName
+        SkuTier = $appGW.skuTier
+        SkuCapacity = $appGW.skuCapacity
+        Location = $appGW.location
+        EnableHttp2 = $appGW.enableHttp2
+        GatewayIPsCount = $appGW.gatewayIPsCount
+        FrontendIPsCount = $appGW.frontendIPsCount
+        FrontendPortsCount = $appGW.frontendPortsCount
+        BackendIPCount = $appGW.backendIPCount
+        HttpSettingsCount = $appGW.httpSettingsCount
+        HttpListenersCount = $appGW.httpListenersCount
+        BackendPoolsCount = $appGW.backendPoolsCount
+        ProbesCount = $appGW.probesCount
+        UrlPathMapsCount = $appGW.urlPathMapsCount
+        RequestRoutingRulesCount = $appGW.requestRoutingRulesCount
+        RewriteRulesCount = $appGW.rewriteRulesCount
+        RedirectConfsCount = $appGW.redirectConfsCount
         StatusDate = $statusDate
-        Tags = $avSet.tags
-        Zones = $avSet.zones
+        Tags = $appGW.tags
     }
     
-    $allAvSets += $logentry
+    $allAppGWs += $logentry
 }
 
 <#
@@ -172,9 +183,9 @@ foreach ($avSet in $avSetsTotal)
 #>
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-availsets-$subscriptionSuffix.csv"
+$csvExportPath = "$today-appgws-$subscriptionSuffix.csv"
 
-$allAvSets | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allAppGWs | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 

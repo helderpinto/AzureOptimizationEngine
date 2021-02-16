@@ -259,6 +259,13 @@
                 "description": "GUID for the VMs with Disks in Multiple Storage Accounts Recommendation Generation job schedule creation - create a unique before deploy"
             }
         },
+        "aadExpiringCredsRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the AAD Objects with Expiring Credentials Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
         "recommendationsIngestJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -297,6 +304,7 @@
         "vmsNoAvailSetRecommendationsRunbookName": "Recommend-VMsNoAvailSetToBlobStorage",
         "vmsSingleInAvailSetRecommendationsRunbookName": "Recommend-VMsSingleInAvailSetToBlobStorage",
         "vmsDisksMultipleStorageRecommendationsRunbookName": "Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage",
+        "aadExpiringCredsRecommendationsRunbookName": "Recommend-AADExpiringCredentialsToBlobStorage",
         "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
         "advisorRightSizeFilteredRemediationRunbookName": "Remediate-AdvisorRightSizeFiltered",
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
@@ -356,21 +364,21 @@
         "runbooks": [
             {
                 "name": "[variables('advisorExportsRunbookName')]",
-                "version": "1.2.1.0",
+                "version": "1.2.2.0",
                 "description": "Exports Azure Advisor recommendations to Blob Storage using the Advisor API",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argDisksExportsRunbookName')]",
-                "version": "1.2.1.0",
+                "version": "1.2.2.0",
                 "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argVhdExportsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Exports Unmanaged Disks (owned by a VM) properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVhdExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -384,7 +392,7 @@
             },
             {
                 "name": "[variables('argAvailSetExportsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Exports Availability Set properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argAvailSetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -398,7 +406,7 @@
             },
             {
                 "name": "[variables('aadObjectsExportsRunbookName')]",
-                "version": "1.0.3.0",
+                "version": "1.0.4.0",
                 "description": "Exports Azure AAD Objects to Blob Storage using Azure ARM API",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('aadObjectsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -491,6 +499,13 @@
                 "name": "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]",
                 "version": "1.0.1.0",
                 "description": "Generates VMs with disks in multiple storage accounts recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsDisksMultipleStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('aadExpiringCredsRecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates AAD Objects with expiring credentials recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsDisksMultipleStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
@@ -714,6 +729,11 @@
                 "name": "AzureOptimization_RecommendationAdvisorCostRightSizeId",
                 "description": "The Azure Advisor VM right-size recommendation ID",
                 "value": "[concat('\"','e10b1381-5f0a-47ff-8c7b-37bd13d7c974','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RecommendationAADExpiringCredsDays",
+                "description": "The minimum validity of an AAD Object credential in days",
+                "value": 30
             }
         ]
     },
@@ -1947,6 +1967,27 @@
                 },
                 "runbook": {
                     "name": "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]"
+                }
+            }
+        },
+        // Automation AAD Objects with Expiring Credentials Recommendations Generation Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('aadExpiringCredsRecommendationJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('recommendationsScheduleName')]",
+                "modulesLoop",
+                "[variables('aadExpiringCredsRecommendationsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('recommendationsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('aadExpiringCredsRecommendationsRunbookName')]"
                 }
             }
         },

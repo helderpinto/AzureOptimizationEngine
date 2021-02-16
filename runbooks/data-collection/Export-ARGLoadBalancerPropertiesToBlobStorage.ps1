@@ -29,10 +29,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGAvailabilitySetContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGLoadBalancerContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argavailsetexports"
+    $storageAccountSinkContainer = "arglbexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -73,7 +73,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
-$allAvSets = @()
+$allLBs = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
@@ -87,7 +87,7 @@ else
     $subscriptionSuffix = $cloudSuffix + "all"
 }
 
-$avSetsTotal = @()
+$LBsTotal = @()
 $resultsSoFar = 0
 
 Write-Output "Querying for Load Balancer properties"
@@ -98,10 +98,11 @@ resources
 | extend lbRulesCount = array_length(properties.loadBalancingRules)
 | extend frontendIPsCount = array_length(properties.frontendIPConfigurations)
 | extend inboundNatRulesCount = array_length(properties.inboundNatRules)
+| extend outboundRulesCount = array_length(properties.outboundRules)
 | extend inboundNatPoolsCount = array_length(properties.inboundNatPools)
 | extend backendPoolsCount = array_length(properties.backendAddressPools)
 | extend probesCount = array_length(properties.probes)
-| project id, name, resourceGroup, subscriptionId, location, skuName = sku.name, skuTier = sku.tier, lbRulesCount, frontendIPsCount, inboundNatRulesCount, inboundNatPoolsCount, backendPoolsCount, probesCount
+| project id, name, resourceGroup, subscriptionId, tenantId, location, skuName = sku.name, skuTier = sku.tier, lbRulesCount, frontendIPsCount, inboundNatRulesCount, outboundRulesCount, inboundNatPoolsCount, backendPoolsCount, probesCount, tags
 | join kind=leftouter (
 	resources
 	| where type =~ 'Microsoft.Network/loadBalancers'
@@ -117,17 +118,19 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $avSets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $avSets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
     }
-    $resultsCount = $avSets.Count
+    $resultsCount = $LBs.Count
     $resultsSoFar += $resultsCount
-    $avSetsTotal += $avSets
+    $LBsTotal += $LBs
 
 } while ($resultsCount -eq $ARGPageSize)
+
+Write-Output "Found $($LBsTotal.Count) Load Balancer entries"
 
 <#
     Building CSV entries 
@@ -137,27 +140,32 @@ $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-foreach ($avSet in $avSetsTotal)
+foreach ($lb in $LBsTotal)
 {
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $avSet.tenantId
-        SubscriptionGuid = $avSet.subscriptionId
-        ResourceGroupName = $avSet.resourceGroup.ToLower()
-        InstanceName = $avSet.name.ToLower()
-        InstanceId = $avSet.id.ToLower()
-        SkuName = $avSet.skuName
-        Location = $avSet.location
-        FaultDomains = $avSet.faultDomains
-        UpdateDomains = $avSet.updateDomains
-        VmCount = $avSet.vmCount
+        TenantGuid = $lb.tenantId
+        SubscriptionGuid = $lb.subscriptionId
+        ResourceGroupName = $lb.resourceGroup.ToLower()
+        InstanceName = $lb.name.ToLower()
+        InstanceId = $lb.id.ToLower()
+        SkuName = $lb.skuName
+        SkuTier = $lb.skuTier
+        Location = $lb.location
+        LbRulesCount = $lb.lbRulesCount
+        InboundNatRulesCount = $lb.inboundNatRulesCount
+        OutboundRulesCount = $lb.outboundRulesCount
+        FrontendIPsCount = $lb.frontendIPsCount
+        BackendIPCount = $lb.backendIPCount
+        InboundNatPoolsCount = $lb.inboundNatPoolsCount
+        BackendPoolsCount = $lb.backendPoolsCount
+        ProbesCount = $lb.probesCount
         StatusDate = $statusDate
-        Tags = $avSet.tags
-        Zones = $avSet.zones
+        Tags = $lb.tags
     }
     
-    $allAvSets += $logentry
+    $allLBs += $logentry
 }
 
 <#
@@ -165,9 +173,9 @@ foreach ($avSet in $avSetsTotal)
 #>
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-availsets-$subscriptionSuffix.csv"
+$csvExportPath = "$today-lbs-$subscriptionSuffix.csv"
 
-$allAvSets | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allLBs | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 

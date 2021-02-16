@@ -119,6 +119,8 @@ do
 
 $resultsSoFar = 0
 
+Write-Output "Found $($mdisksTotal.Count) Unmanaged OS Disk entries"
+
 Write-Output "Querying for ARM Unmanaged Data Disks properties"
 
 $argQuery = @"
@@ -146,6 +148,8 @@ do
     $mdisksTotal += $mdisks
 
 } while ($resultsCount -eq $ARGPageSize)
+
+Write-Output "Found overall $($mdisksTotal.Count) Unmanaged Disk entries"
 
 <#
     Building CSV entries 

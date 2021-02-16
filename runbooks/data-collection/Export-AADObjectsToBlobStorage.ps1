@@ -93,7 +93,9 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $aadObjects = @()
 
 $apps = Get-AzADApplication
+Write-Output "Found $($apps.Count) AAD applications"
 $spns = Get-AzADServicePrincipal
+Write-Output "Found $($spns.Count) AAD service principals"
 
 foreach ($app in $apps)
 {

@@ -45,3 +45,15 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('aadobjectsexports', '1901-01-01T00:00:00Z', -1, 'AADObjectsV1', 'AADObjects')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'arglbexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('arglbexports', '1901-01-01T00:00:00Z', -1, 'LoadBalancersV1', 'ARGLoadBalancer')
+END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argappgwexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argappgwexports', '1901-01-01T00:00:00Z', -1, 'AppGatewaysV1', 'ARGAppGateway')
+END

@@ -168,6 +168,8 @@ foreach ($subscription in $subscriptions)
         $recommendations += $recommendation    
     }
 
+    Write-Output "Found $($recommendations.Count) $advisorFilter recommendations for $subscription subscription"
+
     <#
     Actually exporting CSV to Azure Storage
     #>

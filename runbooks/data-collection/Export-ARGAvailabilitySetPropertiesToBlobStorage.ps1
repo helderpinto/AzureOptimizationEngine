@@ -115,6 +115,8 @@ do
 
 } while ($resultsCount -eq $ARGPageSize)
 
+Write-Output "Found $($avSetsTotal.Count) Availability Set entries"
+
 <#
     Building CSV entries 
 #>
