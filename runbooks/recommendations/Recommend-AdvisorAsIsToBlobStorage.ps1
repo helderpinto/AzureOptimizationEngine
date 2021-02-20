@@ -242,7 +242,7 @@ foreach ($result in $results) {
         }
     }
 
-    $fitScore = -1
+    $fitScore = 5
 
     $queryInstanceId = $result.InstanceId_s
 

@@ -463,11 +463,10 @@ foreach ($result in $results) {
 
     $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
 
-    $fitScore = -1
+    $fitScore = 5
     $hasCpuRamPerfMetrics = $false
 
     if ($additionalInfoDictionary.targetSku) {
-        $fitScore = 5
         $additionalInfoDictionary["SupportsDataDisksCount"] = "true"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["SupportsNICCount"] = "true"
