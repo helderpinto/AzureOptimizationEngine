@@ -119,14 +119,14 @@
                 "description": "GUID for the Azure AD Objects Export job schedule creation - create a unique before deploy"
             }
         },
-        "loadBalancersExportJobId": {
+        "argLoadBalancersExportJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the Load Balancers Export job schedule creation - create a unique before deploy"
             }
         },
-        "appGWsExportJobId": {
+        "argAppGWsExportJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
             "metadata": {
@@ -189,14 +189,14 @@
                 "description": "GUID for the AAD Objects Ingest job schedule creation - create a unique before deploy"
             }
         },
-        "loadBalancersIngestJobId": {
+        "argLoadBalancersIngestJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the Load Balancers Ingest job schedule creation - create a unique before deploy"
             }
         },
-        "appGWsIngestJobId": {
+        "argAppGWsIngestJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
             "metadata": {
