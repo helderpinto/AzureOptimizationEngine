@@ -1454,7 +1454,7 @@
                 "description": "Starts the daily Load Balancer ingests",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
-                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT2H')]",
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
                 "interval": 1,
                 "frequency": "Day"
             }
@@ -1471,7 +1471,7 @@
                 "description": "Starts the daily App Gateways ingests",
                 "expiryTime": "9999-12-31T17:59:00-06:00",
                 "isEnabled": true,
-                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT2H')]",
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
                 "interval": 1,
                 "frequency": "Day"
             }
