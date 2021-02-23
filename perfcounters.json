@@ -68,7 +68,7 @@
     {
         "objectName": "Memory",
         "instance": "*",
-        "counterName": "Available MBytes Memory",
+        "counterName": "% Used Memory",
         "osType": "Linux"
     },
     {
