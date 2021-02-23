@@ -568,7 +568,7 @@
             },
             {
                 "name": "[variables('aadExpiringCredsRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.1.0.0",
                 "description": "Generates AAD Objects with expiring credentials recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('aadExpiringCredsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -819,9 +819,14 @@
                 "value": "[concat('\"','e10b1381-5f0a-47ff-8c7b-37bd13d7c974','\"')]"
             },
             {
-                "name": "AzureOptimization_RecommendationAADExpiringCredsDays",
+                "name": "AzureOptimization_RecommendationAADMinCredValidityDays",
                 "description": "The minimum validity of an AAD Object credential in days",
                 "value": 30
+            },
+            {
+                "name": "AzureOptimization_RecommendationAADMaxCredValidityYears",
+                "description": "The maximum validity of an AAD Object credential in years",
+                "value": 2
             }
         ]
     },

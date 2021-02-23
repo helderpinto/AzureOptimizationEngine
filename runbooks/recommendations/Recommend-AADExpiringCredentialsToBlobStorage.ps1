@@ -15,7 +15,6 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
 $workspaceSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceSubId"
-$workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceTenantId"
 
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
@@ -41,7 +40,8 @@ if ([string]::IsNullOrEmpty($sqldatabase))
     $sqldatabase = "azureoptimization"
 }
 
-$expiringCredsDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationAADExpiringCredsDays")
+$expiringCredsDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationAADMinCredValidityDays")
+$notExpiringCredsDays = ([int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationAADMaxCredValidityYears")) * 365
 
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
@@ -118,7 +118,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
-# Execute the recommendation query against Log Analytics
+# Execute the expiring creds recommendation query against Log Analytics
 
 $baseQuery = @" 
     let expiryInterval = $($expiringCredsDays)d;
@@ -213,6 +213,96 @@ foreach ($result in $results)
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
 $jsonExportPath = "aadexpiringcerts-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+# Execute the not expiring in less than X years creds recommendation query against Log Analytics
+
+$baseQuery = @" 
+    let expiryInterval = $($notExpiringCredsDays)d;
+    let AppsAndKeys = materialize ($aadObjectsTableName
+    | where TimeGenerated > ago(1d)
+    | where PrincipalNames_s !has 'https://identity.azure.net'
+    | where Keys_s startswith '['
+    | extend Keys = parse_json(Keys_s)
+    | project-away Keys_s
+    | mv-expand Keys
+    | evaluate bag_unpack(Keys)
+    | union ( 
+        $aadObjectsTableName
+        | where TimeGenerated > ago(1d)
+        | where PrincipalNames_s !has 'https://identity.azure.net'
+        | where isnotempty(Keys_s) and Keys_s !startswith '['
+        | extend Keys = parse_json(Keys_s)
+        | project-away Keys_s
+        | evaluate bag_unpack(Keys)
+    )
+    );
+    AppsAndKeys
+    | where EndDate > now()+expiryInterval
+    | project ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, TenantId, EndDate
+"@
+
+$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+$results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    $queryInstanceId = $result.ApplicationId_g
+    $detailsURL = "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Credentials/appId/$queryInstanceId"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
+    $additionalInfoDictionary["KeyType"] = $result.KeyType
+    $additionalInfoDictionary["ExpiresOn"] = $result.ExpiresOn
+    $additionalInfoDictionary["TenantId"] = $result.TenantId
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "Security"
+        ImpactedArea = "Microsoft.AzureActiveDirectory/objects"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "AADNotExpiringCredentials"
+        RecommendationSubTypeId = "ecd969c8-3f16-481a-9577-5ed32e5e1a1d"
+        RecommendationDescription = "Azure AD application with credentials expiration not set or too far in time"
+        RecommendationAction = "Update the Azure AD application credential with a shorter expiration date"
+        InstanceId = $result.ApplicationId_g
+        InstanceName = $result.DisplayName_s
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = "N/A"
+        SubscriptionGuid = "N/A"
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "aadnotexpiringcerts-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
