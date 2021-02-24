@@ -461,6 +461,20 @@ foreach ($result in $results) {
         }
     }
 
+    # Fixing reservation model inconsistencies
+    if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["location"])))
+    {
+        $additionalInfoDictionary["region"] = $additionalInfoDictionary["location"]
+    }
+    if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["targetResourceCount"])))
+    {
+        $additionalInfoDictionary["qty"] = $additionalInfoDictionary["targetResourceCount"]
+    }
+    if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["vmSize"])))
+    {
+        $additionalInfoDictionary["displaySKU"] = $additionalInfoDictionary["vmSize"]
+    }
+
     $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
 
     $fitScore = 5
@@ -639,9 +653,9 @@ foreach ($result in $results) {
     }
     else
     {
-        if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["savingsAmount"])))
+        if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["annualSavingsAmount"])))
         {
-            $savingsMonthly = [double] $additionalInfoDictionary["savingsAmount"] / 12
+            $savingsMonthly = [double] $additionalInfoDictionary["annualSavingsAmount"] / 12
         }
         else
         {

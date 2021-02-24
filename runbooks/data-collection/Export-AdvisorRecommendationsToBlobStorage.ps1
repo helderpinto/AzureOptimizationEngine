@@ -155,7 +155,7 @@ foreach ($subscription in $subscriptions)
             Impact = $advisorRecommendation.Impact
             ImpactedArea = $advisorRecommendation.ImpactedField
             Description = $advisorRecommendation.ShortDescription.Problem
-            RecommendationText = $advisorRecommendation.ShortDescription.Problem
+            RecommendationText = $advisorRecommendation.ShortDescription.Solution
             RecommendationTypeId = $advisorRecommendation.RecommendationTypeId
             InstanceId = $instanceId.ToLower()
             Category = $advisorRecommendation.Category
