@@ -488,14 +488,14 @@ if ("Y", "y" -contains $continueInput) {
     New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue
     
     Write-Host "Checking Azure Automation variable referring to the initial Azure Optimization Engine deployment date..." -ForegroundColor Green
-    $deploymentDateVariableName = "AzureOptimization_DeploymentDate"    
+    $deploymentDateVariableName = "AzureOptimization_DeploymentDate"
     $deploymentDateVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $deploymentDateVariableName -ErrorAction SilentlyContinue
     
     if ($null -eq $deploymentDateVariable) {
         $deploymentDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
         Write-Host "Setting initial deployment date ($deploymentDate)..." -ForegroundColor Green
         New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
-            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
+            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value "'$deploymentDate'" -Encrypted $false
     }
 
     Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green
