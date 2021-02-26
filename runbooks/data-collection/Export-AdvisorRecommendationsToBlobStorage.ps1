@@ -124,6 +124,9 @@ foreach ($subscription in $subscriptions)
         }
     }
 
+    Write-Output "Found $($advisorRecommendations.Count) raw recommendations. Filtering out suppressed ones..."
+    $advisorRecommendations = $advisorRecommendations | Where-Object { -not($_.SuppressionIds) }
+    Write-Output "Continuing processing $($advisorRecommendations.Count) recommendations..."
     foreach ($advisorRecommendation in $advisorRecommendations)
     {
         # compute instance ID, resource group and subscription for the recommendation
