@@ -660,7 +660,14 @@ if ("Y", "y" -contains $continueInput) {
     {
         Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account..." -ForegroundColor Green
         $spnName = "$automationAccountName-runasaccount"
-        Connect-AzureAD -TenantId $ctx.Subscription.TenantId
+        try
+        { 
+            Get-AzureADTenantDetail
+        }
+        catch 
+        { 
+            Connect-AzureAD -TenantId $ctx.Subscription.TenantId
+        }
         $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId
         $spn = Get-AzureADServicePrincipal -SearchString $spnName

@@ -671,7 +671,7 @@
             {
                 "name": "AzureOptimization_ARGAppGatewayContainer",
                 "description": "The Storage Account container where Azure Resource Graph Application Gateway exports are dumped to",
-                "value": "[concat('\"',variables('argLBsContainerName'),'\"')]"
+                "value": "[concat('\"',variables('argAppGWsContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ConsumptionOffsetDays",
