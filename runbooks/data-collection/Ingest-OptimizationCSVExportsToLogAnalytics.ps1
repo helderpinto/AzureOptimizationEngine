@@ -147,124 +147,130 @@ do
 }
 While ($null -ne $continuationToken)
 
+$tries = 0
+$connectionSuccess = $false
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE StorageContainerName = '$storageAccountSinkContainer'"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $controlRows = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($controlRows) | Out-Null
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+$controlRow = $controlRows[0]
+$lastProcessedLine = $controlRow.LastProcessedLine
+$lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+$logname = $lognamePrefix + $controlRow.LogAnalyticsSuffix
+
+$Conn.Close()    
+$Conn.Dispose()            
+
 $newProcessedTime = $null
 
+$unprocessedBlobs = @()
+
 foreach ($blob in $allblobs) {
+    if ($lastProcessedDateTime -lt $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")) {
+        $unprocessedBlobs += $blob
+    }
+}
 
-    $tries = 0
-    $connectionSuccess = $false
-    do {
-        $tries++
-        try {
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
-            $Conn.Open() 
-            $Cmd=new-object system.Data.SqlClient.SqlCommand
-            $Cmd.Connection = $Conn
-            $Cmd.CommandTimeout = $SqlTimeout
-            $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE StorageContainerName = '$storageAccountSinkContainer'"
-        
-            $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-            $sqlAdapter.SelectCommand = $Cmd
-            $controlRows = New-Object System.Data.DataTable
-            $sqlAdapter.Fill($controlRows) | Out-Null
-            $connectionSuccess = $true
-        }
-        catch {
-            Write-Output "Failed to contact SQL at try $tries."
-            Write-Output $Error[0]
-            Start-Sleep -Seconds ($tries * 20)
-        }    
-    } while (-not($connectionSuccess) -and $tries -lt 3)
+foreach ($blob in $unprocessedBlobs) {
+    $newProcessedTime = $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "About to process $($blob.Name)..."
+    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
+    $csvObject = Import-Csv $blob.Name
 
-    if (-not($connectionSuccess))
+    $linesProcessed = 0
+    $csvObjectSplitted = @()
+
+    if ($null -eq $csvObject)
     {
-        throw "Could not establish connection to SQL."
+        $recCount = 0
+    }
+    elseif ($null -eq $csvObject.Count)
+    {
+        $recCount = 1
+    }
+    else
+    {
+        $recCount = $csvObject.Count    
     }
 
-    $controlRow = $controlRows[0]
-
-    $Conn.Close()    
-    $Conn.Dispose()            
-
-    $lastProcessedLine = $controlRow.LastProcessedLine
-    $lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    $newProcessedTime = $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    if ($lastProcessedDateTime -lt $newProcessedTime) {
-        Write-Output "About to process $($blob.Name)..."
-        Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
-        $csvObject = Import-Csv $blob.Name
-
-        $logname = $lognamePrefix + $controlRow.LogAnalyticsSuffix
-        $linesProcessed = 0
-        $csvObjectSplitted = @()
-
-        if ($null -eq $csvObject)
-        {
-            $recCount = 0
+    if ($recCount -gt 1)
+    {
+        for ($i = 0; $i -lt $recCount; $i += $LogAnalyticsChunkSize) {
+            $csvObjectSplitted += , @($csvObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
         }
-        elseif ($null -eq $csvObject.Count)
-        {
-            $recCount = 1
-        }
-        else
-        {
-            $recCount = $csvObject.Count    
-        }
-
-        if ($recCount -gt 1)
-        {
-            for ($i = 0; $i -lt $recCount; $i += $LogAnalyticsChunkSize) {
-                $csvObjectSplitted += , @($csvObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
+    }
+    else
+    {
+        $csvObjectArray = @()
+        $csvObjectArray += $csvObject
+        $csvObjectSplitted += , $csvObjectArray   
+    }        
+    
+    for ($i = 0; $i -lt $csvObjectSplitted.Count; $i++) {
+        $currentObjectLines = $csvObjectSplitted[$i].Count
+        if ($lastProcessedLine -lt $linesProcessed) {				
+            $jsonObject = ConvertTo-Json -InputObject $csvObjectSplitted[$i]                
+            $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp"
+            If ($res -ge 200 -and $res -lt 300) {
+                Write-Output "Succesfully uploaded $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows to Log Analytics"    
+                $linesProcessed += $currentObjectLines
+                if ($i -eq ($csvObjectSplitted.Count - 1)) {
+                    $lastProcessedLine = -1    
+                }
+                else {
+                    $lastProcessedLine = $linesProcessed - 1   
+                }
+                
+                $updatedLastProcessedLine = $lastProcessedLine
+                $updatedLastProcessedDateTime = $lastProcessedDateTime
+                if ($i -eq ($csvObjectSplitted.Count - 1)) {
+                    $updatedLastProcessedDateTime = $newProcessedTime
+                }
+                $lastProcessedDateTime = $updatedLastProcessedDateTime
+                Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
+                $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
+                $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+                $Conn.Open() 
+                $Cmd=new-object system.Data.SqlClient.SqlCommand
+                $Cmd.Connection = $Conn
+                $Cmd.CommandText = $sqlStatement
+                $Cmd.CommandTimeout=120 
+                $Cmd.ExecuteReader()
+                $Conn.Close()    
+                $Conn.Dispose()            
+            }
+            Else {
+                $linesProcessed += $currentObjectLines
+                Write-Warning "Failed to upload $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows"
+                throw
             }
         }
-        else
-        {
-            $csvObjectArray = @()
-            $csvObjectArray += $csvObject
-            $csvObjectSplitted += , $csvObjectArray   
-        }        
-        
-        for ($i = 0; $i -lt $csvObjectSplitted.Count; $i++) {
-            $currentObjectLines = $csvObjectSplitted[$i].Count
-            if ($lastProcessedLine -lt $linesProcessed) {				
-			    $jsonObject = ConvertTo-Json -InputObject $csvObjectSplitted[$i]                
-                $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp"
-                If ($res -ge 200 -and $res -lt 300) {
-                    Write-Output "Succesfully uploaded $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows to Log Analytics"    
-                    $linesProcessed += $currentObjectLines
-                    if ($i -eq ($csvObjectSplitted.Count - 1)) {
-                        $lastProcessedLine = -1    
-                    }
-                    else {
-                        $lastProcessedLine = $linesProcessed - 1   
-                    }
-                    
-                    $updatedLastProcessedLine = $lastProcessedLine
-                    $updatedLastProcessedDateTime = $lastProcessedDateTime
-                    if ($i -eq ($csvObjectSplitted.Count - 1)) {
-                        $updatedLastProcessedDateTime = $newProcessedTime
-                    }
-                    Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
-                    $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
-                    $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
-                    $Conn.Open() 
-                    $Cmd=new-object system.Data.SqlClient.SqlCommand
-                    $Cmd.Connection = $Conn
-                    $Cmd.CommandText = $sqlStatement
-                    $Cmd.CommandTimeout=120 
-                    $Cmd.ExecuteReader()
-                    $Conn.Close()    
-                    $Conn.Dispose()            
-                }
-                Else {
-                    $linesProcessed += $currentObjectLines
-                    Write-Warning "Failed to upload $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows"
-                    throw
-                }
-            }
-            else {
-                $linesProcessed += $currentObjectLines  
-            }            
-        }
+        else {
+            $linesProcessed += $currentObjectLines  
+        }            
     }
 }
