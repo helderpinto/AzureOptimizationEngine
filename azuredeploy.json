@@ -491,7 +491,7 @@
             },
             {
                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                "version": "2.5.0.0",
+                "version": "2.6.0.0",
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
