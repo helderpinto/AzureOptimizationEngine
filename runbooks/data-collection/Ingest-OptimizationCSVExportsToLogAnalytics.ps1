@@ -128,8 +128,6 @@ Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField
 }
 #endregion Functions
 
-
-
 # get reference to storage sink
 Write-Output "Getting blobs list from $storageAccountSink storage account ($storageAccountSinkContainer container)..."
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
@@ -194,6 +192,8 @@ foreach ($blob in $allblobs) {
         $unprocessedBlobs += $blob
     }
 }
+
+Write-Output "Found $($unprocessedBlobs.Count) new blobs to process..."
 
 foreach ($blob in $unprocessedBlobs) {
     $newProcessedTime = $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")

@@ -477,7 +477,7 @@
             },
             {
                 "name": "[variables('csvIngestRunbookName')]",
-                "version": "1.4.1.0",
+                "version": "1.4.2.0",
                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -589,7 +589,7 @@
             },
             {
                 "name": "[variables('recommendationsIngestRunbookName')]",
-                "version": "1.5.0.0",
+                "version": "1.5.1.0",
                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"

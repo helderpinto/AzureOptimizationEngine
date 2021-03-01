@@ -82,173 +82,177 @@ do
 }
 While ($null -ne $continuationToken)
 
-$newProcessedTime = $null
-
 $SqlServerIngestControlTable = "SqlServerIngestControl"
 $recommendationsTable = "Recommendations"
 
+$tries = 0
+$connectionSuccess = $false
+
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$SqlServerIngestControlTable] WHERE StorageContainerName = '$storageAccountSinkContainer' and SqlTableName = '$recommendationsTable'"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $controlRows = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($controlRows) | Out-Null            
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+if ($controlRows.Count -eq 0)
+{
+    throw "Could not find a control row for $storageAccountSinkContainer container and $recommendationsTable table."
+}
+
+$controlRow = $controlRows[0]    
+$lastProcessedLine = $controlRow.LastProcessedLine
+$lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+
+$Conn.Close()    
+$Conn.Dispose()            
+
+$newProcessedTime = $null
+
+$unprocessedBlobs = @()
+
 foreach ($blob in $allblobs) {
-
-    $tries = 0
-    $connectionSuccess = $false
-
-    do {
-        $tries++
-        try {
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
-            $Conn.Open() 
-            $Cmd=new-object system.Data.SqlClient.SqlCommand
-            $Cmd.Connection = $Conn
-            $Cmd.CommandTimeout = $SqlTimeout
-            $Cmd.CommandText = "SELECT * FROM [dbo].[$SqlServerIngestControlTable] WHERE StorageContainerName = '$storageAccountSinkContainer' and SqlTableName = '$recommendationsTable'"
-        
-            $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-            $sqlAdapter.SelectCommand = $Cmd
-            $controlRows = New-Object System.Data.DataTable
-            $sqlAdapter.Fill($controlRows) | Out-Null            
-            $connectionSuccess = $true
-        }
-        catch {
-            Write-Output "Failed to contact SQL at try $tries."
-            Write-Output $Error[0]
-            Start-Sleep -Seconds ($tries * 20)
-        }    
-    } while (-not($connectionSuccess) -and $tries -lt 3)
-
-    if (-not($connectionSuccess))
-    {
-        throw "Could not establish connection to SQL."
+    if ($lastProcessedDateTime -lt $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")) {
+        $unprocessedBlobs += $blob
     }
+}
 
-    if ($controlRows.Count -eq 0)
-    {
-        throw "Could not find a control row for $storageAccountSinkContainer container and $recommendationsTable table."
-    }
+Write-Output "Found $($unprocessedBlobs.Count) new blobs to process..."
 
-    $controlRow = $controlRows[0]    
-
-    $lastProcessedLine = $controlRow.LastProcessedLine
-    $lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+foreach ($blob in $unprocessedBlobs) {
     $newProcessedTime = $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "About to process $($blob.Name)..."
+    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
+    $jsonObject = Get-Content -Path $blob.Name | ConvertFrom-Json
+    Write-Output "Blob contains $($jsonObject.Count) results..."
 
-    if ($Conn)
+    if ($null -eq $jsonObject)
     {
-        $Conn.Close()
+        $recCount = 0
+    }
+    elseif ($null -eq $jsonObject.Count)
+    {
+        $recCount = 1
+    }
+    else
+    {
+        $recCount = $jsonObject.Count    
     }
 
-    if ($lastProcessedDateTime -lt $newProcessedTime) {
-        Write-Output "About to process $($blob.Name)..."
-        Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
-        $jsonObject = Get-Content -Path $blob.Name | ConvertFrom-Json
-        Write-Output "Blob contains $($jsonObject.Count) results..."
- 
-        if ($null -eq $jsonObject)
-        {
-            $recCount = 0
-        }
-        elseif ($null -eq $jsonObject.Count)
-        {
-            $recCount = 1
-        }
-        else
-        {
-            $recCount = $jsonObject.Count    
-        }
+    $linesProcessed = 0
+    $jsonObjectSplitted = @()
 
-        $linesProcessed = 0
-        $jsonObjectSplitted = @()
-
-        if ($recCount -gt 1)
-        {
-            for ($i = 0; $i -lt $recCount; $i += $ChunkSize) {
-                $jsonObjectSplitted += , @($jsonObject[$i..($i + ($ChunkSize - 1))]);
-            }
+    if ($recCount -gt 1)
+    {
+        for ($i = 0; $i -lt $recCount; $i += $ChunkSize) {
+            $jsonObjectSplitted += , @($jsonObject[$i..($i + ($ChunkSize - 1))]);
         }
-        else
+    }
+    else
+    {
+        $jsonObjectArray = @()
+        $jsonObjectArray += $jsonObject
+        $jsonObjectSplitted += , $jsonObjectArray   
+    }
+    
+    for ($j = 0; $j -lt $jsonObjectSplitted.Count; $j++)
+    {
+        if ($jsonObjectSplitted[$j])
         {
-            $jsonObjectArray = @()
-            $jsonObjectArray += $jsonObject
-            $jsonObjectSplitted += , $jsonObjectArray   
-        }
-        
-        for ($j = 0; $j -lt $jsonObjectSplitted.Count; $j++)
-        {
-            if ($jsonObjectSplitted[$j])
+            $currentObjectLines = $jsonObjectSplitted[$j].Count
+            if ($lastProcessedLine -lt $linesProcessed)
             {
-                $currentObjectLines = $jsonObjectSplitted[$j].Count
-                if ($lastProcessedLine -lt $linesProcessed)
+                $sqlStatement = "INSERT INTO [$recommendationsTable] VALUES"
+                for ($i = 0; $i -lt $jsonObjectSplitted[$j].Count; $i++)
                 {
-                    $sqlStatement = "INSERT INTO [$recommendationsTable] VALUES"
-                    for ($i = 0; $i -lt $jsonObjectSplitted[$j].Count; $i++)
+                    $jsonObjectSplitted[$j][$i].RecommendationDescription = $jsonObjectSplitted[$j][$i].RecommendationDescription.Replace("'", "")
+                    $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
+                    $additionalInfoString = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json
+                    $tagsString = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json
+                    $sqlStatement += " (NEWID(), CONVERT(DATETIME, '$($jsonObjectSplitted[$j][$i].Timestamp)'), '$($jsonObjectSplitted[$j][$i].Cloud)'"
+                    $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].Category)', '$($jsonObjectSplitted[$j][$i].ImpactedArea)'"
+                    $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].Impact)', '$($jsonObjectSplitted[$j][$i].RecommendationType)'"
+                    $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].RecommendationSubType)', '$($jsonObjectSplitted[$j][$i].RecommendationSubTypeId)'"
+                    $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].RecommendationDescription)', '$($jsonObjectSplitted[$j][$i].RecommendationAction)'"
+                    $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].InstanceId)', '$($jsonObjectSplitted[$j][$i].InstanceName)', '$additionalInfoString'"
+                    $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].ResourceGroup)', '$($jsonObjectSplitted[$j][$i].SubscriptionGuid)'"
+                    $sqlStatement += ", $($jsonObjectSplitted[$j][$i].FitScore), '$tagsString', '$($jsonObjectSplitted[$j][$i].DetailsURL)')"
+                    if ($i -ne ($jsonObjectSplitted[$j].Count-1))
                     {
-                        $jsonObjectSplitted[$j][$i].RecommendationDescription = $jsonObjectSplitted[$j][$i].RecommendationDescription.Replace("'", "")
-                        $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
-                        $additionalInfoString = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json
-                        $tagsString = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json
-                        $sqlStatement += " (NEWID(), CONVERT(DATETIME, '$($jsonObjectSplitted[$j][$i].Timestamp)'), '$($jsonObjectSplitted[$j][$i].Cloud)'"
-                        $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].Category)', '$($jsonObjectSplitted[$j][$i].ImpactedArea)'"
-                        $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].Impact)', '$($jsonObjectSplitted[$j][$i].RecommendationType)'"
-                        $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].RecommendationSubType)', '$($jsonObjectSplitted[$j][$i].RecommendationSubTypeId)'"
-                        $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].RecommendationDescription)', '$($jsonObjectSplitted[$j][$i].RecommendationAction)'"
-                        $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].InstanceId)', '$($jsonObjectSplitted[$j][$i].InstanceName)', '$additionalInfoString'"
-                        $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].ResourceGroup)', '$($jsonObjectSplitted[$j][$i].SubscriptionGuid)'"
-                        $sqlStatement += ", $($jsonObjectSplitted[$j][$i].FitScore), '$tagsString', '$($jsonObjectSplitted[$j][$i].DetailsURL)')"
-                        if ($i -ne ($jsonObjectSplitted[$j].Count-1))
-                        {
-                            $sqlStatement += ","
-                        }
+                        $sqlStatement += ","
                     }
-            
-                    $Conn2 = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=30;") 
-                    $Conn2.Open() 
-            
-                    $Cmd=new-object system.Data.SqlClient.SqlCommand
-                    $Cmd.Connection = $Conn2
-                    $Cmd.CommandText = $sqlStatement
-                    $Cmd.CommandTimeout=120 
-                    try
-                    {
-                        $Cmd.ExecuteReader()
-                    }
-                    catch
-                    {
-                        Write-Output "Failed statement: $sqlStatement"
-                        throw
-                    }
-            
-                    $Conn2.Close()                
-             
-                    $linesProcessed += $currentObjectLines
-                    Write-Output "Processed $linesProcessed lines..."
-                    if ($j -eq ($jsonObjectSplitted.Count - 1)) {
-                        $lastProcessedLine = -1    
-                    }
-                    else {
-                        $lastProcessedLine = $linesProcessed - 1   
-                    }
-                
-                    $updatedLastProcessedLine = $lastProcessedLine
-                    $updatedLastProcessedDateTime = $lastProcessedDateTime
-                    if ($j -eq ($jsonObjectSplitted.Count - 1)) {
-                        $updatedLastProcessedDateTime = $newProcessedTime
-                    }
-
-                    Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
-                    $sqlStatement = "UPDATE [$SqlServerIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
-                    $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
-                    $Conn.Open() 
-                    $Cmd=new-object system.Data.SqlClient.SqlCommand
-                    $Cmd.Connection = $Conn
-                    $Cmd.CommandText = $sqlStatement
-                    $Cmd.CommandTimeout=$SqlTimeout 
-                    $Cmd.ExecuteReader()
-                    $Conn.Close()
                 }
-                else
+        
+                $Conn2 = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=30;") 
+                $Conn2.Open() 
+        
+                $Cmd=new-object system.Data.SqlClient.SqlCommand
+                $Cmd.Connection = $Conn2
+                $Cmd.CommandText = $sqlStatement
+                $Cmd.CommandTimeout=120 
+                try
                 {
-                    $linesProcessed += $currentObjectLines  
-                }        
+                    $Cmd.ExecuteReader()
+                }
+                catch
+                {
+                    Write-Output "Failed statement: $sqlStatement"
+                    throw
+                }
+        
+                $Conn2.Close()                
+            
+                $linesProcessed += $currentObjectLines
+                Write-Output "Processed $linesProcessed lines..."
+                if ($j -eq ($jsonObjectSplitted.Count - 1)) {
+                    $lastProcessedLine = -1    
+                }
+                else {
+                    $lastProcessedLine = $linesProcessed - 1   
+                }
+            
+                $updatedLastProcessedLine = $lastProcessedLine
+                $updatedLastProcessedDateTime = $lastProcessedDateTime
+                if ($j -eq ($jsonObjectSplitted.Count - 1)) {
+                    $updatedLastProcessedDateTime = $newProcessedTime
+                }
+                $lastProcessedDateTime = $updatedLastProcessedDateTime
+                Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
+                $sqlStatement = "UPDATE [$SqlServerIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
+                $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+                $Conn.Open() 
+                $Cmd=new-object system.Data.SqlClient.SqlCommand
+                $Cmd.Connection = $Conn
+                $Cmd.CommandText = $sqlStatement
+                $Cmd.CommandTimeout=$SqlTimeout 
+                $Cmd.ExecuteReader()
+                $Conn.Close()
             }
+            else
+            {
+                $linesProcessed += $currentObjectLines  
+            }        
         }
     }
 }
