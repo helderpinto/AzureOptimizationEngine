@@ -179,6 +179,8 @@ if (-not($rightSizeRecommendationId)) {
     $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
 }
 
+$additionalPerfWorkspaces = Get-AutomationVariable -Name  "AzureOptimization_RightSizeAdditionalPerfWorkspaces" -ErrorAction SilentlyContinue
+
 $sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
 $sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization_SQLServerCredential"
 $SqlUsername = $sqlserverCredential.UserName 
@@ -322,6 +324,54 @@ catch
     $pricesheet = $null
 }
 
+$linuxMemoryPerfAdditionalWorkspaces = ""
+$windowsMemoryPerfAdditionalWorkspaces = ""
+$processorPerfAdditionalWorkspaces = ""
+$windowsNetworkPerfAdditionalWorkspaces = ""
+$diskPerfAdditionalWorkspaces = ""
+if ($additionalPerfWorkspaces)
+{
+    $additionalWorkspaces = $additionalPerfWorkspaces.Split(",")
+    foreach ($additionalWorkspace in $additionalWorkspaces) {
+        $linuxMemoryPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName == '% Used Memory' 
+        | summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId)
+"@
+        $windowsMemoryPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName == 'Available MBytes' 
+        | project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId)
+"@
+        $processorPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where ObjectName == 'Processor' and CounterName == '% Processor Time' and InstanceName == '_Total' 
+        | summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId)
+"@
+        $windowsNetworkPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName == 'Bytes Total/sec' 
+        | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, networkPercentileValue) by InstanceName, _ResourceId
+        | summarize PNetwork = sum(PCounter) by _ResourceId)
+"@
+        $diskPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName in ('Disk Reads/sec', 'Disk Writes/sec', 'Disk Read Bytes/sec', 'Disk Write Bytes/sec') and InstanceName !in ('_Total', 'D:', '/mnt/resource', '/mnt')
+        | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, perfTimeGrain), CounterName, InstanceName, _ResourceId
+        | summarize SumPCounter = sum(PCounter) by CounterName, TimeGenerated, _ResourceId
+        | summarize MaxPReadIOPS = maxif(SumPCounter, CounterName == 'Disk Reads/sec'), 
+                    MaxPWriteIOPS = maxif(SumPCounter, CounterName == 'Disk Writes/sec'), 
+                    MaxPReadMiBps = (maxif(SumPCounter, CounterName == 'Disk Read Bytes/sec') / 1024 / 1024), 
+                    MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId)
+"@
+    }
+}
+
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
@@ -344,12 +394,12 @@ let RightSizeInstanceIds = materialize($advisorTableName
 let LinuxMemoryPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == '% Used Memory' 
-| summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId;
+| summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId$linuxMemoryPerfAdditionalWorkspaces;
 
 let WindowsMemoryPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Available MBytes' 
-| project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId;
+| project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId$windowsMemoryPerfAdditionalWorkspaces;
 
 let MemoryPerf = $vmsTableName 
 | where TimeGenerated > ago(1d)
@@ -364,13 +414,13 @@ let MemoryPerf = $vmsTableName
 let ProcessorPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where ObjectName == 'Processor' and CounterName == '% Processor Time' and InstanceName == '_Total' 
-| summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId;
+| summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId$processorPerfAdditionalWorkspaces;
 
 let WindowsNetworkPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Bytes Total/sec' 
 | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, networkPercentileValue) by InstanceName, _ResourceId
-| summarize PNetwork = sum(PCounter) by _ResourceId;
+| summarize PNetwork = sum(PCounter) by _ResourceId$windowsNetworkPerfAdditionalWorkspaces;
 
 let DiskPerf = Perf
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
@@ -380,7 +430,7 @@ let DiskPerf = Perf
 | summarize MaxPReadIOPS = maxif(SumPCounter, CounterName == 'Disk Reads/sec'), 
             MaxPWriteIOPS = maxif(SumPCounter, CounterName == 'Disk Writes/sec'), 
             MaxPReadMiBps = (maxif(SumPCounter, CounterName == 'Disk Read Bytes/sec') / 1024 / 1024), 
-            MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId;
+            MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId$diskPerfAdditionalWorkspaces;
 
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
