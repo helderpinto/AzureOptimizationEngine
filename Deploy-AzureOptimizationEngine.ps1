@@ -536,6 +536,10 @@ if ("Y", "y" -contains $continueInput) {
         $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id }
 
         CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
+        
+        Write-Output "Removing auto-assigned Contributor role from subscription scope"
+        $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
+        Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
     }
     else {
         Write-Host "(The Automation Run As account was already deployed)" -ForegroundColor Green
