@@ -52,9 +52,18 @@ Write-Output "Found $($workspaces.Count) workspaces."
 $laQuery = "Heartbeat | where TimeGenerated > ago(1d) and ComputerEnvironment == 'Azure' | distinct Computer | summarize AzureComputersCount = count()"
 
 foreach ($workspace in $workspaces) {
-    $laQueryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspace.properties.customerId -Query $laQuery -Timespan (New-TimeSpan -Days 1)
-    $results = [System.Linq.Enumerable]::ToArray($laQueryResults.Results)
-    Write-Output "$($workspace.name): $($results.AzureComputersCount) Azure computers connected."
+    $laQueryResults = $null
+    $results = $null
+    $laQueryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspace.properties.customerId -Query $laQuery -Timespan (New-TimeSpan -Days 1) -ErrorAction Continue
+    if ($laQueryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($laQueryResults.Results)
+        Write-Output "$($workspace.name): $($results.AzureComputersCount) Azure computers connected."    
+    }
+    else
+    {
+        Write-Output "$($workspace.name): could not validate connected computers."
+    }
     if ($results.AzureComputersCount -gt 0)
     {
         if ($ctx.Subscription.SubscriptionId -ne $workspace.subscriptionId)
@@ -115,7 +124,7 @@ foreach ($workspace in $workspaces) {
             $missingObjects = $missingObjects | Where-Object { -not($_ -in $fixedObjects) }
             foreach ($linuxObject in $missingObjects) {
                 $missingObjectCounters = $missingLinuxCounters | Where-Object { $_.objectName -eq $linuxObject }
-                $missingInstance = ($missingObjectCounters | Select-Object -Property instance -Unique -First).instance
+                $missingInstance = ($missingObjectCounters | Select-Object -Property instance -Unique -First 1).instance
                 $missingCounterNames = ($missingObjectCounters).counterName
     
                 Write-Output "Adding $linuxObject object..."
