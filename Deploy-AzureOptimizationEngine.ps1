@@ -49,11 +49,13 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Sleep here for a few seconds to allow the service principal application to become active (ordinarily takes a few seconds)
     Start-Sleep -Seconds 15
     # Requires User Access Administrator or Owner.
+    Write-Output "Granting Reader role at the subscription level..."
     $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
     $Retries = 0;
     While ($null -eq $NewRole -and $Retries -le 6) {
         Start-Sleep -Seconds 10
-        New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
+        Write-Output "Retrying granting Reader role at the subscription level..."
+        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
         $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.ApplicationId -ErrorAction SilentlyContinue
         $Retries++;
     }
@@ -529,7 +531,8 @@ if ("Y", "y" -contains $continueInput) {
         $PfxCert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($PfxCertPathForRunAsAccount, $PfxCertPlainPasswordForRunAsAccount)
         $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
 
-        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId
+        Write-Output "Granting Contributor role only at the $resourceGroupName resource group level"
+        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId | Out-Null
         
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
