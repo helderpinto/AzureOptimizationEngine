@@ -199,8 +199,8 @@ foreach ($result in $results)
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = "N/A"
-        SubscriptionGuid = "N/A"
+        ResourceGroup = "notavailable"
+        SubscriptionGuid = "notavailable"
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL
@@ -289,8 +289,8 @@ foreach ($result in $results)
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = "N/A"
-        SubscriptionGuid = "N/A"
+        ResourceGroup = "notavailable"
+        SubscriptionGuid = "notavailable"
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL
