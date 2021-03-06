@@ -1,8 +1,8 @@
 # Azure Optimization Engine
 
-The Azure Optimization Engine (AOE) is an extensible solution designed to generate optimization recommendations for your Azure environment. See it like a fully customizable Azure Advisor. Actually, the first recommendations use-case covered by this tool was augmenting Azure Advisor Cost recommendations, particularly Virtual Machine right-sizing, with a fit score based on VM metrics and properties. Other recommendations can be easily added/augmented with this tool, not only for cost optimization but also for security, high availability and other [Well-Architected Framework](https://docs.microsoft.com/en-us/azure/architecture/framework/) areas.
+The Azure Optimization Engine (AOE) is an extensible solution designed to generate optimization recommendations for your Azure environment. See it like a fully customizable Azure Advisor. Actually, the first custom recommendations use-case covered by this tool was augmenting Azure Advisor Cost recommendations, particularly Virtual Machine right-sizing, with a fit score based on VM metrics and properties. Other recommendations are being added to the tool, not only for cost optimization but also for security, high availability and other [Well-Architected Framework](https://docs.microsoft.com/en-us/azure/architecture/framework/) pillars. You are welcome to contribute with new types of recommendations!
 
-It is highly recommended that you read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298). You'll find all the information needed to correctly set up the whole environment.
+It is highly recommended that you read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298). You'll find all the information needed to understand the whole solution.
 
 ## README index
 
@@ -15,7 +15,26 @@ It is highly recommended that you read the whole blog series dedicated to this p
 
 ## <a id="whatyoucanget"></a>What you can get ##
 
-A few hours after setting up the engine, you'll get a Power BI dashboard with all Azure optimization opportunities, coming from both Azure Advisor and from custom recommendations included in the engine. These recommendations are then updated every 7 days and you can add/develop your own custom ones if desired. Check below some examples of the Power BI dashboard pages.
+A few hours after setting up the engine, you'll get a Power BI dashboard with all Azure optimization opportunities, coming from both Azure Advisor and from custom recommendations included in the engine. These recommendations are then updated every 7 days and you can contribute with your own custom ones if needed. Check below some examples of the Power BI dashboard pages.
+
+### Built-in custom recommendations
+
+Besides collecting **all Azure Advisor recommendations**, AOE includes other custom recommendations that you can tailor to your needs:
+
+* Cost
+    * Augmented Advisor Cost VM right-size recommendations, with fit score based on Virtual Machine guest OS metrics (collected by Log Analytics agents) and Azure properties
+    * Unattached disks
+    * Standard Load Balancers without backend pool
+    * Application Gateways without backend pool
+    * VMs deallocated since a long time ago (forgotten VMs)
+* High Availability
+    * Virtual Machine high availability (availability set, managed disks, storage account distribution when using unmanaged disks)
+    * Availability Sets structure (fault/update domains count)
+* Security
+    * Service Principal credentials/certificates without expiration date
+* Operational Excellence
+    * Load Balancers without backend pool
+    * Service Principal credentials/certificates expired or about to expire
 
 ### Recommendations overview
 
@@ -35,18 +54,33 @@ A few hours after setting up the engine, you'll get a Power BI dashboard with al
 
 ## <a id="releases"></a>Releases ##
 
+* 03/2021 - support for suppressions, new recommendations added and deployment improvements
+    * Support for recommendations suppressions (exclude, dismiss, snooze)
+    * Five new recommendations added
+        * **Cost** - Standard Load Balancers without backend pool
+        * **Cost** - Application Gateways without backend pool
+        * **Security** - Service Principal credentials/certificates without expiration date
+        * **Operational Excellence** - Service Principal credentials/certificates expired or about to expire
+        * **Operational Excellence** - Load Balancers without backend pool
+    * Helper script that checks whether Log Analytics workspaces are configured with the right performance counters (with auto-fix support)
+    * Support for multiple Log Analytics workspaces (VM metrics ingestion by Log Analytics agents)
+    * Last deployment options are stored locally to make upgrades/re-deployments easier
+    * Roles assigned to the Automation Run As Account have now the least privileges needed
+    * Recommendations Dismissed/Postponed in Azure Advisor are now filtered
+    * Power BI report improvements
+    * Several bug fixes
 * 01/2021 - solution deployment improvements and several new recommendations added
     * Support for Azure Cloud Shell (PowerShell) deployment
     * Solution upgrade keeps original runbook schedules
     * Eight new recommendations added
         * **Cost** - VMs that have been deallocated for a long time
-        * **HA** - Availability Sets with a small fault domain count
-        * **HA** - Availability Sets with a small update domain count
-        * **HA** - Unmanaged Availability Sets with VMs sharing storage accounts
-        * **HA** - Storage Accounts containing unmanaged disks from multiple VMs
-        * **HA** - VMs without Availability Set
-        * **HA** - Single VM Availability Sets
-        * **HA** - VMs with unmanaged disks spanning multiple storage accounts
+        * **High Availability** - Availability Sets with a small fault domain count
+        * **High Availability** - Availability Sets with a small update domain count
+        * **High Availability** - Unmanaged Availability Sets with VMs sharing storage accounts
+        * **High Availability** - Storage Accounts containing unmanaged disks from multiple VMs
+        * **High Availability** - VMs without Availability Set
+        * **High Availability** - Single VM Availability Sets
+        * **High Availability** - VMs with unmanaged disks spanning multiple storage accounts
 * 12/2020 - added Azure Consumption dimension to cost recommendations and refactored Power BI dashboard
 * 11/2020 - support for automated VM right-size remediations and for other Well-Architected scopes, with unmanaged disks custom recommendation
 * 07/2020 - [initial release] Advisor Cost augmented VM right-size recommendations and orphaned disks custom recommendation
@@ -60,38 +94,35 @@ read the whole blog series dedicated to this project, starting [here](https://te
 
 ## <a id="deployment"></a>Deployment instructions ##
 
-The simplest, quickest and recommended method for installing the AOE is by using the Azure Cloud Shell (PowerShell). If, for some reason, you prefer to use your workstation, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)).
-
-Then, you can either choose to deploy all the dependencies from the GitHub repository or from your own. In any case, you must clone/download the solution locally, to be able to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell runs elevated).
-
-During deployment, you'll be asked several questions. You must plan for the following:
-
-* Whether you're going to reuse an existing Log Analytics Workspace or a create a new one. **IMPORTANT**: you should ideally reuse a workspace where you have VMs onboarded and already sending performance metrics (`Perf` table), otherwise you will not fully leverage the augmented right-size recommendations capability.
-* Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
-* A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
-* Azure datacenter location
-* Using a user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)).
-
-If the deployment fails for some reason, you can simply repeat it, as it is idempotent. The same if you want to upgrade a previous deployment with the latest version of the repo. You just have to keep the same deployment options.
-
 ### Requirements
 
 * Azure Powershell 4.5.0+
+* A user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)), so that the Automation Run As Account is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
+* (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Run As Account is granted the required privileges over Azure AD (Global Reader)
 
-### Deploying from GitHub
+During deployment, you'll be asked several questions. You must plan for the following:
 
-```powershell
-.\Deploy-AzureOptimizationEngine.ps1 [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
+* Whether you're going to reuse an existing Log Analytics Workspace or a create a new one. **IMPORTANT**: you should ideally reuse a workspace where you have VMs onboarded and already sending performance metrics (`Perf` table), otherwise you will not fully leverage the augmented right-size recommendations capability. If this is not possible/desired for some reason, you can still manage to use multiple workspaces (see [Using multiple Log Analytics workspaces](./docs/multiple-workspaces.md)).
+* An Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
+* A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
+* Azure region
 
-# examples
-.\Deploy-AzureOptimizationEngine.ps1
+### Installation
 
-.\Deploy-AzureOptimizationEngine.ps1 -AzureEnvironment AzureChinaCloud
-```
+The simplest, quickest and recommended method for installing AOE is by using the **Azure Cloud Shell** (PowerShell). You just have to follow these steps:
 
-### Deploying from your own repo
+1. Open Azure Cloud Shell (PowerShell)
+2. Run `git clone https://github.com/helderpinto/AzureOptimizationEngine.git azureoptimizationengine`
+3. Run `cd azureoptimizationengine`
+4. (optional) Run `Connect-AzureAD` - this is required to grant the Global Reader role to the Automation Run As Account in Azure AD
+5. Run `.\Deploy-AzureOptimizationEngine.ps1`
+6. Input your deployment options and let the deployment finish (it will take less than 5 minutes)
 
-You must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token.
+If the deployment fails for some reason, you can simply repeat it, as it is idempotent. The same if you want to upgrade a previous deployment with the latest version of the repo. You just have to keep the same deployment options. _Cool feature_: the deployment script persists your previous deployment options and lets you reuse it! 
+
+If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)). **IMPORTANT**: don't forget to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell always runs elevated).
+
+If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token (see syntax and example below)
 
 ```powershell
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri <URL to the ARM template JSON file (e.g., https://contoso.com/azuredeploy.json)> [-ArtifactsSasToken <Storage Account SAS token>] [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
@@ -104,26 +135,23 @@ You must publish the solution files into a publicly reachable URL. If you're usi
 
 ## <a id="usage"></a>Usage instructions ##
 
-Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones!
+Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones! The first recommendations will be available more or less 3h30m after the deployment. In order to see them, you'll need to connect Power BI to the AOE database (see details below). Every week at the same time, AOE recommendations will be updated according to the current state of your environment.
 
-This solution currently supports several types of recommendations, not restricted to Cost optimization:
+### Validating whether Log Analytics is collecting the right performance counters
 
-* Advisor Cost recommendations augmented with a fit score based on Virtual Machine performance metrics (collected by Log Analytics agents) and Azure properties
-* Advisor recommendations from other pillars (Security, Performance, Reliability and Operational Excellence)
-* Delete unattached disks
-* Upgrade Virtual Machines to Managed Disks
-* Delete Virtual Machines that have been deallocated for a long time
-* Fix Availability Sets with a small update or fault domain count
-* Ensure Availability Sets do not have VMs sharing the same Storage Account
-* Ensure Storage Accounts are not used by multiple VMs to store unmanaged disks
-* Place Virtual Machines in an Availability Set with multiple VMs
-* Ensure a Virtual Machine is not using multiple Storage Accounts to store its unmanaged disks
+To ensure the VM right-size recommendations have all the required data to provide its full value, Log Analytics must be collecting the required performance counters. You can use the [Setup-LogAnalyticsWorkspaces.ps1](.\Setup-LogAnalyticsWorkspaces.ps1) script as a configuration checker/fixer. For more details, see [Using multiple Log Analytics workspaces](./docs/multiple-workspaces.md).
 
-For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the fit score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables (`AzureOptimization_PerfPercentile*` and `AzureOptimization_PerfThreshold*`).
+### Widening the scope of AOE recommendations - more subscriptions or more workspaces
 
-If you are not interested in getting recommendations for all the non-Cost Advisor pillars, you can specify a pillar-level filter in the `AzureOptimization_AdvisorFilter` variable (comma-separated list with at least one of the following: `HighAvailability,Security,Performance,OperationalExcellence`).
+By default, the Azure Automation Run As Account is created with Reader role only over the respective subscription. However, you can widen the scope of its recommendations just by granting the same Reader role to other subscriptions or, even simpler, to a top-level Management Group.
 
-For the VMs that have been deallocated for a long time, the default deallocated interval is 30 days, but you can change this in the `AzureOptimization_RecommendationLongDeallocatedVmsIntervalDays` variable.
+In the context of augmented VM right-size recommendations, you may have your VMs reporting to multiple workspaces. If you need to include other workspaces - besides the main one AOE is using - in the recommendations scope, you just have to add their workspace IDs to the `AzureOptimization_RightSizeAdditionalPerfWorkspaces` variable (see more details in [Customizing the Azure Optimization Engine](./docs/customize-aoe.md)).
+
+### Adjusting AOE thresholds to your needs
+
+For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the fit score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables (for example, `AzureOptimization_PerfPercentile*` and `AzureOptimization_PerfThreshold*`).
+
+For all the available customization details, check [Customizing the Azure Optimization Engine](./docs/customize-aoe.md).
 
 ### Visualizing recommendations with Power BI
 
@@ -141,12 +169,9 @@ The report was built for a scenario where you have an "environment" tag applied 
 
 ![Open the Transform Data > Transform data menu item, click on Advanced editor and edit accordingly](./docs/powerbi-transformdata.jpg "Update data transformation logic")
 
-### Adjusting Azure Automation Run As Account permissions
+### Suppressing recommendations
 
-By default, the Azure Automation Run As Account is created with Contributor role over the respective subscription. The simplest minimum required permissions for the AOE runbooks are: 
-
-* Reader role in every subscription you want to gather recommendations from.
-* Contributor role in the resource group the solution was deployed to.
+If some recommendation is not applicable or you want it to be removed from the report while you schedule its mitigation, you can suppress it, either for a specific resource, resource group, subscription or even solution-wide. See [Suppressing recommendations](./docs/suppressing-recommendations.md) for more details.
 
 ## <a id="faq"></a>Frequently Asked Questions ##
 
