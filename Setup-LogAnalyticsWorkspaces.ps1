@@ -58,11 +58,11 @@ foreach ($workspace in $workspaces) {
     if ($laQueryResults)
     {
         $results = [System.Linq.Enumerable]::ToArray($laQueryResults.Results)
-        Write-Output "$($workspace.name): $($results.AzureComputersCount) Azure computers connected."    
+        Write-Output "$($workspace.name) ($($workspace.properties.customerId)): $($results.AzureComputersCount) Azure computers connected."    
     }
     else
     {
-        Write-Output "$($workspace.name): could not validate connected computers."
+        Write-Output "$($workspace.name) ($($workspace.properties.customerId)): could not validate connected computers."
     }
     if ($results.AzureComputersCount -gt 0)
     {

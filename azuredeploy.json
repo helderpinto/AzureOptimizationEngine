@@ -589,7 +589,7 @@
             },
             {
                 "name": "[variables('recommendationsIngestRunbookName')]",
-                "version": "1.5.1.0",
+                "version": "1.5.2.0",
                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"

@@ -102,7 +102,7 @@ read the whole blog series dedicated to this project, starting [here](https://te
 
 During deployment, you'll be asked several questions. You must plan for the following:
 
-* Whether you're going to reuse an existing Log Analytics Workspace or a create a new one. **IMPORTANT**: you should ideally reuse a workspace where you have VMs onboarded and already sending performance metrics (`Perf` table), otherwise you will not fully leverage the augmented right-size recommendations capability. If this is not possible/desired for some reason, you can still manage to use multiple workspaces (see [Using multiple Log Analytics workspaces](./docs/multiple-workspaces.md)).
+* Whether you're going to reuse an existing Log Analytics Workspace or a create a new one. **IMPORTANT**: you should ideally reuse a workspace where you have VMs onboarded and already sending performance metrics (`Perf` table), otherwise you will not fully leverage the augmented right-size recommendations capability. If this is not possible/desired for some reason, you can still manage to use multiple workspaces (see [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md)).
 * An Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
 * A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
 * Azure region
@@ -127,9 +127,10 @@ If you choose to deploy all the dependencies from your own local repository, you
 ```powershell
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri <URL to the ARM template JSON file (e.g., https://contoso.com/azuredeploy.json)> [-ArtifactsSasToken <Storage Account SAS token>] [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
 
-# examples
+# Example 1 - Deploying from a public endpoint not requiring authentication
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://contoso.com/azuredeploy.json"
 
+# Example 2 - Deploying from a Storage Account, using a SAS Token
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://aoesa.blob.core.windows.net/files/azuredeploy.json" -ArtifactsSasToken "?sv=2019-10-10&ss=bfqt&srt=o&sp=rwdlacupx&se=2020-06-13T23:27:18Z&st=2020-06-13T15:27:18Z&spr=https&sig=4cvPayBlF67aYvifwu%2BIUw8Ldh5txpFGgXlhzvKF3%2BI%3D"
 ```
 
@@ -139,19 +140,19 @@ Once successfully deployed, and assuming you have your VMs onboarded to Log Anal
 
 ### Validating whether Log Analytics is collecting the right performance counters
 
-To ensure the VM right-size recommendations have all the required data to provide its full value, Log Analytics must be collecting the required performance counters. You can use the [Setup-LogAnalyticsWorkspaces.ps1](.\Setup-LogAnalyticsWorkspaces.ps1) script as a configuration checker/fixer. For more details, see [Using multiple Log Analytics workspaces](./docs/multiple-workspaces.md).
+To ensure the VM right-size recommendations have all the required data to provide its full value, Log Analytics must be collecting specific performance counters. You can use the [Setup-LogAnalyticsWorkspaces.ps1](.\Setup-LogAnalyticsWorkspaces.ps1) script as a configuration checker/fixer. For more details, see [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md).
 
 ### Widening the scope of AOE recommendations - more subscriptions or more workspaces
 
 By default, the Azure Automation Run As Account is created with Reader role only over the respective subscription. However, you can widen the scope of its recommendations just by granting the same Reader role to other subscriptions or, even simpler, to a top-level Management Group.
 
-In the context of augmented VM right-size recommendations, you may have your VMs reporting to multiple workspaces. If you need to include other workspaces - besides the main one AOE is using - in the recommendations scope, you just have to add their workspace IDs to the `AzureOptimization_RightSizeAdditionalPerfWorkspaces` variable (see more details in [Customizing the Azure Optimization Engine](./docs/customize-aoe.md)).
+In the context of augmented VM right-size recommendations, you may have your VMs reporting to multiple workspaces. If you need to include other workspaces - besides the main one AOE is using - in the recommendations scope, you just have to add their workspace IDs to the `AzureOptimization_RightSizeAdditionalPerfWorkspaces` variable (see more details in [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md)).
 
 ### Adjusting AOE thresholds to your needs
 
 For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the fit score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables (for example, `AzureOptimization_PerfPercentile*` and `AzureOptimization_PerfThreshold*`).
 
-For all the available customization details, check [Customizing the Azure Optimization Engine](./docs/customize-aoe.md).
+For all the available customization details, check [Customizing the Azure Optimization Engine](./docs/customizing-aoe.md).
 
 ### Visualizing recommendations with Power BI
 
