@@ -135,6 +135,8 @@ do
 
 } while ($resultsCount -eq $ARGPageSize)
 
+Write-Output "Found $($mdisksTotal.Count) Managed Disk entries"
+
 <#
     Building CSV entries 
 #>

@@ -29,10 +29,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVhdContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGAppGatewayContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argvhdexports"
+    $storageAccountSinkContainer = "argappgwexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -73,7 +73,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
-$alldisks = @()
+$allAppGWs = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
@@ -87,69 +87,54 @@ else
     $subscriptionSuffix = $cloudSuffix + "all"
 }
 
-$mdisksTotal = @()
+$appGWsTotal = @()
 $resultsSoFar = 0
 
-Write-Output "Querying for ARM Unmanaged OS Disks properties"
+Write-Output "Querying for Application Gateways properties"
 
 $argQuery = @"
 resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| extend diskType = 'OS', diskCaching = tostring(properties.storageProfile.osDisk.caching), diskSize = tostring(properties.storageProfile.osDisk.diskSizeGB)
-| extend vhdUriParts = split(tostring(properties.storageProfile.osDisk.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
+| where type =~ 'Microsoft.Network/applicationGateways'
+| extend gatewayIPsCount = array_length(properties.gatewayIPConfigurations)
+| extend frontendIPsCount = array_length(properties.frontendIPConfigurations)
+| extend frontendPortsCount = array_length(properties.frontendPorts)
+| extend backendPoolsCount = array_length(properties.backendAddressPools)
+| extend httpSettingsCount = array_length(properties.backendHttpSettingsCollection)
+| extend httpListenersCount = array_length(properties.httpListeners)
+| extend urlPathMapsCount = array_length(properties.urlPathMaps)
+| extend requestRoutingRulesCount = array_length(properties.requestRoutingRules)
+| extend probesCount = array_length(properties.probes)
+| extend rewriteRulesCount = array_length(properties.rewriteRuleSets)
+| extend redirectConfsCount = array_length(properties.redirectConfigurations)
+| project id, name, resourceGroup, subscriptionId, tenantId, location, skuName = properties.sku.name, skuTier = properties.sku.tier, skuCapacity = properties.sku.capacity, enableHttp2 = properties.enableHttp2, gatewayIPsCount, frontendIPsCount, frontendPortsCount, httpSettingsCount, httpListenersCount, backendPoolsCount, urlPathMapsCount, requestRoutingRulesCount, probesCount, rewriteRulesCount, redirectConfsCount, tags
+| join kind=leftouter (
+	resources
+	| where type =~ 'Microsoft.Network/applicationGateways'
+	| mvexpand backendPools = properties.backendAddressPools
+	| extend backendIPCount = array_length(backendPools.properties.backendIPConfigurations)
+	| summarize backendIPCount = sum(backendIPCount) by id
+) on id
+| project-away id1
+| order by id asc
 "@
 
 do
 {
     if ($resultsSoFar -eq 0)
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $appGWs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $appGWs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
     }
-    $resultsCount = $mdisks.Count
+    $resultsCount = $appGWs.Count
     $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
+    $appGWsTotal += $appGWs
 
 } while ($resultsCount -eq $ARGPageSize)
 
-$resultsSoFar = 0
-
-Write-Output "Found $($mdisksTotal.Count) Unmanaged OS Disk entries"
-
-Write-Output "Querying for ARM Unmanaged Data Disks properties"
-
-$argQuery = @"
-resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| mvexpand dataDisks = properties.storageProfile.dataDisks
-| extend diskType = 'Data', diskCaching = tostring(dataDisks.caching), diskSize = tostring(dataDisks.diskSizeGB)
-| extend vhdUriParts = split(tostring(dataDisks.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
-"@
-
-do
-{
-    if ($resultsSoFar -eq 0)
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
-    }
-    else
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
-    }
-    $resultsCount = $mdisks.Count
-    $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
-
-} while ($resultsCount -eq $ARGPageSize)
-
-Write-Output "Found overall $($mdisksTotal.Count) Unmanaged Disk entries"
+Write-Output "Found $($appGWsTotal.Count) Application Gateway entries"
 
 <#
     Building CSV entries 
@@ -159,27 +144,38 @@ $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-foreach ($disk in $mdisksTotal)
+foreach ($appGW in $appGWsTotal)
 {
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $disk.tenantId
-        SubscriptionGuid = $disk.subscriptionId
-        ResourceGroupName = $disk.resourceGroup.ToLower()
-        DiskName = $disk.diskVhdName.ToLower()
-        InstanceId = ($disk.diskStorageAccountName + "/" + $disk.diskContainerName + "/" + $disk.diskVhdName).ToLower()
-        OwnerVMId = $disk.id.ToLower()
-        Location = $disk.location
-        DeploymentModel = "Unmanaged"
-        DiskType = $disk.diskType 
-        Caching = $disk.diskCaching 
-        DiskSizeGB = $disk.diskSize
+        TenantGuid = $appGW.tenantId
+        SubscriptionGuid = $appGW.subscriptionId
+        ResourceGroupName = $appGW.resourceGroup.ToLower()
+        InstanceName = $appGW.name.ToLower()
+        InstanceId = $appGW.id.ToLower()
+        SkuName = $appGW.skuName
+        SkuTier = $appGW.skuTier
+        SkuCapacity = $appGW.skuCapacity
+        Location = $appGW.location
+        EnableHttp2 = $appGW.enableHttp2
+        GatewayIPsCount = $appGW.gatewayIPsCount
+        FrontendIPsCount = $appGW.frontendIPsCount
+        FrontendPortsCount = $appGW.frontendPortsCount
+        BackendIPCount = $appGW.backendIPCount
+        HttpSettingsCount = $appGW.httpSettingsCount
+        HttpListenersCount = $appGW.httpListenersCount
+        BackendPoolsCount = $appGW.backendPoolsCount
+        ProbesCount = $appGW.probesCount
+        UrlPathMapsCount = $appGW.urlPathMapsCount
+        RequestRoutingRulesCount = $appGW.requestRoutingRulesCount
+        RewriteRulesCount = $appGW.rewriteRulesCount
+        RedirectConfsCount = $appGW.redirectConfsCount
         StatusDate = $statusDate
-        Tags = $disk.tags
+        Tags = $appGW.tags
     }
     
-    $alldisks += $logentry
+    $allAppGWs += $logentry
 }
 
 <#
@@ -187,9 +183,9 @@ foreach ($disk in $mdisksTotal)
 #>
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-vhds-$subscriptionSuffix.csv"
+$csvExportPath = "$today-appgws-$subscriptionSuffix.csv"
 
-$alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allAppGWs | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 

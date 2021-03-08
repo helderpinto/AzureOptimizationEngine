@@ -1,0 +1,94 @@
+{
+    "recommendations": [
+        {
+            "category": "Cost",
+            "typeId": "c320b790-2e58-452a-aa63-7b62c383ad8a",
+            "impact": "Medium",
+            "description": "Virtual Machine has been deallocated for long with disks still incurring costs"
+        },
+        {
+            "category": "Cost",
+            "typeId": "c84d5e86-e2d6-4d62-be7c-cecfbd73b0db",
+            "impact": "Medium",
+            "description": "Unattached disks (without owner VM) incur in unnecessary costs"
+        },
+        {
+            "category": "Cost",
+            "typeId": "dc3d2baa-26c8-435e-aa9d-edb2bfd6fff6",
+            "impact": "Medium",
+            "description": "Application Gateways without a backend pool incur in unnecessary costs"
+        },
+        {
+            "category": "Cost",
+            "typeId": "f1ed3bb2-3cb5-41e6-ba38-7001d5ff87f5",
+            "impact": "Medium",
+            "description": "Standard Load Balancers with rules defined and without a backend pool incur in unnecessary costs"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
+            "impact": "High",
+            "description": "Availability Sets should have a fault domain count of 3 or equal or greater than half of the Virtual Machines count"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "9764e285-2eca-46c5-b49e-649c039cf0cf",
+            "impact": "High",
+            "description": "Availability Sets should have an update domain count equal or greater than half of the Virtual Machines count"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "e530029f-9b6a-413a-99ed-81af54502bb9",
+            "impact": "High",
+            "description": "Virtual Machines in unmanaged Availability Sets should not share the same Storage Account"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "b70f44fa-5ef9-4180-b2f9-9cc6be07ab3e",
+            "impact": "Medium",
+            "description": "Virtual Machines with unmanaged disks should not share the same Storage Account"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "998b50d8-e654-417b-ab20-a31cb11629c0",
+            "impact": "Medium",
+            "description": "Virtual Machines should be placed in an Availability Set together with other instances with the same role"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "fe577af5-dfa2-413a-82a9-f183196c1f49",
+            "impact": "Medium",
+            "description": "Virtual Machines should not be the only instance in an Availability Set"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "024049e7-f63a-4e1c-b620-f011aafbc576",
+            "impact": "Medium",
+            "description": "Each Virtual Machine should have its unmanaged disks stored in a single Storage Account for higher availability and manageability"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "b576a069-b1f2-43a6-9134-5ee75376402a",
+            "impact": "High",
+            "description": "Virtual Machines should use Managed Disks for higher availability and manageability"
+        },
+        {
+            "category": "Security",
+            "typeId": "ecd969c8-3f16-481a-9577-5ed32e5e1a1d",
+            "impact": "Medium",
+            "description": "Azure AD application with credentials expiration not set or too far in time"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "3292c489-2782-498b-aad0-a4cef50f6ca2",
+            "impact": "Medium",
+            "description": "Azure AD application with credentials expired or about to expire"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "48619512-f4e6-4241-9c85-16f7c987950c",
+            "impact": "Medium",
+            "description": "Load Balancers without a backend pool are useless"
+        }
+    ]
+}

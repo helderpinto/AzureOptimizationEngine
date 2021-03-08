@@ -151,7 +151,8 @@ $baseQuery = @"
 
     $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
-    | where InstanceId_s !in (BilledVMs) 
+    | join kind=leftouter (BilledVMs) on InstanceId_s
+    | where isempty(InstanceId_s1)
     | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s 
     | join kind=leftouter (
         $disksTableName 
@@ -180,7 +181,6 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
-    $querySubscriptionId = $result.SubscriptionGuid_g
     $queryText = @"
         let offlineInterval = $($offlineInterval)d;
         $consumptionTableName
@@ -203,8 +203,8 @@ foreach ($result in $results)
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
-    $detailsQueryEnd = $datetime.AddDays(1).ToString("yyyy-MM-dd")
-    $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$querySubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
+    $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
+    $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
 
     $additionalInfoDictionary = @{}
 

@@ -84,7 +84,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','AzureConsumption')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGAppGateway','AzureConsumption')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -104,10 +104,10 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGManagedDisk' }).LogAnalyticsSuffix + "_CL"
+$appGWsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGAppGateway' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $disksTableName and $consumptionTableName"
+Write-Output "Will run query against tables $appGWsTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -124,21 +124,22 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
-# Execute the recommendation query against Log Analytics
+# Execute the Cost recommendation query against Log Analytics
 
 $baseQuery = @"
     let interval = 30d;
     let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
     let stime = etime-interval; 
-    
-    $disksTableName
-    | where TimeGenerated > ago(1d) and isempty(OwnerVMId_s)
-    | distinct DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
+
+    $appGWsTableName
+    | where TimeGenerated > ago(1d)
+    | where toint(BackendPoolsCount_s) == 0 or toint(BackendIPCount_s) == 0 or isempty(BackendIPCount_s)
+    | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, SkuCapacity_s, Tags_s, Cloud_s 
     | join kind=leftouter (
         $consumptionTableName
         | where UsageDate_t between (stime..etime)
     ) on InstanceId_s
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
+    | summarize Last30DaysCost=sum(todouble(Cost_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, SkuCapacity_s, Tags_s, Cloud_s
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -158,15 +159,16 @@ foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
     $queryText = @"
-    $disksTableName
-    | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
-    | distinct InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
-    | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
+    $appGWsTableName
+    | where InstanceId_s == '$queryInstanceId'
+    | where toint(BackendPoolsCount_s) == 0 or toint(BackendIPCount_s) == 0 or isempty(BackendIPCount_s)
+    | distinct InstanceId_s, InstanceName_s, TimeGenerated
+    | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s
     | join kind=inner (
         $consumptionTableName
     ) on InstanceId_s
-    | where UsageDate_t > LastAttachedDate
-    | summarize CostsSinceDetached = sum(todouble(Cost_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
+    | where UsageDate_t > FirstUnusedDate
+    | summarize CostsSinceUnused = sum(todouble(Cost_s)) by InstanceName_s, FirstUnusedDate
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
@@ -175,9 +177,8 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["DiskType"] = "Managed"
-    $additionalInfoDictionary["currentSku"] = $result.SKU_s
-    $additionalInfoDictionary["DiskSizeGB"] = [int] $result.DiskSizeGB_s 
+    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
+    $additionalInfoDictionary["InstanceCount"] = $result.SkuCapacity_s
     $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
     $additionalInfoDictionary["savingsAmount"] = [double] $result.Last30DaysCost 
 
@@ -204,15 +205,15 @@ foreach ($result in $results)
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
         Category = "Cost"
-        ImpactedArea = "Microsoft.Compute/disks"
+        ImpactedArea = "Microsoft.Network/applicationGateways"
         Impact = "Medium"
         RecommendationType = "Saving"
-        RecommendationSubType = "UnattachedDisks"
-        RecommendationSubTypeId = "c84d5e86-e2d6-4d62-be7c-cecfbd73b0db"
-        RecommendationDescription = "Unattached disks (without owner VM) incur in unnecessary costs"
-        RecommendationAction = "Delete or downgrade disk to Standard SKU"
+        RecommendationSubType = "UnusedAppGateways"
+        RecommendationSubTypeId = "dc3d2baa-26c8-435e-aa9d-edb2bfd6fff6"
+        RecommendationDescription = "Application Gateways without a backend pool incur in unnecessary costs"
+        RecommendationAction = "Delete the Application Gateway"
         InstanceId = $result.InstanceId_s
-        InstanceName = $result.DiskName_s
+        InstanceName = $result.InstanceName_s
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -227,7 +228,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unattacheddisks-$fileDate.json"
+$jsonExportPath = "unusedappgateways-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath

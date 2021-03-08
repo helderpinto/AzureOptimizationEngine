@@ -1,0 +1,4 @@
+# Deployment state file
+last-deployment-state.json
+# Database connection settings (for the Suppress-Recommendation.ps1 helper script)
+database-connection-settings.json

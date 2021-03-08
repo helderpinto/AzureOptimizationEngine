@@ -179,6 +179,8 @@ if (-not($rightSizeRecommendationId)) {
     $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
 }
 
+$additionalPerfWorkspaces = Get-AutomationVariable -Name  "AzureOptimization_RightSizeAdditionalPerfWorkspaces" -ErrorAction SilentlyContinue
+
 $sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
 $sqlserverCredential = Get-AutomationPSCredential -Name "AzureOptimization_SQLServerCredential"
 $SqlUsername = $sqlserverCredential.UserName 
@@ -194,6 +196,7 @@ $consumptionOffsetDaysStart = $consumptionOffsetDays + 1
 
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
+$FiltersTable = "Filters"
 
 # Authenticate against Azure
 
@@ -257,6 +260,41 @@ Write-Output "Will run query against tables $vmsTableName, $advisorTableName and
 $Conn.Close()    
 $Conn.Dispose()            
 
+Write-Output "Getting excluded recommendation sub-type IDs..."
+
+$tries = 0
+$connectionSuccess = $false
+do {
+    $tries++
+    try {
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandTimeout = $SqlTimeout
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$FiltersTable] WHERE FilterType = 'Exclude' AND IsEnabled = 1 AND (FilterEndDate IS NULL OR FilterEndDate > GETDATE())"
+    
+        $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $sqlAdapter.SelectCommand = $Cmd
+        $filters = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($filters) | Out-Null            
+        $connectionSuccess = $true
+    }
+    catch {
+        Write-Output "Failed to contact SQL at try $tries."
+        Write-Output $Error[0]
+        Start-Sleep -Seconds ($tries * 20)
+    }    
+} while (-not($connectionSuccess) -and $tries -lt 3)
+
+if (-not($connectionSuccess))
+{
+    throw "Could not establish connection to SQL."
+}
+
+$Conn.Close()    
+$Conn.Dispose()            
+
 $recommendationSearchTimeSpan = 30 + $consumptionOffsetDaysStart
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
@@ -286,6 +324,54 @@ catch
     $pricesheet = $null
 }
 
+$linuxMemoryPerfAdditionalWorkspaces = ""
+$windowsMemoryPerfAdditionalWorkspaces = ""
+$processorPerfAdditionalWorkspaces = ""
+$windowsNetworkPerfAdditionalWorkspaces = ""
+$diskPerfAdditionalWorkspaces = ""
+if ($additionalPerfWorkspaces)
+{
+    $additionalWorkspaces = $additionalPerfWorkspaces.Split(",")
+    foreach ($additionalWorkspace in $additionalWorkspaces) {
+        $linuxMemoryPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName == '% Used Memory' 
+        | summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId)
+"@
+        $windowsMemoryPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName == 'Available MBytes' 
+        | project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId)
+"@
+        $processorPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where ObjectName == 'Processor' and CounterName == '% Processor Time' and InstanceName == '_Total' 
+        | summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId)
+"@
+        $windowsNetworkPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf 
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName == 'Bytes Total/sec' 
+        | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, networkPercentileValue) by InstanceName, _ResourceId
+        | summarize PNetwork = sum(PCounter) by _ResourceId)
+"@
+        $diskPerfAdditionalWorkspaces += @"
+        | union ( workspace('$additionalWorkspace').Perf
+        | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
+        | where CounterName in ('Disk Reads/sec', 'Disk Writes/sec', 'Disk Read Bytes/sec', 'Disk Write Bytes/sec') and InstanceName !in ('_Total', 'D:', '/mnt/resource', '/mnt')
+        | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, diskPercentileValue) by bin(TimeGenerated, perfTimeGrain), CounterName, InstanceName, _ResourceId
+        | summarize SumPCounter = sum(PCounter) by CounterName, TimeGenerated, _ResourceId
+        | summarize MaxPReadIOPS = maxif(SumPCounter, CounterName == 'Disk Reads/sec'), 
+                    MaxPWriteIOPS = maxif(SumPCounter, CounterName == 'Disk Writes/sec'), 
+                    MaxPReadMiBps = (maxif(SumPCounter, CounterName == 'Disk Read Bytes/sec') / 1024 / 1024), 
+                    MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId)
+"@
+    }
+}
+
 # Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
@@ -308,12 +394,12 @@ let RightSizeInstanceIds = materialize($advisorTableName
 let LinuxMemoryPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == '% Used Memory' 
-| summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId;
+| summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId$linuxMemoryPerfAdditionalWorkspaces;
 
 let WindowsMemoryPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Available MBytes' 
-| project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId;
+| project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId$windowsMemoryPerfAdditionalWorkspaces;
 
 let MemoryPerf = $vmsTableName 
 | where TimeGenerated > ago(1d)
@@ -328,13 +414,13 @@ let MemoryPerf = $vmsTableName
 let ProcessorPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where ObjectName == 'Processor' and CounterName == '% Processor Time' and InstanceName == '_Total' 
-| summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId;
+| summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId$processorPerfAdditionalWorkspaces;
 
 let WindowsNetworkPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Bytes Total/sec' 
 | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, networkPercentileValue) by InstanceName, _ResourceId
-| summarize PNetwork = sum(PCounter) by _ResourceId;
+| summarize PNetwork = sum(PCounter) by _ResourceId$windowsNetworkPerfAdditionalWorkspaces;
 
 let DiskPerf = Perf
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
@@ -344,7 +430,7 @@ let DiskPerf = Perf
 | summarize MaxPReadIOPS = maxif(SumPCounter, CounterName == 'Disk Reads/sec'), 
             MaxPWriteIOPS = maxif(SumPCounter, CounterName == 'Disk Writes/sec'), 
             MaxPReadMiBps = (maxif(SumPCounter, CounterName == 'Disk Read Bytes/sec') / 1024 / 1024), 
-            MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId;
+            MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId$diskPerfAdditionalWorkspaces;
 
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
@@ -372,6 +458,8 @@ $advisorTableName
 | distinct Last30DaysCost, Last30DaysQuantity, InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s
 "@
 
+Write-Output "Will run the following query (use this query against the LA workspace for troubleshooting): $baseQuery"
+
 Write-Output "Getting cost recommendations for $($daysBackwards)d Advisor and $($perfDaysBackwards)d Perf history and a $perfTimeGrain time grain..."
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -392,6 +480,12 @@ $skuPricesFound = @{}
 Write-Output "Generating fit score..."
 
 foreach ($result in $results) {  
+
+    if ($filters | Where-Object { $_.RecommendationSubTypeId -eq $result.RecommendationTypeId_g})
+    {
+        continue
+    }
+
     $queryInstanceId = $result.InstanceId_s
 
     $tags = @{}
@@ -419,13 +513,26 @@ foreach ($result in $results) {
         }
     }
 
+    # Fixing reservation model inconsistencies
+    if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["location"])))
+    {
+        $additionalInfoDictionary["region"] = $additionalInfoDictionary["location"]
+    }
+    if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["targetResourceCount"])))
+    {
+        $additionalInfoDictionary["qty"] = $additionalInfoDictionary["targetResourceCount"]
+    }
+    if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["vmSize"])))
+    {
+        $additionalInfoDictionary["displaySKU"] = $additionalInfoDictionary["vmSize"]
+    }
+
     $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
 
-    $fitScore = -1
+    $fitScore = 5
     $hasCpuRamPerfMetrics = $false
 
     if ($additionalInfoDictionary.targetSku) {
-        $fitScore = 5
         $additionalInfoDictionary["SupportsDataDisksCount"] = "true"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["SupportsNICCount"] = "true"
@@ -598,9 +705,9 @@ foreach ($result in $results) {
     }
     else
     {
-        if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["savingsAmount"])))
+        if (-not([string]::IsNullOrEmpty($additionalInfoDictionary["annualSavingsAmount"])))
         {
-            $savingsMonthly = [double] $additionalInfoDictionary["savingsAmount"] / 12
+            $savingsMonthly = [double] $additionalInfoDictionary["annualSavingsAmount"] / 12
         }
         else
         {
@@ -652,7 +759,7 @@ foreach ($result in $results) {
     
         $encodedQuery = [System.Uri]::EscapeDataString($queryText)
         $detailsQueryStart = $datetime.AddDays(-30).ToString("yyyy-MM-dd")
-        $detailsQueryEnd = $datetime.AddDays(1).ToString("yyyy-MM-dd")
+        $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
         $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"            
     }
 
@@ -682,7 +789,7 @@ foreach ($result in $results) {
 
 # Export the recommendations as JSON to blob storage
 
-Write-Output "Exporting final results as a JSON file..."
+Write-Output "Exporting final $($recommendations.Count) results as a JSON file..."
 
 $fileDate = $datetime.ToString("yyyyMMdd")
 $jsonExportPath = "advisor-cost-augmented-$fileDate.json"

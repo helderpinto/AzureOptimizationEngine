@@ -29,10 +29,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVhdContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGLoadBalancerContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argvhdexports"
+    $storageAccountSinkContainer = "arglbexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -73,7 +73,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
-$alldisks = @()
+$allLBs = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
@@ -87,69 +87,50 @@ else
     $subscriptionSuffix = $cloudSuffix + "all"
 }
 
-$mdisksTotal = @()
+$LBsTotal = @()
 $resultsSoFar = 0
 
-Write-Output "Querying for ARM Unmanaged OS Disks properties"
+Write-Output "Querying for Load Balancer properties"
 
 $argQuery = @"
 resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| extend diskType = 'OS', diskCaching = tostring(properties.storageProfile.osDisk.caching), diskSize = tostring(properties.storageProfile.osDisk.diskSizeGB)
-| extend vhdUriParts = split(tostring(properties.storageProfile.osDisk.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
+| where type =~ 'Microsoft.Network/loadBalancers'
+| extend lbRulesCount = array_length(properties.loadBalancingRules)
+| extend frontendIPsCount = array_length(properties.frontendIPConfigurations)
+| extend inboundNatRulesCount = array_length(properties.inboundNatRules)
+| extend outboundRulesCount = array_length(properties.outboundRules)
+| extend inboundNatPoolsCount = array_length(properties.inboundNatPools)
+| extend backendPoolsCount = array_length(properties.backendAddressPools)
+| extend probesCount = array_length(properties.probes)
+| project id, name, resourceGroup, subscriptionId, tenantId, location, skuName = sku.name, skuTier = sku.tier, lbRulesCount, frontendIPsCount, inboundNatRulesCount, outboundRulesCount, inboundNatPoolsCount, backendPoolsCount, probesCount, tags
+| join kind=leftouter (
+	resources
+	| where type =~ 'Microsoft.Network/loadBalancers'
+	| mvexpand backendPools = properties.backendAddressPools
+	| extend backendIPCount = array_length(backendPools.properties.backendIPConfigurations)
+	| summarize backendIPCount = sum(backendIPCount) by id
+) on id
+| project-away id1
+| order by id asc
 "@
 
 do
 {
     if ($resultsSoFar -eq 0)
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
     }
-    $resultsCount = $mdisks.Count
+    $resultsCount = $LBs.Count
     $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
+    $LBsTotal += $LBs
 
 } while ($resultsCount -eq $ARGPageSize)
 
-$resultsSoFar = 0
-
-Write-Output "Found $($mdisksTotal.Count) Unmanaged OS Disk entries"
-
-Write-Output "Querying for ARM Unmanaged Data Disks properties"
-
-$argQuery = @"
-resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| mvexpand dataDisks = properties.storageProfile.dataDisks
-| extend diskType = 'Data', diskCaching = tostring(dataDisks.caching), diskSize = tostring(dataDisks.diskSizeGB)
-| extend vhdUriParts = split(tostring(dataDisks.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
-"@
-
-do
-{
-    if ($resultsSoFar -eq 0)
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
-    }
-    else
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
-    }
-    $resultsCount = $mdisks.Count
-    $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
-
-} while ($resultsCount -eq $ARGPageSize)
-
-Write-Output "Found overall $($mdisksTotal.Count) Unmanaged Disk entries"
+Write-Output "Found $($LBsTotal.Count) Load Balancer entries"
 
 <#
     Building CSV entries 
@@ -159,27 +140,32 @@ $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-foreach ($disk in $mdisksTotal)
+foreach ($lb in $LBsTotal)
 {
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $disk.tenantId
-        SubscriptionGuid = $disk.subscriptionId
-        ResourceGroupName = $disk.resourceGroup.ToLower()
-        DiskName = $disk.diskVhdName.ToLower()
-        InstanceId = ($disk.diskStorageAccountName + "/" + $disk.diskContainerName + "/" + $disk.diskVhdName).ToLower()
-        OwnerVMId = $disk.id.ToLower()
-        Location = $disk.location
-        DeploymentModel = "Unmanaged"
-        DiskType = $disk.diskType 
-        Caching = $disk.diskCaching 
-        DiskSizeGB = $disk.diskSize
+        TenantGuid = $lb.tenantId
+        SubscriptionGuid = $lb.subscriptionId
+        ResourceGroupName = $lb.resourceGroup.ToLower()
+        InstanceName = $lb.name.ToLower()
+        InstanceId = $lb.id.ToLower()
+        SkuName = $lb.skuName
+        SkuTier = $lb.skuTier
+        Location = $lb.location
+        LbRulesCount = $lb.lbRulesCount
+        InboundNatRulesCount = $lb.inboundNatRulesCount
+        OutboundRulesCount = $lb.outboundRulesCount
+        FrontendIPsCount = $lb.frontendIPsCount
+        BackendIPCount = $lb.backendIPCount
+        InboundNatPoolsCount = $lb.inboundNatPoolsCount
+        BackendPoolsCount = $lb.backendPoolsCount
+        ProbesCount = $lb.probesCount
         StatusDate = $statusDate
-        Tags = $disk.tags
+        Tags = $lb.tags
     }
     
-    $alldisks += $logentry
+    $allLBs += $logentry
 }
 
 <#
@@ -187,9 +173,9 @@ foreach ($disk in $mdisksTotal)
 #>
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-vhds-$subscriptionSuffix.csv"
+$csvExportPath = "$today-lbs-$subscriptionSuffix.csv"
 
-$alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allLBs | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 

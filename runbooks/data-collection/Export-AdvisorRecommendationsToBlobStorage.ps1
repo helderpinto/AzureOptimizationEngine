@@ -124,6 +124,9 @@ foreach ($subscription in $subscriptions)
         }
     }
 
+    Write-Output "Found $($advisorRecommendations.Count) raw recommendations. Filtering out suppressed ones..."
+    $advisorRecommendations = $advisorRecommendations | Where-Object { -not($_.SuppressionIds) }
+    Write-Output "Continuing processing $($advisorRecommendations.Count) recommendations..."
     foreach ($advisorRecommendation in $advisorRecommendations)
     {
         # compute instance ID, resource group and subscription for the recommendation
@@ -155,7 +158,7 @@ foreach ($subscription in $subscriptions)
             Impact = $advisorRecommendation.Impact
             ImpactedArea = $advisorRecommendation.ImpactedField
             Description = $advisorRecommendation.ShortDescription.Problem
-            RecommendationText = $advisorRecommendation.ShortDescription.Problem
+            RecommendationText = $advisorRecommendation.ShortDescription.Solution
             RecommendationTypeId = $advisorRecommendation.RecommendationTypeId
             InstanceId = $instanceId.ToLower()
             Category = $advisorRecommendation.Category
@@ -167,6 +170,8 @@ foreach ($subscription in $subscriptions)
     
         $recommendations += $recommendation    
     }
+
+    Write-Output "Found $($recommendations.Count) $advisorFilter recommendations for $subscription subscription"
 
     <#
     Actually exporting CSV to Azure Storage

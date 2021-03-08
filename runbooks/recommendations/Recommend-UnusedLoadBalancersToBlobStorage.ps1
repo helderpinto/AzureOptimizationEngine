@@ -84,7 +84,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','AzureConsumption')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGLoadBalancer','AzureConsumption')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -104,10 +104,10 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGManagedDisk' }).LogAnalyticsSuffix + "_CL"
+$lbsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGLoadBalancer' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $disksTableName and $consumptionTableName"
+Write-Output "Will run query against tables $lbsTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -124,27 +124,30 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
-# Execute the recommendation query against Log Analytics
+# Execute the Cost recommendation query against Log Analytics
 
 $baseQuery = @"
     let interval = 30d;
     let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
     let stime = etime-interval; 
-    
-    $disksTableName
-    | where TimeGenerated > ago(1d) and isempty(OwnerVMId_s)
-    | distinct DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
+
+    $lbsTableName
+    | where TimeGenerated > ago(1d)
+    | where SkuName_s == 'Standard'
+    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
+    | where toint(LbRulesCount_s) != 0 or toint(InboundNatRulesCount_s) != 0 or toint(OutboundRulesCount_s) != 0
+    | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
     | join kind=leftouter (
         $consumptionTableName
         | where UsageDate_t between (stime..etime)
     ) on InstanceId_s
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
+    | summarize Last30DaysCost=sum(todouble(Cost_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s    
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
 $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
 
-Write-Output "Query finished with $($results.Count) results."
+Write-Output "Costs query finished with $($results.Count) results."
 
 Write-Output "Query statistics: $($queryResults.Statistics.query)"
 
@@ -158,15 +161,18 @@ foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
     $queryText = @"
-    $disksTableName
-    | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
-    | distinct InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
-    | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
+    $lbsTableName
+    | where InstanceId_s == '$queryInstanceId'
+    | where SkuName_s == 'Standard'
+    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
+    | where toint(LbRulesCount_s) != 0 or toint(InboundNatRulesCount_s) != 0 or toint(OutboundRulesCount_s) != 0
+    | distinct InstanceId_s, InstanceName_s, SkuName_s, TimeGenerated
+    | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s, SkuName_s
     | join kind=inner (
         $consumptionTableName
     ) on InstanceId_s
-    | where UsageDate_t > LastAttachedDate
-    | summarize CostsSinceDetached = sum(todouble(Cost_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
+    | where UsageDate_t > FirstUnusedDate
+    | summarize CostsSinceUnused = sum(todouble(Cost_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
@@ -175,9 +181,7 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["DiskType"] = "Managed"
-    $additionalInfoDictionary["currentSku"] = $result.SKU_s
-    $additionalInfoDictionary["DiskSizeGB"] = [int] $result.DiskSizeGB_s 
+    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
     $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
     $additionalInfoDictionary["savingsAmount"] = [double] $result.Last30DaysCost 
 
@@ -204,15 +208,15 @@ foreach ($result in $results)
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
         Category = "Cost"
-        ImpactedArea = "Microsoft.Compute/disks"
+        ImpactedArea = "Microsoft.Network/loadBalancers"
         Impact = "Medium"
         RecommendationType = "Saving"
-        RecommendationSubType = "UnattachedDisks"
-        RecommendationSubTypeId = "c84d5e86-e2d6-4d62-be7c-cecfbd73b0db"
-        RecommendationDescription = "Unattached disks (without owner VM) incur in unnecessary costs"
-        RecommendationAction = "Delete or downgrade disk to Standard SKU"
+        RecommendationSubType = "UnusedStandardLoadBalancers"
+        RecommendationSubTypeId = "f1ed3bb2-3cb5-41e6-ba38-7001d5ff87f5"
+        RecommendationDescription = "Standard Load Balancers with rules defined and without a backend pool incur in unnecessary costs"
+        RecommendationAction = "Delete the Load Balancer"
         InstanceId = $result.InstanceId_s
-        InstanceName = $result.DiskName_s
+        InstanceName = $result.InstanceName_s
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -227,7 +231,92 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unattacheddisks-$fileDate.json"
+$jsonExportPath = "unusedstdloadbalancers-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+
+# Execute the Operational Excellence recommendation query against Log Analytics
+
+$baseQuery = @"
+    $lbsTableName
+    | where TimeGenerated > ago(1d)
+    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
+    | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
+"@
+
+$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days 2) -Wait 600 -IncludeStatistics
+$results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+
+Write-Output "Operational Excellence query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "OperationalExcellence"
+        ImpactedArea = "Microsoft.Network/loadBalancers"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "UnusedLoadBalancers"
+        RecommendationSubTypeId = "48619512-f4e6-4241-9c85-16f7c987950c"
+        RecommendationDescription = "Load Balancers without a backend pool are useless"
+        RecommendationAction = "Delete the Load Balancer"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.InstanceName_s
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "unusedloadbalancers-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
