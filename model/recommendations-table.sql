@@ -19,7 +19,7 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[dbo].[Recommenda
 			[AdditionalInfo] [nvarchar](max) NULL,
 			[ResourceGroup] [varchar](200) NULL,
 			[SubscriptionGuid] [varchar](50) NULL,
-			[ConfidenceScore] [real] NOT NULL,
+			[FitScore] [real] NOT NULL,
 			[Tags] [nvarchar](max) NULL,
 			[DetailsUrl] [nvarchar](max) NULL
 		)
