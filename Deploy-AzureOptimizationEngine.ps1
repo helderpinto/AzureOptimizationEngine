@@ -667,7 +667,7 @@ if ("Y", "y" -contains $continueInput) {
 
     try
     {
-        Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account..." -ForegroundColor Green
+        Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account (look for the login window that may have popped up)..." -ForegroundColor Green
         $spnName = "$automationAccountName-runasaccount"
         try
         { 

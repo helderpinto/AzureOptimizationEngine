@@ -97,6 +97,7 @@ read the whole blog series dedicated to this project, starting [here](https://te
 ### Requirements
 
 * Azure Powershell 4.5.0+
+* AzureADPreview PowerShell module
 * A user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)), so that the Automation Run As Account is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
 * (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Run As Account is granted the required privileges over Azure AD (Global Reader)
 
@@ -195,3 +196,5 @@ If some recommendation is not applicable or you want it to be removed from the r
 * **Why is AOE recommending to delete a long-deallocated VM that was deallocated just a few days before?** The _LongDeallocatedVms_ recommendation depends on accurate Azure consumption exports. If you just deployed AOE, it hasn't collected consumption long enough to provide accurate recommendations. Let AOE run at least for 30 days to get accurate recommendations.
 
 * **Why is AOE recommending to delete a long-deallocated VM that was already deleted?** Due to the fact that Azure consumption exports are collected with a (default) offset of 7 days, the _LongDeallocatedVms_ recommendation might recommend for deletion a long-deallocated VM that was meanwhile deleted. That false positive should normally disappear in the next iteration.
+
+* **How much does running AOE in my subscription cost?** The default AOE deployment requires cheap Azure resources: an Azure Automation account, an Azure SQL Database and a Storage Account. The costs will depend on the size of your environment, but even in customers with thousands of VMs, the costs do not amount to more than 50 EUR/month. In small to medium-sized environments, it will cost less than 20 EUR/month. **These costs do not include VM performance metrics ingestion into Log Analytics**.
