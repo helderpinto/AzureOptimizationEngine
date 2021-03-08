@@ -81,6 +81,8 @@ $SqlTimeout = 120
 $recommendationsTable = "Recommendations"
 $suppressionsTable = "Filters"
 
+Write-Host "Opening connection to the database..." -ForegroundColor Green
+
 $tries = 0
 $connectionSuccess = $false
 do {
