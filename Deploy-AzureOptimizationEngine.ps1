@@ -41,25 +41,23 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
     $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris ("http://" + $keyId)
     # Requires Application administrator or GLOBAL ADMIN
-    $ApplicationCredential = New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
+    New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
     # Requires Application administrator or GLOBAL ADMIN
     $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.ApplicationId
-    $GetServicePrincipal = Get-AzADServicePrincipal -ObjectId $ServicePrincipal.Id
+    Get-AzADServicePrincipal -ObjectId $ServicePrincipal.Id
 
     # Sleep here for a few seconds to allow the service principal application to become active (ordinarily takes a few seconds)
     Start-Sleep -Seconds 15
     # Requires User Access Administrator or Owner.
-    Write-Output "Granting Reader role at the subscription level..."
     $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
     $Retries = 0;
     While ($null -eq $NewRole -and $Retries -le 6) {
         Start-Sleep -Seconds 10
-        Write-Output "Retrying granting Reader role at the subscription level..."
-        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
+        New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
         $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.ApplicationId -ErrorAction SilentlyContinue
         $Retries++;
     }
-    return $Application.ApplicationId
+    return $Application.ApplicationId.ToString()
 }
 
 function CreateAutomationCertificateAsset ([string] $resourceGroup, [string] $automationAccountName, [string] $certifcateAssetName, [string] $certPath, [string] $certPlainPassword, [Boolean] $Exportable) {
@@ -531,8 +529,8 @@ if ("Y", "y" -contains $continueInput) {
         $PfxCert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($PfxCertPathForRunAsAccount, $PfxCertPlainPasswordForRunAsAccount)
         $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
 
-        #Write-Output "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId"
-        #New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId | Out-Null
+        Write-Output "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId"
+        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId | Out-Null
         
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
@@ -540,9 +538,9 @@ if ("Y", "y" -contains $continueInput) {
 
         CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
         
-        #Write-Output "Removing auto-assigned Contributor role from subscription scope"
-        #$subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
-        #Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
+        Write-Output "Removing auto-assigned Contributor role from subscription scope"
+        $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
+        Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
     }
     else {
         Write-Host "(The Automation Run As account was already deployed)" -ForegroundColor Green
