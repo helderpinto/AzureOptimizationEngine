@@ -59,7 +59,7 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
         $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.ApplicationId -ErrorAction SilentlyContinue
         $Retries++;
     }
-    return $Application.ApplicationId.ToString();
+    return $Application.ApplicationId
 }
 
 function CreateAutomationCertificateAsset ([string] $resourceGroup, [string] $automationAccountName, [string] $certifcateAssetName, [string] $certPath, [string] $certPlainPassword, [Boolean] $Exportable) {
@@ -531,8 +531,8 @@ if ("Y", "y" -contains $continueInput) {
         $PfxCert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($PfxCertPathForRunAsAccount, $PfxCertPlainPasswordForRunAsAccount)
         $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
 
-        Write-Output "Granting Contributor role only at the $resourceGroupName resource group level"
-        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId | Out-Null
+        #Write-Output "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId"
+        #New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId | Out-Null
         
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
@@ -540,9 +540,9 @@ if ("Y", "y" -contains $continueInput) {
 
         CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
         
-        Write-Output "Removing auto-assigned Contributor role from subscription scope"
-        $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
-        Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
+        #Write-Output "Removing auto-assigned Contributor role from subscription scope"
+        #$subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
+        #Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
     }
     else {
         Write-Host "(The Automation Run As account was already deployed)" -ForegroundColor Green
