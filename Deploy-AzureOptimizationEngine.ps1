@@ -41,10 +41,10 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
     $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris ("http://" + $keyId)
     # Requires Application administrator or GLOBAL ADMIN
-    New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
+    $AppCredential = New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
     # Requires Application administrator or GLOBAL ADMIN
     $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.ApplicationId
-    Get-AzADServicePrincipal -ObjectId $ServicePrincipal.Id
+    $ServicePrincipal = Get-AzADServicePrincipal -ObjectId $ServicePrincipal.Id
 
     # Sleep here for a few seconds to allow the service principal application to become active (ordinarily takes a few seconds)
     Start-Sleep -Seconds 15
@@ -53,7 +53,7 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     $Retries = 0;
     While ($null -eq $NewRole -and $Retries -le 6) {
         Start-Sleep -Seconds 10
-        New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
+        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
         $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.ApplicationId -ErrorAction SilentlyContinue
         $Retries++;
     }
