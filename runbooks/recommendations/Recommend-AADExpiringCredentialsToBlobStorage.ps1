@@ -268,7 +268,7 @@ foreach ($result in $results)
 
     $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
     $additionalInfoDictionary["KeyType"] = $result.KeyType
-    $additionalInfoDictionary["ExpiresOn"] = $result.ExpiresOn
+    $additionalInfoDictionary["ExpiresOn"] = $result.EndDate
     $additionalInfoDictionary["TenantId"] = $result.TenantId
 
     $fitScore = 5
