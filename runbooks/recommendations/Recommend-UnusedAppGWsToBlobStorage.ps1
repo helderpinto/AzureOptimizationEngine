@@ -28,6 +28,7 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
 }
 
 $deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # yyyy-MM-dd format
+$deploymentDate = $deploymentDate.Replace('"', "")
 
 $lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))

@@ -495,7 +495,7 @@ if ("Y", "y" -contains $continueInput) {
         $deploymentDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
         Write-Host "Setting initial deployment date ($deploymentDate)..." -ForegroundColor Green
         New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
-            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value "'$deploymentDate'" -Encrypted $false
+            -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
     }
 
     Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green

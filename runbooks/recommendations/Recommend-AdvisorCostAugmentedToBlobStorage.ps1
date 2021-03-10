@@ -624,14 +624,14 @@ foreach ($result in $results) {
 
             $savingCoefficient = $currentSkuvCPUs / $targetSkuvCPUs
 
-            if ($null -eq $skuPricesFound[$targetSku.Name])
+            if ($targetSku -and $null -eq $skuPricesFound[$targetSku.Name])
             {
                 $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheet
             }
 
             $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
 
-            if ($skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
+            if ($targetSku -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
             {
                 $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
 
