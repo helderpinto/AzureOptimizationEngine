@@ -53,6 +53,13 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
     $storageAccountSinkContainer = "aadobjectsexports"
 }
 
+# Application,ServicePrincipal,User,Group
+$aadObjectsFilter = Get-AutomationVariable -Name  "AzureOptimization_AADObjectsFilter" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($aadObjectsFilter))
+{
+    $aadObjectsFilter = "Application,ServicePrincipal"
+}
+
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
     $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
@@ -90,53 +97,116 @@ $tenantId = (Get-AzContext).Tenant.Id
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
+$aadObjectsTypes = $aadObjectsFilter.Split(",")
+
 $aadObjects = @()
 
-$apps = Get-AzADApplication
-Write-Output "Found $($apps.Count) AAD applications"
-$spns = Get-AzADServicePrincipal
-Write-Output "Found $($spns.Count) AAD service principals"
-
-foreach ($app in $apps)
+if ("Application" -in $aadObjectsTypes)
 {
-    $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId
-    $aadObject = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        TenantId = $tenantId
-        Cloud = $cloudEnvironment
-        ObjectId = $app.ObjectId
-        ObjectType = $app.ObjectType
-        DisplayName = $app.DisplayName
-        ApplicationId = $app.ApplicationId
-        Keys = (Build-CredObjectWithDates -credObjectWithStrings $appCred) | ConvertTo-Json
-        PrincipalNames = $app.HomePage
-    }
-    $aadObjects += $aadObject    
+    Write-Output "Getting AAD applications..."
+    $apps = Get-AzADApplication
+    Write-Output "Found $($apps.Count) AAD applications"
+
+    foreach ($app in $apps)
+    {
+        $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId
+        $aadObject = New-Object PSObject -Property @{
+            Timestamp = $timestamp
+            TenantId = $tenantId
+            Cloud = $cloudEnvironment
+            ObjectId = $app.ObjectId
+            ObjectType = $app.ObjectType
+            ObjectSubType = "N/A"
+            DisplayName = $app.DisplayName
+            SecurityEnabled = "N/A"
+            ApplicationId = $app.ApplicationId
+            Keys = (Build-CredObjectWithDates -credObjectWithStrings $appCred) | ConvertTo-Json
+            PrincipalNames = $app.HomePage
+        }
+        $aadObjects += $aadObject    
+    }   
 }
 
-foreach ($spn in $spns)
+if ("ServicePrincipal" -in $aadObjectsTypes)
 {
-    $spnCred = Get-AzADSpCredential -ObjectId $spn.Id
-    if ($spn.ServicePrincipalNames)
+    Write-Output "Getting AAD service principals..."
+    $spns = Get-AzADServicePrincipal
+    Write-Output "Found $($spns.Count) AAD service principals"
+    
+    foreach ($spn in $spns)
     {
-        $principalNames = $spn.ServicePrincipalNames | ConvertTo-Json
+        $spnCred = Get-AzADSpCredential -ObjectId $spn.Id
+        if ($spn.ServicePrincipalNames)
+        {
+            $principalNames = $spn.ServicePrincipalNames | ConvertTo-Json
+        }
+        else
+        {
+            $principalNames = $spn.PrincipalNames | ConvertTo-Json        
+        }
+        $aadObject = New-Object PSObject -Property @{
+            Timestamp = $timestamp
+            TenantId = $tenantId
+            Cloud = $cloudEnvironment
+            ObjectId = $spn.ObjectId
+            ObjectType = $spn.ObjectType
+            ObjectSubType = "N/A"
+            DisplayName = $spn.DisplayName
+            SecurityEnabled = "N/A"
+            ApplicationId = $spn.ApplicationId
+            Keys = (Build-CredObjectWithDates -credObjectWithStrings $spnCred) | ConvertTo-Json
+            PrincipalNames = $principalNames
+        }
+        $aadObjects += $aadObject    
     }
-    else
+}
+
+if ("User" -in $aadObjectsTypes)
+{
+    Write-Output "Getting AAD users..."
+    $users = Get-AzADUser
+    Write-Output "Found $($users.Count) AAD users"
+    
+    foreach ($user in $users)
     {
-        $principalNames = $spn.PrincipalNames | ConvertTo-Json        
+        $aadObject = New-Object PSObject -Property @{
+            Timestamp = $timestamp
+            TenantId = $tenantId
+            Cloud = $cloudEnvironment
+            ObjectId = $user.Id
+            ObjectType = "User"
+            ObjectSubType = $user.Type
+            DisplayName = $user.DisplayName
+            SecurityEnabled = $user.AccountEnabled
+            PrincipalNames = $user.UserPrincipalName
+        }
+        $aadObjects += $aadObject    
     }
-    $aadObject = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        TenantId = $tenantId
-        Cloud = $cloudEnvironment
-        ObjectId = $spn.ObjectId
-        ObjectType = $spn.ObjectType
-        DisplayName = $spn.DisplayName
-        ApplicationId = $spn.ApplicationId
-        Keys = (Build-CredObjectWithDates -credObjectWithStrings $spnCred) | ConvertTo-Json
-        PrincipalNames = $principalNames
+}
+
+if ("Group" -in $aadObjectsTypes)
+{
+    Write-Output "Getting AAD groups..."
+    $groups = Get-AzADGroup
+    Write-Output "Found $($groups.Count) AAD groups"
+    
+    foreach ($group in $groups)
+    {
+        $groupMembers = (Get-AzADGroupMember -GroupObjectId $group.Id).Id
+
+        $aadObject = New-Object PSObject -Property @{
+            Timestamp = $timestamp
+            TenantId = $tenantId
+            Cloud = $cloudEnvironment
+            ObjectId = $group.Id
+            ObjectType = "Group"
+            ObjectSubType = $group.Type
+            DisplayName = $group.DisplayName
+            SecurityEnabled = $group.SecurityEnabled
+            PrincipalNames = $groupMembers | ConvertTo-Json
+        }
+        $aadObjects += $aadObject    
     }
-    $aadObjects += $aadObject    
 }
 
 $fileDate = $datetime.ToString("yyyyMMdd")
