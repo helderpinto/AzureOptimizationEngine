@@ -99,10 +99,12 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 $aadObjectsTypes = $aadObjectsFilter.Split(",")
 
-$aadObjects = @()
+$fileDate = $datetime.ToString("yyyyMMdd")
 
 if ("Application" -in $aadObjectsTypes)
 {
+    $aadObjects = @()
+
     Write-Output "Getting AAD applications..."
     $apps = Get-AzADApplication
     Write-Output "Found $($apps.Count) AAD applications"
@@ -112,7 +114,7 @@ if ("Application" -in $aadObjectsTypes)
         $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            TenantId = $tenantId
+            AADTenantId = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $app.ObjectId
             ObjectType = $app.ObjectType
@@ -125,10 +127,27 @@ if ("Application" -in $aadObjectsTypes)
         }
         $aadObjects += $aadObject    
     }   
+
+    $jsonExportPath = "$fileDate-$tenantId-aadobjects-apps.json"
+    $csvExportPath = "$fileDate-$tenantId-aadobjects-apps.csv"
+    
+    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
+    $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
+    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
+    $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    Write-Output "Export to $csvExportPath"
+    
+    $csvBlobName = $csvExportPath
+    $csvProperties = @{"ContentType" = "text/csv"};
+    
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 }
 
 if ("ServicePrincipal" -in $aadObjectsTypes)
 {
+    $aadObjects = @()
+
     Write-Output "Getting AAD service principals..."
     $spns = Get-AzADServicePrincipal
     Write-Output "Found $($spns.Count) AAD service principals"
@@ -146,7 +165,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
         }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            TenantId = $tenantId
+            AADTenantId = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $spn.ObjectId
             ObjectType = $spn.ObjectType
@@ -159,10 +178,27 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
         }
         $aadObjects += $aadObject    
     }
+
+    $jsonExportPath = "$fileDate-$tenantId-aadobjects-spns.json"
+    $csvExportPath = "$fileDate-$tenantId-aadobjects-spns.csv"
+    
+    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
+    $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
+    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
+    $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    Write-Output "Export to $csvExportPath"
+    
+    $csvBlobName = $csvExportPath
+    $csvProperties = @{"ContentType" = "text/csv"};
+    
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 }
 
 if ("User" -in $aadObjectsTypes)
 {
+    $aadObjects = @()
+
     Write-Output "Getting AAD users..."
     $users = Get-AzADUser
     Write-Output "Found $($users.Count) AAD users"
@@ -171,7 +207,7 @@ if ("User" -in $aadObjectsTypes)
     {
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            TenantId = $tenantId
+            AADTenantId = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $user.Id
             ObjectType = "User"
@@ -182,10 +218,27 @@ if ("User" -in $aadObjectsTypes)
         }
         $aadObjects += $aadObject    
     }
+
+    $jsonExportPath = "$fileDate-$tenantId-aadobjects-users.json"
+    $csvExportPath = "$fileDate-$tenantId-aadobjects-users.csv"
+    
+    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
+    $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
+    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
+    $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    Write-Output "Export to $csvExportPath"
+    
+    $csvBlobName = $csvExportPath
+    $csvProperties = @{"ContentType" = "text/csv"};
+    
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 }
 
 if ("Group" -in $aadObjectsTypes)
 {
+    $aadObjects = @()
+
     Write-Output "Getting AAD groups..."
     $groups = Get-AzADGroup
     Write-Output "Found $($groups.Count) AAD groups"
@@ -196,7 +249,7 @@ if ("Group" -in $aadObjectsTypes)
 
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            TenantId = $tenantId
+            AADTenantId = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $group.Id
             ObjectType = "Group"
@@ -207,22 +260,21 @@ if ("Group" -in $aadObjectsTypes)
         }
         $aadObjects += $aadObject    
     }
+
+    $jsonExportPath = "$fileDate-$tenantId-aadobjects-groups.json"
+    $csvExportPath = "$fileDate-$tenantId-aadobjects-groups.csv"
+    
+    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
+    $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
+    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
+    $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    Write-Output "Export to $csvExportPath"
+    
+    $csvBlobName = $csvExportPath
+    $csvProperties = @{"ContentType" = "text/csv"};
+    
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 }
-
-$fileDate = $datetime.ToString("yyyyMMdd")
-$jsonExportPath = "$fileDate-$tenantId-aadobjects.json"
-$csvExportPath = "$fileDate-$tenantId-aadobjects.csv"
-
-$aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-Write-Output "Exported to JSON: $($aadObjects.Count) lines"
-$aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
-$aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-Write-Output "Export to $csvExportPath"
-
-$csvBlobName = $csvExportPath
-$csvProperties = @{"ContentType" = "text/csv"};
-
-Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
 Write-Output "DONE!"

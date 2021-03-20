@@ -456,7 +456,7 @@
             },
             {
                 "name": "[variables('aadObjectsExportsRunbookName')]",
-                "version": "1.0.4.0",
+                "version": "1.1.0.0",
                 "description": "Exports Azure AAD Objects to Blob Storage using Azure ARM API",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('aadObjectsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"

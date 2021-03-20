@@ -87,7 +87,7 @@ foreach ($subscription in $subscriptions) {
         {
             $assignmentEntry = New-Object PSObject -Property @{
                 Timestamp         = $timestamp
-                TenantId          = $tenantId
+                AADTenantId       = $tenantId
                 Cloud             = $cloudEnvironment
                 Model             = "AzureClassic"
                 PrincipalId       = $assignment.SignInName
@@ -103,7 +103,7 @@ foreach ($subscription in $subscriptions) {
             {
                 $assignmentEntry = New-Object PSObject -Property @{
                     Timestamp         = $timestamp
-                    TenantId          = $tenantId
+                    AADTenantId       = $tenantId
                     Cloud             = $cloudEnvironment
                     Model             = "AzureRM"
                     PrincipalId       = $assignment.ObjectId
