@@ -192,6 +192,12 @@ foreach ($subscription in $subscriptions)
                 ReservationName = $consumptionLine.properties.reservationName
                 UsageId = $consumptionLine.id
                 UsageName = $consumptionLine.name
+                PublisherType = $consumptionLine.properties.publisherType
+                PublisherName = $consumptionLine.properties.publisherName
+                PlanName = $consumptionLine.properties.planName
+                AccountOwnerId = $consumptionLine.properties.accountOwnerId
+                BillingAccountId = $consumptionLine.properties.billingAccountId
+                BillingProfileId = $consumptionLine.properties.billingProfileId
             }            
             $billingEntries += $billingEntry
         }    
