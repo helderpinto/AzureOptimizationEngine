@@ -152,7 +152,7 @@ $baseQuery = @"
     | summarize ExpiresOn = max(RiskDate) by ApplicationId_g;
     AppsAndKeys
     | join kind=inner (ApplicationsInRisk) on ApplicationId_g
-    | summarize ExpiresOn = max(EndDate) by ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, TenantId
+    | summarize ExpiresOn = max(EndDate) by ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, AADTenantId_g
     | order by ExpiresOn desc
 "@
 
@@ -179,7 +179,7 @@ foreach ($result in $results)
     $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
     $additionalInfoDictionary["KeyType"] = $result.KeyType
     $additionalInfoDictionary["ExpiresOn"] = $result.ExpiresOn
-    $additionalInfoDictionary["TenantId"] = $result.TenantId
+    $additionalInfoDictionary["TenantId"] = $result.AADTenantId_g
 
     $fitScore = 5
 
@@ -243,7 +243,7 @@ $baseQuery = @"
     );
     AppsAndKeys
     | where EndDate > now()+expiryInterval
-    | project ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, TenantId, EndDate
+    | project ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, AADTenantId_g, EndDate
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -269,7 +269,7 @@ foreach ($result in $results)
     $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
     $additionalInfoDictionary["KeyType"] = $result.KeyType
     $additionalInfoDictionary["ExpiresOn"] = $result.EndDate
-    $additionalInfoDictionary["TenantId"] = $result.TenantId
+    $additionalInfoDictionary["TenantId"] = $result.AADTenantId_g
 
     $fitScore = 5
 
