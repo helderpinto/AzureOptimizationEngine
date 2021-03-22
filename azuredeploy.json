@@ -409,6 +409,10 @@
             {
                 "name": "Az.Resources",
                 "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/3.2.0"
+            },
+            {
+                "name": "Az.Monitor",
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.4.0"
             }
         ],
         "runbooks": [
