@@ -114,7 +114,7 @@ if ("Application" -in $aadObjectsTypes)
         $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            AADTenantId = $tenantId
+            TenantGuid = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $app.ObjectId
             ObjectType = $app.ObjectType
@@ -165,7 +165,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
         }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            AADTenantId = $tenantId
+            TenantGuid = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $spn.ObjectId
             ObjectType = $spn.ObjectType
@@ -207,7 +207,7 @@ if ("User" -in $aadObjectsTypes)
     {
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            AADTenantId = $tenantId
+            TenantGuid = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $user.Id
             ObjectType = "User"
@@ -249,7 +249,7 @@ if ("Group" -in $aadObjectsTypes)
 
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
-            AADTenantId = $tenantId
+            TenantGuid = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $group.Id
             ObjectType = "Group"
