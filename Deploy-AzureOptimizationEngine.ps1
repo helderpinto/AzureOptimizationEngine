@@ -236,7 +236,7 @@ do {
 
     if (-not($deploymentOptions["ResourceGroupName"]))
     {
-        if ([string]::IsNullOrEmpty($namePrefix)) {
+        if ([string]::IsNullOrEmpty($namePrefix) -or $namePrefix -eq "EmptyNamePrefix") {
             $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
             $deploymentName = $deploymentNameTemplate -f $resourceGroupName
             $storageAccountName = Read-Host "Enter the Storage Account name"
