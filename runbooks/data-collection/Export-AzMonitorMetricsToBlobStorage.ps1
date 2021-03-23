@@ -19,7 +19,7 @@ Param (
     [string] $TimeSpan, # [d.]hh:mm:ss
 
     [Parameter(Mandatory = $true)]
-    [string] $TimeGrain, # [d.]hh:mm:ss
+    [string] $TimeGrain, # [d.]hh:mm:ss (00:01:00, 00:05:00, 00:15:00, 00:30:00, 01:00:00, 06:00:00, 12:00:00, 1.00:00:00, 7.00:00:00, 30.00:00:00)
 
     [Parameter(Mandatory = $false)]
     [string] $externalCloudEnvironment = "",

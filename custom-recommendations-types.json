@@ -25,6 +25,12 @@
             "description": "Standard Load Balancers with rules defined and without a backend pool incur in unnecessary costs"
         },
         {
+            "category": "Cost",
+            "typeId": "ff68f4e5-1197-4be9-8e5f-8760d7863cb4",
+            "impact": "High",
+            "description": "Underused SQL Databases (performance capacity waste)"
+        },
+        {
             "category": "HighAvailability",
             "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
             "impact": "High",
