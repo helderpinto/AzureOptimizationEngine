@@ -182,20 +182,16 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-    $queryInstanceId = $result.InstanceId_s
+    $queryInstanceId = $result.ResourceId
     $queryText = @"
-    $disksTableName
-    | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
-    | distinct InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
-    | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
-    | join kind=inner (
-        $consumptionTableName
-    ) on InstanceId_s
-    | where UsageDate_t > LastAttachedDate
-    | summarize CostsSinceDetached = sum(todouble(Cost_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
+    $metricsTableName
+    | where ResourceId == '$queryInstanceId'
+    | where MetricNames_s == 'dtu_consumption_percent' and AggregationType_s == 'Maximum'
+    | project TimeGenerated, DTUPercentage = toint(MetricValue_s)
+    | render timechart
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
-    $detailsQueryStart = $deploymentDate
+    $detailsQueryStart = $datetime.AddDays(-30).ToString("yyyy-MM-dd")
     $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
     $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
 
@@ -252,7 +248,7 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unattacheddisks-$fileDate.json"
+$jsonExportPath = "underusedsqldbs-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
