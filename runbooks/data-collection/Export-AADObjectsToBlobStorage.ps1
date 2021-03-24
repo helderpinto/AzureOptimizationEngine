@@ -167,7 +167,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
             Timestamp = $timestamp
             TenantGuid = $tenantId
             Cloud = $cloudEnvironment
-            ObjectId = $spn.ObjectId
+            ObjectId = $spn.Id
             ObjectType = $spn.ObjectType
             ObjectSubType = "N/A"
             DisplayName = $spn.DisplayName
