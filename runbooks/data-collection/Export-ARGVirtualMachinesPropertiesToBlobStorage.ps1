@@ -206,6 +206,7 @@ foreach ($vm in $armVmsTotal)
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.osDisk.osType
+        LicenseType = $vm.properties.licenseType
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks
@@ -246,6 +247,7 @@ foreach ($vm in $classicVmsTotal)
         CoresCount = $vmSize.NumberOfCores
         MemoryMB = $vmSize.MemoryInMB
         OSType = $vm.properties.storageProfile.operatingSystemDisk.operatingSystem
+        LicenseType = "N/A"
         DataDiskCount = $vm.dataDiskCount
         NicCount = $vm.nicCount
         UsesManagedDisks = $vm.usesManagedDisks

@@ -132,4 +132,48 @@ $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
+$roleAssignments = @()
+
+Write-Output "Getting Azure AD roles..."
+
+Import-Module AzureADPreview
+
+Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -TenantId $tenantId -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+$tenantDetails = Get-AzureADTenantDetail
+
+$roles = Get-AzureADDirectoryRole    
+foreach ($role in $roles)
+{
+    $roleMembers = (Get-AzureADDirectoryRoleMember -ObjectId $role.ObjectId).ObjectId
+    foreach ($roleMember in $roleMembers)
+    {
+        $assignmentEntry = New-Object PSObject -Property @{
+            Timestamp         = $timestamp
+            TenantGuid        = $tenantId
+            Cloud             = $cloudEnvironment
+            Model             = "AzureAD"
+            PrincipalId       = $roleMember
+            Scope             = $tenantDetails.VerifiedDomains[0].Name
+            RoleDefinition    = $role.DisplayName
+        }
+        $roleAssignments += $assignmentEntry                            
+    }
+}
+
+$fileDate = $datetime.ToString("yyyyMMdd")
+$jsonExportPath = "$fileDate-$tenantId-aadrbacassignments.json"
+$csvExportPath = "$fileDate-$tenantId-aadrbacassignments.csv"
+
+$roleAssignments | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+Write-Output "Exported to JSON: $($roleAssignments.Count) lines"
+$rbacObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
+Write-Output "JSON Import: $($rbacObjectsJson.Count) lines"
+$rbacObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+Write-Output "Export to $csvExportPath"
+
+$csvBlobName = $csvExportPath
+$csvProperties = @{"ContentType" = "text/csv"};
+
+Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+
 Write-Output "DONE!"

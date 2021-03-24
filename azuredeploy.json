@@ -413,6 +413,10 @@
             {
                 "name": "Az.Monitor",
                 "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.4.0"
+            },
+            {
+                "name": "AzureADPreview",
+                "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.129"
             }
         ],
         "runbooks": [
