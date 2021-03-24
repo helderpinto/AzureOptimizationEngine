@@ -124,6 +124,7 @@ $baseQuery = @"
     let expiryInterval = $($expiringCredsDays)d;
     let AppsAndKeys = materialize ($aadObjectsTableName
     | where TimeGenerated > ago(1d)
+    | where ObjectType_s in ('Application','ServicePrincipal')
     | where PrincipalNames_s !has 'https://identity.azure.net'
     | where Keys_s startswith '['
     | extend Keys = parse_json(Keys_s)
@@ -133,6 +134,7 @@ $baseQuery = @"
     | union ( 
         $aadObjectsTableName
         | where TimeGenerated > ago(1d)
+        | where ObjectType_s in ('Application','ServicePrincipal')
         | where PrincipalNames_s !has 'https://identity.azure.net'
         | where isnotempty(Keys_s) and Keys_s !startswith '['
         | extend Keys = parse_json(Keys_s)
