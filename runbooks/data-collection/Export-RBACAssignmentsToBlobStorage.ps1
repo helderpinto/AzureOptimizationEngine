@@ -143,22 +143,23 @@ try
     if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     {
         $apiEndpointUri = "https://graph.windows.net/"  
+        if ($cloudEnvironment -eq "AzureChinaCloud")
+        {
+            $apiEndpointUri = "https://graph.chinacloudapi.cn"
+        }
         $applicationId = $externalCredential.GetNetworkCredential().UserName
         $secret = $externalCredential.GetNetworkCredential().Password
         $encodedSecret = [System.Web.HttpUtility]::UrlEncode($secret)
         $RequestAccessTokenUri = "https://login.microsoftonline.com/$externalTenantId/oauth2/token"  
+        if ($cloudEnvironment -eq "AzureChinaCloud")
+        {
+            $RequestAccessTokenUri = "https://login.partner.microsoftonline.cn/$externalTenantId/oauth2/token"
+        }
         $body = "grant_type=client_credentials&client_id=$applicationId&client_secret=$encodedSecret&resource=$apiEndpointUri"  
         $contentType = 'application/x-www-form-urlencoded'  
-        $Token = Invoke-RestMethod -Method Post -Uri $RequestAccessTokenUri -Body $body -ContentType $contentType  
-    
+        $Token = Invoke-RestMethod -Method Post -Uri $RequestAccessTokenUri -Body $body -ContentType $contentType      
         $ctx = Get-AzContext
-        #$resourceAppIdURI = 'https://graph.windows.net/'
-        #$authority = 'https://login.windows.net/' + $ctx.Tenant.Id
-        #$ClientCred = [Microsoft.IdentityModel.Clients.ActiveDirectory.ClientCredential]::new($UserName, $Password)
-        #$authContext = [Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext]::new($authority)
-        #$authResult = $authContext.AcquireTokenAsync($resourceAppIdURI,$externalCredential)
-        #$token = $authResult.Result.CreateAuthorizationHeader()
-        Connect-AzureAD -AadAccessToken $token -AccountId $ctx.Account.Id -TenantId $externalTenantId
+        Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -AadAccessToken $token.access_token -AccountId $ctx.Account.Id -TenantId $externalTenantId
     }
     else
     {

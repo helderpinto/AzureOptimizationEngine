@@ -120,7 +120,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 
 $baseQuery = @"
     $vmsTableName
-    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s)
+    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s) and isempty(Zones_s)
     | project TimeGenerated, VMName_s, InstanceId_s, Tags_s, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
 "@
 
