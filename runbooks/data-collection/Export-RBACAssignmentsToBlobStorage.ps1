@@ -77,7 +77,7 @@ Write-Output "Iterating through all reachable subscriptions..."
 
 foreach ($subscription in $subscriptions) {
 
-    Select-AzSubscription -SubscriptionId $subscription.Id | Out-Null
+    Select-AzSubscription -SubscriptionId $subscription.Id -TenantId $tenantId | Out-Null
 
     $assignments = Get-AzRoleAssignment -IncludeClassicAdministrators
     Write-Output "Found $($assignments.Count) assignments for $($subscription.Name) subscription..."
@@ -138,42 +138,76 @@ Write-Output "Getting Azure AD roles..."
 
 Import-Module AzureADPreview
 
-Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -TenantId $tenantId -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
-$tenantDetails = Get-AzureADTenantDetail
-
-$roles = Get-AzureADDirectoryRole    
-foreach ($role in $roles)
+try
 {
-    $roleMembers = (Get-AzureADDirectoryRoleMember -ObjectId $role.ObjectId).ObjectId
-    foreach ($roleMember in $roleMembers)
+    if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     {
-        $assignmentEntry = New-Object PSObject -Property @{
-            Timestamp         = $timestamp
-            TenantGuid        = $tenantId
-            Cloud             = $cloudEnvironment
-            Model             = "AzureAD"
-            PrincipalId       = $roleMember
-            Scope             = $tenantDetails.VerifiedDomains[0].Name
-            RoleDefinition    = $role.DisplayName
-        }
-        $roleAssignments += $assignmentEntry                            
+        $apiEndpointUri = "https://graph.windows.net/"  
+        $applicationId = $externalCredential.GetNetworkCredential().UserName
+        $secret = $externalCredential.GetNetworkCredential().Password
+        $encodedSecret = [System.Web.HttpUtility]::UrlEncode($secret)
+        $RequestAccessTokenUri = "https://login.microsoftonline.com/$externalTenantId/oauth2/token"  
+        $body = "grant_type=client_credentials&client_id=$applicationId&client_secret=$encodedSecret&resource=$apiEndpointUri"  
+        $contentType = 'application/x-www-form-urlencoded'  
+        $Token = Invoke-RestMethod -Method Post -Uri $RequestAccessTokenUri -Body $body -ContentType $contentType  
+    
+        $ctx = Get-AzContext
+        #$resourceAppIdURI = 'https://graph.windows.net/'
+        #$authority = 'https://login.windows.net/' + $ctx.Tenant.Id
+        #$ClientCred = [Microsoft.IdentityModel.Clients.ActiveDirectory.ClientCredential]::new($UserName, $Password)
+        #$authContext = [Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext]::new($authority)
+        #$authResult = $authContext.AcquireTokenAsync($resourceAppIdURI,$externalCredential)
+        #$token = $authResult.Result.CreateAuthorizationHeader()
+        Connect-AzureAD -AadAccessToken $token -AccountId $ctx.Account.Id -TenantId $externalTenantId
     }
+    else
+    {
+        Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -TenantId $tenantId -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    }
+    
+    $tenantDetails = Get-AzureADTenantDetail                
+}
+catch
+{
+    Write-Output "Failed Azure AD authentication."
 }
 
-$fileDate = $datetime.ToString("yyyyMMdd")
-$jsonExportPath = "$fileDate-$tenantId-aadrbacassignments.json"
-$csvExportPath = "$fileDate-$tenantId-aadrbacassignments.csv"
-
-$roleAssignments | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-Write-Output "Exported to JSON: $($roleAssignments.Count) lines"
-$rbacObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-Write-Output "JSON Import: $($rbacObjectsJson.Count) lines"
-$rbacObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-Write-Output "Export to $csvExportPath"
-
-$csvBlobName = $csvExportPath
-$csvProperties = @{"ContentType" = "text/csv"};
-
-Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+if ($tenantDetails)
+{
+    $roles = Get-AzureADDirectoryRole    
+    foreach ($role in $roles)
+    {
+        $roleMembers = (Get-AzureADDirectoryRoleMember -ObjectId $role.ObjectId).ObjectId
+        foreach ($roleMember in $roleMembers)
+        {
+            $assignmentEntry = New-Object PSObject -Property @{
+                Timestamp         = $timestamp
+                TenantGuid        = $tenantId
+                Cloud             = $cloudEnvironment
+                Model             = "AzureAD"
+                PrincipalId       = $roleMember
+                Scope             = $tenantDetails.VerifiedDomains[0].Name
+                RoleDefinition    = $role.DisplayName
+            }
+            $roleAssignments += $assignmentEntry                            
+        }
+    }
+    
+    $fileDate = $datetime.ToString("yyyyMMdd")
+    $jsonExportPath = "$fileDate-$tenantId-aadrbacassignments.json"
+    $csvExportPath = "$fileDate-$tenantId-aadrbacassignments.csv"
+    
+    $roleAssignments | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    Write-Output "Exported to JSON: $($roleAssignments.Count) lines"
+    $rbacObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
+    Write-Output "JSON Import: $($rbacObjectsJson.Count) lines"
+    $rbacObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    Write-Output "Export to $csvExportPath"
+    
+    $csvBlobName = $csvExportPath
+    $csvProperties = @{"ContentType" = "text/csv"};
+    
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force    
+}
 
 Write-Output "DONE!"
