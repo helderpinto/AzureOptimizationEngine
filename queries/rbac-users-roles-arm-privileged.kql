@@ -1,6 +1,6 @@
 let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d));
 let RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d));
-let PrivilegedRoles = dynamic(['Owner','Contributor','Global Administrator', 'Privileged Role Administrator', 'User Access Administrator','Exchange Administrator']);
+let PrivilegedRoles = dynamic(['Owner','Contributor']);
 let EnabledUsers = materialize(AADObjectsTable
 | where isnotempty(ObjectId_g)
 | where ObjectType_s == 'User' and SecurityEnabled_s == 'True'
@@ -20,12 +20,14 @@ let GroupMemberships = AADObjectsTable
 )
 | project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;
 let DirectUserAssignments = RBACAssignmentsTable
+| where Model_s == 'AzureRM'
 | where RoleDefinition_s in (PrivilegedRoles) and Scope_s !has 'resourcegroups'
 | join kind=inner (
     EnabledUsers
 ) on $left.PrincipalId_g == $right.UserId
-| project PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s;
+| project PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g;
 let GroupUserAssignments = RBACAssignmentsTable
+| where Model_s == 'AzureRM'
 | where RoleDefinition_s in (PrivilegedRoles) and Scope_s !has 'resourcegroups'
 | join kind=inner (
     GroupMemberships
@@ -33,8 +35,8 @@ let GroupUserAssignments = RBACAssignmentsTable
         EnabledUsers
     ) on $left.GroupMember == $right.UserId
 ) on $left.PrincipalId_g == $right.GroupId
-| project PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s;
+| project PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g;
 GroupUserAssignments
 | union DirectUserAssignments
-| distinct DisplayName_s, PrincipalNames_s, RoleDefinition_s, Model_s, Scope_s, Assignment
+| distinct DisplayName_s, PrincipalNames_s, RoleDefinition_s, Model_s, Scope_s, Assignment, TenantGuid_g
 | order by PrincipalNames_s asc

@@ -1,0 +1,71 @@
+let expiryInterval = 30d;
+let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d));
+let RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d));
+let AppsAndKeys = materialize (AADObjectsTable
+| where ObjectType_s in ('Application','ServicePrincipal')
+| where PrincipalNames_s !has 'https://identity.azure.net'
+| where Keys_s startswith '['
+| extend Keys = parse_json(Keys_s)
+| project-away Keys_s
+| mv-expand Keys
+| evaluate bag_unpack(Keys)
+| union ( 
+    AADObjectsTable
+    | where ObjectType_s in ('Application','ServicePrincipal')
+    | where PrincipalNames_s !has 'https://identity.azure.net'
+    | where isnotempty(Keys_s) and Keys_s !startswith '['
+    | extend Keys = parse_json(Keys_s)
+    | project-away Keys_s
+    | evaluate bag_unpack(Keys)
+)
+);
+let ExpirationInRisk = AppsAndKeys
+| where EndDate < now()+expiryInterval and EndDate > now()
+| project ApplicationId_g, KeyId, RiskDate = EndDate;
+let NotInRisk = AppsAndKeys
+| where EndDate > now()+expiryInterval
+| project ApplicationId_g, KeyId, ComfortDate = EndDate;
+let ApplicationsInRisk = ExpirationInRisk
+| join kind=leftouter ( NotInRisk ) on ApplicationId_g
+| where isempty(ComfortDate)
+| summarize ExpiresOn = max(RiskDate) by ApplicationId_g;
+let ServicePrincipals = materialize(AADObjectsTable
+| where isnotempty(ObjectId_g)
+| where ObjectType_s == 'ServicePrincipal'
+| project SPNId = ObjectId_g, ApplicationId_g, PrincipalNames_s, DisplayName_s);
+let GroupMemberships = AADObjectsTable
+| where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'
+| where PrincipalNames_s startswith '['
+| extend GroupMember = parse_json(PrincipalNames_s)
+| project-away PrincipalNames_s
+| mv-expand GroupMember
+| union (
+    AADObjectsTable
+    | where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'
+    | where isnotempty(PrincipalNames_s) and PrincipalNames_s !startswith '['
+    | extend GroupMember = parse_json(PrincipalNames_s)
+    | project-away PrincipalNames_s
+)
+| project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;
+let DirectAssignments = RBACAssignmentsTable
+| join kind=inner (
+    ServicePrincipals
+) on $left.PrincipalId_g == $right.SPNId
+| project ApplicationId_g, PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g;
+let GroupAssignments = RBACAssignmentsTable
+| join kind=inner (
+    GroupMemberships
+    | join kind=inner ( 
+        ServicePrincipals
+    ) on $left.GroupMember == $right.SPNId
+) on $left.PrincipalId_g == $right.GroupId
+| project ApplicationId_g, PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g;
+AppsAndKeys
+| join kind=inner (ApplicationsInRisk) on ApplicationId_g
+| summarize ExpiresOn = max(EndDate) by ApplicationId_g, DisplayName_s, Cloud_s, KeyType, TenantGuid_g
+| join kind=inner (
+    GroupAssignments
+    | union DirectAssignments
+) on ApplicationId_g
+| distinct DisplayName_s, ExpiresOn, KeyType, RoleDefinition_s, Scope_s, Model_s, Cloud_s, TenantGuid_g
+| order by ExpiresOn asc

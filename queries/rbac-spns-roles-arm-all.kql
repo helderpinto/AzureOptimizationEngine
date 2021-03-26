@@ -1,0 +1,59 @@
+let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d));
+let RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d));
+let AppsAndKeys = materialize (AADObjectsTable
+| where ObjectType_s in ('Application','ServicePrincipal')
+| where Keys_s startswith '['
+| extend Keys = parse_json(Keys_s)
+| project-away Keys_s
+| mv-expand Keys
+| evaluate bag_unpack(Keys)
+| union ( 
+    AADObjectsTable
+    | where ObjectType_s in ('Application','ServicePrincipal')
+    | where isnotempty(Keys_s) and Keys_s !startswith '['
+    | extend Keys = parse_json(Keys_s)
+    | project-away Keys_s
+    | evaluate bag_unpack(Keys)
+)
+);
+let ServicePrincipals = materialize(AADObjectsTable
+| where isnotempty(ObjectId_g)
+| where ObjectType_s == 'ServicePrincipal'
+| join kind=inner ( 
+    AppsAndKeys
+) on ApplicationId_g
+| project SPNId = ObjectId_g, PrincipalNames_s, DisplayName_s, KeyType, EndDate);
+let GroupMemberships = AADObjectsTable
+| where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'
+| where PrincipalNames_s startswith '['
+| extend GroupMember = parse_json(PrincipalNames_s)
+| project-away PrincipalNames_s
+| mv-expand GroupMember
+| union (
+    AADObjectsTable
+    | where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'
+    | where isnotempty(PrincipalNames_s) and PrincipalNames_s !startswith '['
+    | extend GroupMember = parse_json(PrincipalNames_s)
+    | project-away PrincipalNames_s
+)
+| project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;
+let DirectAssignments = RBACAssignmentsTable
+| where Model_s == 'AzureRM'
+| join kind=inner (
+    ServicePrincipals
+) on $left.PrincipalId_g == $right.SPNId
+| project PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', KeyType, EndDate, Model_s, TenantGuid_g;
+let GroupAssignments = RBACAssignmentsTable
+| where Model_s == 'AzureRM'
+| join kind=inner (
+    GroupMemberships
+    | join kind=inner ( 
+        ServicePrincipals
+    ) on $left.GroupMember == $right.SPNId
+) on $left.PrincipalId_g == $right.GroupId
+| project PrincipalNames_s, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), KeyType, EndDate, Model_s, TenantGuid_g;
+GroupAssignments
+| union DirectAssignments
+| distinct DisplayName_s, RoleDefinition_s, Model_s, Scope_s, Assignment, KeyType, EndDate, PrincipalNames_s, TenantGuid_g
+| where EndDate > now()
+| order by DisplayName_s asc

@@ -24,7 +24,7 @@ let DirectUserAssignments = RBACAssignmentsTable
 | join kind=inner (
     EnabledGuestUsers
 ) on $left.PrincipalId_g == $right.UserId
-| project DisplayName_s, PrincipalNames_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s;
+| project DisplayName_s, PrincipalNames_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g;
 let GroupUserAssignments = RBACAssignmentsTable
 | where RoleDefinition_s in (PrivilegedRoles) and Scope_s !has 'resourcegroups'
 | join kind=inner (
@@ -33,8 +33,8 @@ let GroupUserAssignments = RBACAssignmentsTable
         EnabledGuestUsers
     ) on $left.GroupMember == $right.UserId
 ) on $left.PrincipalId_g == $right.GroupId
-| project DisplayName_s, PrincipalNames_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s;
+| project DisplayName_s, PrincipalNames_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g;
 GroupUserAssignments
 | union DirectUserAssignments
-| distinct DisplayName_s, PrincipalNames_s, RoleDefinition_s, Model_s, Scope_s, Assignment
+| distinct DisplayName_s, PrincipalNames_s, RoleDefinition_s, Model_s, Scope_s, Assignment, TenantGuid_g
 | order by PrincipalNames_s asc
