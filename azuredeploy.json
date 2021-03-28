@@ -47,7 +47,7 @@
         },
         "sqlBackupRetentionDays": {
             "type": "int",
-            "defaultValue": 14
+            "defaultValue": 7
         },
         "sqlAdminLogin": {
             "type": "String"
