@@ -145,7 +145,11 @@ try
         $apiEndpointUri = "https://graph.windows.net/"  
         if ($cloudEnvironment -eq "AzureChinaCloud")
         {
-            $apiEndpointUri = "https://graph.chinacloudapi.cn"
+            $apiEndpointUri = "https://graph.chinacloudapi.cn/"
+        }
+        if ($cloudEnvironment -eq "AzureGermanCloud")
+        {
+            $apiEndpointUri = "https://graph.cloudapi.de/"
         }
         $applicationId = $externalCredential.GetNetworkCredential().UserName
         $secret = $externalCredential.GetNetworkCredential().Password
@@ -154,6 +158,14 @@ try
         if ($cloudEnvironment -eq "AzureChinaCloud")
         {
             $RequestAccessTokenUri = "https://login.partner.microsoftonline.cn/$externalTenantId/oauth2/token"
+        }
+        if ($cloudEnvironment -eq "AzureUSGovernment")
+        {
+            $RequestAccessTokenUri = "https://login.microsoftonline.us/$externalTenantId/oauth2/token"
+        }
+        if ($cloudEnvironment -eq "AzureGermanCloud")
+        {
+            $RequestAccessTokenUri = "https://login.microsoftonline.de/$externalTenantId/oauth2/token"
         }
         $body = "grant_type=client_credentials&client_id=$applicationId&client_secret=$encodedSecret&resource=$apiEndpointUri"  
         $contentType = 'application/x-www-form-urlencoded'  

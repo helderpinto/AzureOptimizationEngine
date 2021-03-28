@@ -372,7 +372,7 @@
         "recommendationsScheduleName": "AzureOptimization_RecommendationsWeekly",
         "recommendationsIngestScheduleName": "AzureOptimization_IngestRecommendationsWeekly",
         "apiVersions": {
-            "operationalInsights": "2020-03-01-preview",
+            "operationalInsights": "2020-08-01",
             "automation": "2018-06-30",
             "storage": "2019-06-01",
             "sql": "2019-06-01-preview"
@@ -485,7 +485,7 @@
             },
             {
                 "name": "[variables('csvIngestRunbookName')]",
-                "version": "1.4.2.0",
+                "version": "1.4.3.0",
                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
