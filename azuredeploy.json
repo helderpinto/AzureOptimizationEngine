@@ -1091,22 +1091,20 @@
                 "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
             ],
             "sku": {
-                "name": "GP_S_Gen5",
-                "tier": "GeneralPurpose",
-                "family": "Gen5",
-                "capacity": 1
+                "name": "Basic",
+                "tier": "Basic",
+                "capacity": 5
             },
-            "kind": "v12.0,user,vcore,serverless",
+            "kind": "v12.0,user",
             "properties": {
                 "collation": "SQL_Latin1_General_CP1_CI_AS",
-                "maxSizeBytes": 3221225472,
+                "maxSizeBytes": 2147483648,
                 "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
                 "zoneRedundant": false,
                 "readScale": "Disabled",
                 "readReplicaCount": 0,
                 "autoPauseDelay": 60,
-                "storageAccountType": "GRS",
-                "minCapacity": 0.5
+                "storageAccountType": "GRS"
             }
         },
         // Azure SQL backup retention policy
