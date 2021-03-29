@@ -66,21 +66,6 @@ switch ($authenticationOption) {
     }
 }
 
-# get list of all SQL SKUs
-<#
-Write-Output "Getting SQL SKUs details for $referenceRegion"
-if ($TargetSubscription)
-{
-    $subscriptionId = $TargetSubscription
-}
-else
-{
-    $subscriptionId = (Get-AzContext).Subscription.Id
-}
-$capRes = Invoke-AzRestMethod -Path "/subscriptions/$subscriptionId/providers/Microsoft.Sql/locations/$referenceRegion/capabilities?api-version=2020-08-01-preview" -Method GET
-$sqlCapabilities = $capRes.Content | ConvertFrom-Json
-#>
-
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
@@ -93,6 +78,8 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 $alldbs = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
@@ -104,7 +91,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "all"
+    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
 }
 
 $dbsTotal = @()

@@ -92,13 +92,15 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 if (-not([string]::IsNullOrEmpty($TargetSubscription))) {
     $subscriptions = $TargetSubscription
     $subscriptionSuffix = "-" + $TargetSubscription
 }
 else {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)" }
-    $subscriptionSuffix = $cloudSuffix + "all"
+    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
 }
 
 [TimeSpan]::Parse($TimeGrain) | Out-Null

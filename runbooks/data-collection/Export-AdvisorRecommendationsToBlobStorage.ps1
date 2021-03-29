@@ -82,6 +82,8 @@ else
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 $recommendations = @()
 
 <#
@@ -164,6 +166,7 @@ foreach ($subscription in $subscriptions)
             AdditionalInfo = $advisorRecommendation.ExtendedProperties
             ResourceGroup = $resourceGroup.ToLower()
             SubscriptionGuid = $subscriptionId
+            TenantGuid = $tenantId
         }
     
         $recommendations += $recommendation    

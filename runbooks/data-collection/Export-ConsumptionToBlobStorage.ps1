@@ -77,6 +77,8 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 # compute start+end dates
 
 if ([string]::IsNullOrEmpty($targetStartDate) -or [string]::IsNullOrEmpty($targetEndDate))
@@ -165,6 +167,7 @@ foreach ($subscription in $subscriptions)
                 Timestamp = $timestamp
                 Cloud = $cloudEnvironment
                 SubscriptionGuid = $consumptionLine.properties.subscriptionId
+                TenantGuid = $tenantId
                 ResourceGroupName = $rgName
                 InstanceName = $instanceName
                 InstanceId = $instanceId
