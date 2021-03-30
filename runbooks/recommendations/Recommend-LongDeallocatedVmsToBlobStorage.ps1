@@ -154,7 +154,7 @@ $baseQuery = @"
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
     | join kind=leftouter (BilledVMs) on InstanceId_s
     | where isempty(InstanceId_s1)
-    | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s 
+    | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s 
     | join kind=leftouter (
         $disksTableName 
         | where TimeGenerated > ago(1d)
@@ -163,7 +163,7 @@ $baseQuery = @"
     | join kind=leftouter (
         BilledDisks
     ) on `$left.DiskInstanceId == `$right.BillingInstanceId
-    | summarize TotalDisksCosts = sum(DisksCosts) by InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s
+    | summarize TotalDisksCosts = sum(DisksCosts) by InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -248,6 +248,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL

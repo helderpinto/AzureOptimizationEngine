@@ -129,7 +129,7 @@ $baseQuery = @"
     | join kind=inner (
         $vmsTableName
         | where TimeGenerated > ago(1d)
-        | distinct VMName_s, InstanceId_s, Cloud_s, SubscriptionGuid_g, ResourceGroupName_s, Tags_s
+        | distinct VMName_s, InstanceId_s, Cloud_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Tags_s
     ) on `$left.OwnerVMId_s == `$right.InstanceId_s
 "@
 
@@ -193,6 +193,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL

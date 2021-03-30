@@ -237,6 +237,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL

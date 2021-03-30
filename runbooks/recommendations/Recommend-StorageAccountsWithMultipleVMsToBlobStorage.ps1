@@ -123,13 +123,13 @@ $baseQuery = @"
     $vhdsTableName
     | where TimeGenerated > ago(1d)
     | extend StorageAccountName = tostring(split(InstanceId_s, '/')[0])
-    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
+    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, Cloud_s
     | join kind=inner ( 
         $vmsTableName
         | where TimeGenerated > ago(1d)
         | distinct InstanceId_s, Tags_s
     ) on `$left.OwnerVMId_s == `$right.InstanceId_s
-    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by StorageAccountName, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
+    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by StorageAccountName, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, Cloud_s
     | where VMCount > 1
     | extend StorageAccountId = strcat('/subscriptions/', SubscriptionGuid_g, '/resourcegroups/', ResourceGroupName_s, '/providers/microsoft.storage/storageaccounts/', StorageAccountName)
 "@
@@ -194,6 +194,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL

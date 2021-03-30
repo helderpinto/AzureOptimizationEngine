@@ -181,7 +181,6 @@ foreach ($result in $results)
     $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
     $additionalInfoDictionary["KeyType"] = $result.KeyType
     $additionalInfoDictionary["ExpiresOn"] = $result.ExpiresOn
-    $additionalInfoDictionary["TenantId"] = $result.TenantGuid_g
 
     $fitScore = 5
 
@@ -203,6 +202,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = "notavailable"
         SubscriptionGuid = "notavailable"
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL
@@ -271,7 +271,6 @@ foreach ($result in $results)
     $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
     $additionalInfoDictionary["KeyType"] = $result.KeyType
     $additionalInfoDictionary["ExpiresOn"] = $result.EndDate
-    $additionalInfoDictionary["TenantId"] = $result.TenantGuid_g
 
     $fitScore = 5
 
@@ -293,6 +292,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = "notavailable"
         SubscriptionGuid = "notavailable"
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL

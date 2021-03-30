@@ -121,7 +121,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 $baseQuery = @"
     $availSetTableName
     | where TimeGenerated > ago(1d) and toint(UpdateDomains_s) < toint(VmCount_s)/2
-    | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, Tags_s, UpdateDomains_s, VmCount_s
+    | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s, UpdateDomains_s, VmCount_s
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -182,6 +182,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL

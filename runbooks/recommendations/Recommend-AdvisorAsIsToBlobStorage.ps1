@@ -190,7 +190,7 @@ $advisorTableName
     | where TimeGenerated > ago(1d) 
     | distinct InstanceId_s, Tags_s
 ) on InstanceId_s 
-| summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s            
+| summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s            
 "@
 
 Write-Output "Getting $CategoryFilter recommendations for $($daysBackwards)d Advisor..."
@@ -266,6 +266,7 @@ foreach ($result in $results) {
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionGuid_g
+        TenantGuid                  = $result.TenantGuid_g
         FitScore                    = $fitScore
         Tags                        = $tags
         DetailsURL                  = $detailsURL
