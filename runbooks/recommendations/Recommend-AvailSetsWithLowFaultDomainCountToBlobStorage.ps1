@@ -15,7 +15,6 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
 $workspaceSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceSubId"
-$workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceTenantId"
 
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
@@ -140,7 +139,7 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
+    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
 
     $additionalInfoDictionary = @{}
 

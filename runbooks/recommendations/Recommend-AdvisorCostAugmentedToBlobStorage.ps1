@@ -720,7 +720,7 @@ foreach ($result in $results) {
     $queryInstanceId = $result.InstanceId_s
     if (-not($hasCpuRamPerfMetrics))
     {
-        $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
+        $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
     }
     else
     {
