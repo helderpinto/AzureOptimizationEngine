@@ -57,3 +57,9 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('argappgwexports', '1901-01-01T00:00:00Z', -1, 'AppGatewaysV1', 'ARGAppGateway')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argrescontainersexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argrescontainersexports', '1901-01-01T00:00:00Z', -1, 'ResourceContainersV1', 'ARGResourceContainers')
+END
