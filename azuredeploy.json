@@ -133,6 +133,13 @@
                 "description": "GUID for the Application Gateways Export job schedule creation - create a unique before deploy"
             }
         },
+        "rbacExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the RBAC Export job schedule creation - create a unique before deploy"
+            }
+        },
         "argResContainersExportJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -215,6 +222,13 @@
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the Resource Containers Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "rbacIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the RBAC Ingest job schedule creation - create a unique before deploy"
             }
         },
         "unattachedDisksRecommendationJobId": {
@@ -342,6 +356,7 @@
         "argLBsContainerName": "arglbexports",
         "argAppGWsContainerName": "argappgwexports",
         "argResContainersContainerName": "argrescontainersexports",
+        "rbacContainerName": "rbacexports",
         "remediationLogsContainerName": "remediationlogs",
         "advisorExportsRunbookName": "Export-AdvisorRecommendationsToBlobStorage",
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
@@ -353,6 +368,7 @@
         "argLoadBalancersExportsRunbookName": "Export-ARGLoadBalancerPropertiesToBlobStorage",
         "argAppGWsExportsRunbookName": "Export-ARGAppGatewayPropertiesToBlobStorage",
         "argResContainersExportsRunbookName": "Export-ARGResourceContainersPropertiesToBlobStorage",
+        "rbacExportsRunbookName": "Export-RBACAssignmentsToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
@@ -385,6 +401,7 @@
         "argLBsIngestScheduleName": "AzureOptimization_IngestARGLoadBalancersDaily",
         "argAppGWsIngestScheduleName": "AzureOptimization_IngestARGAppGWsDaily",
         "argResContainersIngestScheduleName": "AzureOptimization_IngestARGResourceContainersDaily",
+        "rbacIngestScheduleName": "AzureOptimization_IngestRBACAssignmentsDaily",
         "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorWeekly",
         "recommendationsScheduleName": "AzureOptimization_RecommendationsWeekly",
         "recommendationsIngestScheduleName": "AzureOptimization_IngestRecommendationsWeekly",
@@ -506,6 +523,13 @@
                 "description": "Exports Resource Containers properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argResContainersExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('rbacExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports RBAC assignments to Blob Storage using ARM and Azure AD",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('rbacExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('csvIngestRunbookName')]",
@@ -709,6 +733,11 @@
                 "name": "AzureOptimization_ARGResourceContainersContainer",
                 "description": "The Storage Account container where Azure Resource Graph Resource Containers exports are dumped to",
                 "value": "[concat('\"',variables('argResContainersContainerName'),'\"')]"
+            },
+            {
+                "name": "AzureOptimization_RBACAssignmentsContainer",
+                "description": "The Storage Account container where RBAC Assignments exports are dumped to",
+                "value": "[concat('\"',variables('rbacContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_ConsumptionOffsetDays",
@@ -1060,6 +1089,19 @@
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
             "name": "[concat(parameters('storageAccountName'), '/default/', variables('argResContainersContainerName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        },
+        // Storage Account RBAC exports container
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "[variables('apiVersions').storage]",
+            "name": "[concat(parameters('storageAccountName'), '/default/', variables('rbacContainerName'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
@@ -1546,6 +1588,23 @@
                 "frequency": "Day"
             }
         },
+        // Automation RBAC Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('rbacIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily RBAC ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
         // Automation Advisor Ingest Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', variables('advisorIngestScheduleName'))]",
@@ -1807,6 +1866,27 @@
                 }
             }
         },
+        // Automation RBAC Exports Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('rbacExportJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('aadObjectsExportsScheduleName')]",
+                "modulesLoop",
+                "[variables('rbacExportsRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('aadObjectsExportsScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('rbacExportsRunbookName')]"
+                }
+            }
+        },
         // Automation ARG Disk Ingest Job Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', parameters('argDiskIngestJobId'))]",
@@ -2044,6 +2124,30 @@
                 },
                 "parameters": {
                     "StorageSinkContainer": "[variables('argResContainersContainerName')]"
+                }
+            }
+        },
+        // Automation RBAC Ingest Job Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('rbacIngestJobId'))]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "[variables('rbacIngestScheduleName')]",
+                "modulesLoop",
+                "[variables('csvIngestRunbookName')]"
+            ],
+            "properties": {
+                "schedule": {
+                    "name": "[variables('rbacIngestScheduleName')]"
+                },
+                "runbook": {
+                    "name": "[variables('csvIngestRunbookName')]"
+                },
+                "parameters": {
+                    "StorageSinkContainer": "[variables('rbacContainerName')]"
                 }
             }
         },
