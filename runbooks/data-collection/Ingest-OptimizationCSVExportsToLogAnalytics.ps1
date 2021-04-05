@@ -188,13 +188,18 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
+$Conn.Close()    
+$Conn.Dispose()            
+
+if (-not($controlRow.LastProcessedDateTime))
+{
+    throw "Could not find a valid ingestion control row for $storageAccountSinkContainer"
+}
+
 $controlRow = $controlRows[0]
 $lastProcessedLine = $controlRow.LastProcessedLine
 $lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 $logname = $lognamePrefix + $controlRow.LogAnalyticsSuffix
-
-$Conn.Close()    
-$Conn.Dispose()            
 
 $newProcessedTime = $null
 

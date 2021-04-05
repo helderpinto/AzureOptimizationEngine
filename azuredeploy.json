@@ -893,6 +893,11 @@
                 "name": "AzureOptimization_RecommendationAADMaxCredValidityYears",
                 "description": "The maximum validity of an AAD Object credential in years",
                 "value": 2
+            },
+            {
+                "name": "AzureOptimization_AADObjectsFilter",
+                "description": "The Azure AD object types to export",
+                "value": "[concat('\"','Application,ServicePrincipal,User,Group','\"')]"
             }
         ]
     },

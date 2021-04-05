@@ -39,6 +39,74 @@
       "name": "tenantParam"
     },
     {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TenantGuid_g in ({TenantId})\r\n| summarize count() by ObjectType_s",
+        "size": 4,
+        "title": "Azure AD objects count (today)",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "piechart"
+      },
+      "customWidth": "50",
+      "name": "objectTypesStats"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TenantGuid_g in ({TenantId}) and ObjectType_s == 'User'\r\n| summarize count() by ObjectSubType_s",
+        "size": 4,
+        "title": "Azure AD users count (today)",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "piechart"
+      },
+      "customWidth": "50",
+      "name": "userObjectSubTypesStats"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationRBACAssignmentsV1_CL\r\n| where TenantGuid_g in ({TenantId}) and Model_s == 'AzureAD'\r\n| distinct PrincipalId_g, RoleDefinition_s\r\n| summarize count() by RoleDefinition_s",
+        "size": 4,
+        "title": "Azure AD roles count (today)",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "piechart"
+      },
+      "customWidth": "50",
+      "name": "aadRolesStats"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationRBACAssignmentsV1_CL\r\n| where TenantGuid_g in ({TenantId}) and Model_s == 'AzureRM'\r\n| distinct PrincipalId_g, RoleDefinition_s\r\n| summarize count() by RoleDefinition_s",
+        "size": 4,
+        "title": "Azure RM roles count (today)",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "piechart"
+      },
+      "customWidth": "50",
+      "name": "armRolesStats"
+    },
+    {
       "type": 11,
       "content": {
         "version": "LinkItem/1.0",
