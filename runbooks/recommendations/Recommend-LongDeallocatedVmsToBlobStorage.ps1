@@ -86,7 +86,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','ARGVirtualMachine','AzureConsumption')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','ARGVirtualMachine','AzureConsumption','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -109,8 +109,9 @@ if (-not($connectionSuccess))
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 $disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGManagedDisk' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+$subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmsTableName, $disksTableName and $consumptionTableName"
+Write-Output "Will run query against tables $vmsTableName, $disksTableName, $subscriptionsTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -138,18 +139,15 @@ $baseQuery = @"
     let billingWindowIntervalStart = $($consumptionOffsetDaysStart)d; 
     let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
     let stime = etime-offlineInterval;
-
     let BilledVMs = $consumptionTableName 
     | where UsageDate_t between (stime..etime)
     | where InstanceId_s like 'microsoft.compute/virtualmachines/' 
     | distinct InstanceId_s;
-
     let BilledDisks = $consumptionTableName 
     | where UsageDate_t between (stime..etime)
     | where InstanceId_s like 'microsoft.compute/disks/'
     | extend BillingInstanceId = InstanceId_s
     | summarize DisksCosts = sum(todouble(Cost_s)) by BillingInstanceId;
-
     $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
     | join kind=leftouter (BilledVMs) on InstanceId_s
@@ -164,6 +162,11 @@ $baseQuery = @"
         BilledDisks
     ) on `$left.DiskInstanceId == `$right.BillingInstanceId
     | summarize TotalDisksCosts = sum(DisksCosts) by InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s
+    | join kind=leftouter ( 
+        $subscriptionsTableName 
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g
 "@
 
 $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
@@ -248,6 +251,7 @@ foreach ($result in $results)
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
         TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags

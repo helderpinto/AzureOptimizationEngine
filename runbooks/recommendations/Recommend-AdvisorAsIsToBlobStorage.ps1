@@ -87,7 +87,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -109,8 +109,9 @@ if (-not($connectionSuccess))
 
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 $advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
+$subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmsTableName and $advisorTableName"
+Write-Output "Will run query against tables $vmsTableName, $subscriptionsTableName and $advisorTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -147,11 +148,6 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
-$advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
-
-Write-Output "Will run query against tables $vmsTableName and $advisorTableName"
-
 $Conn.Close()    
 $Conn.Dispose()            
 
@@ -181,7 +177,6 @@ if (-not([string]::IsNullOrEmpty($CategoryFilter)))
 
 $baseQuery = @"
 let advisorInterval = $($daysBackwards)d;
-
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval)$FinalCategoryFilter
 | join kind=leftouter (
@@ -189,7 +184,12 @@ $advisorTableName
     | where TimeGenerated > ago(1d) 
     | distinct InstanceId_s, Tags_s
 ) on InstanceId_s 
-| summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s            
+| summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s
+| join kind=leftouter ( 
+    $subscriptionsTableName 
+    | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+) on SubscriptionGuid_g
 "@
 
 Write-Output "Getting $CategoryFilter recommendations for $($daysBackwards)d Advisor..."
@@ -265,6 +265,7 @@ foreach ($result in $results) {
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionGuid_g
+        SubscriptionName            = $result.SubscriptionName
         TenantGuid                  = $result.TenantGuid_g
         FitScore                    = $fitScore
         Tags                        = $tags

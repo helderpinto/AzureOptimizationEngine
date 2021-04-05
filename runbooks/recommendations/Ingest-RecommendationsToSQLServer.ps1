@@ -190,13 +190,28 @@ foreach ($blob in $unprocessedBlobs) {
                     $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
                     $additionalInfoString = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json
                     $tagsString = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json
+                    $subscriptionGuid = "NULL"
+                    if ($jsonObjectSplitted[$j][$i].SubscriptionGuid)
+                    {
+                        $subscriptionGuid = $jsonObjectSplitted[$j][$i].SubscriptionGuid
+                    }
+                    $subscriptionName = "NULL"
+                    if ($jsonObjectSplitted[$j][$i].SubscriptionName)
+                    {
+                        $subscriptionName = $jsonObjectSplitted[$j][$i].SubscriptionName
+                    }
+                    $resourceGroup = "NULL"
+                    if ($jsonObjectSplitted[$j][$i].ResourceGroup)
+                    {
+                        $resourceGroup = $jsonObjectSplitted[$j][$i].ResourceGroup
+                    }
                     $sqlStatement += " (NEWID(), CONVERT(DATETIME, '$($jsonObjectSplitted[$j][$i].Timestamp)'), '$($jsonObjectSplitted[$j][$i].Cloud)'"
                     $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].Category)', '$($jsonObjectSplitted[$j][$i].ImpactedArea)'"
                     $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].Impact)', '$($jsonObjectSplitted[$j][$i].RecommendationType)'"
                     $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].RecommendationSubType)', '$($jsonObjectSplitted[$j][$i].RecommendationSubTypeId)'"
                     $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].RecommendationDescription)', '$($jsonObjectSplitted[$j][$i].RecommendationAction)'"
                     $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].InstanceId)', '$($jsonObjectSplitted[$j][$i].InstanceName)', '$additionalInfoString'"
-                    $sqlStatement += ", '$($jsonObjectSplitted[$j][$i].ResourceGroup)', '$($jsonObjectSplitted[$j][$i].SubscriptionGuid)'"
+                    $sqlStatement += ", '$resourceGroup', '$subscriptionGuid', '$subscriptionName', '$($jsonObjectSplitted[$j][$i].TenantGuid)'"
                     $sqlStatement += ", $($jsonObjectSplitted[$j][$i].FitScore), '$tagsString', '$($jsonObjectSplitted[$j][$i].DetailsURL)')"
                     if ($i -ne ($jsonObjectSplitted[$j].Count-1))
                     {

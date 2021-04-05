@@ -200,8 +200,6 @@ foreach ($result in $results)
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = "notavailable"
-        SubscriptionGuid = "notavailable"
         TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
@@ -290,8 +288,6 @@ foreach ($result in $results)
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = "notavailable"
-        SubscriptionGuid = "notavailable"
         TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags

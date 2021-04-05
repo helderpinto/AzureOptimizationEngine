@@ -231,7 +231,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor','AzureConsumption')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor','AzureConsumption','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -254,8 +254,9 @@ if (-not($connectionSuccess))
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 $advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+$subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmsTableName, $advisorTableName and $consumptionTableName"
+Write-Output "Will run query against tables $vmsTableName, $subscriptionsTableName, $advisorTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -386,21 +387,17 @@ let rightSizeRecommendationId = '$rightSizeRecommendationId';
 let billingInterval = 30d;
 let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
 let stime = etime-billingInterval; 
-
 let RightSizeInstanceIds = materialize($advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost' and RecommendationTypeId_g == rightSizeRecommendationId
 | distinct InstanceId_s);
-
 let LinuxMemoryPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == '% Used Memory' 
 | summarize hint.strategy=shuffle PMemoryPercentage = percentile(CounterValue, memoryPercentileValue) by _ResourceId$linuxMemoryPerfAdditionalWorkspaces;
-
 let WindowsMemoryPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Available MBytes' 
 | project TimeGenerated, MemoryAvailableMBs = CounterValue, _ResourceId$windowsMemoryPerfAdditionalWorkspaces;
-
 let MemoryPerf = $vmsTableName 
 | where TimeGenerated > ago(1d)
 | distinct InstanceId_s, MemoryMB_s
@@ -410,18 +407,15 @@ let MemoryPerf = $vmsTableName
 | extend MemoryPercentage = todouble(toint(MemoryMB_s) - toint(MemoryAvailableMBs)) / todouble(MemoryMB_s) * 100 
 | summarize hint.strategy=shuffle PMemoryPercentage = percentile(MemoryPercentage, memoryPercentileValue) by _ResourceId
 | union LinuxMemoryPerf;
-
 let ProcessorPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where ObjectName == 'Processor' and CounterName == '% Processor Time' and InstanceName == '_Total' 
 | summarize hint.strategy=shuffle PCPUPercentage = percentile(CounterValue, cpuPercentileValue) by _ResourceId$processorPerfAdditionalWorkspaces;
-
 let WindowsNetworkPerf = Perf 
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName == 'Bytes Total/sec' 
 | summarize hint.strategy=shuffle PCounter = percentile(CounterValue, networkPercentileValue) by InstanceName, _ResourceId
 | summarize PNetwork = sum(PCounter) by _ResourceId$windowsNetworkPerfAdditionalWorkspaces;
-
 let DiskPerf = Perf
 | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
 | where CounterName in ('Disk Reads/sec', 'Disk Writes/sec', 'Disk Read Bytes/sec', 'Disk Write Bytes/sec') and InstanceName !in ('_Total', 'D:', '/mnt/resource', '/mnt')
@@ -431,7 +425,6 @@ let DiskPerf = Perf
             MaxPWriteIOPS = maxif(SumPCounter, CounterName == 'Disk Writes/sec'), 
             MaxPReadMiBps = (maxif(SumPCounter, CounterName == 'Disk Read Bytes/sec') / 1024 / 1024), 
             MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId$diskPerfAdditionalWorkspaces;
-
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
 | distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g
@@ -456,6 +449,11 @@ $advisorTableName
 | extend MaxPIOPS = MaxPReadIOPS + MaxPWriteIOPS, MaxPMiBps = MaxPReadMiBps + MaxPWriteMiBps
 | extend PNetworkMbps = PNetwork * 8 / 1000 / 1000
 | distinct Last30DaysCost, Last30DaysQuantity, InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s
+| join kind=leftouter ( 
+    $subscriptionsTableName 
+    | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+) on SubscriptionGuid_g
 "@
 
 Write-Output "Will run the following query (use this query against the LA workspace for troubleshooting): $baseQuery"
@@ -779,6 +777,7 @@ foreach ($result in $results) {
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionGuid_g
+        SubscriptionName            = $result.SubscriptionName
         TenantGuid                  = $result.TenantGuid_g
         FitScore                    = $fitScore
         Tags                        = $tags
