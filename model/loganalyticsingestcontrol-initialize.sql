@@ -63,3 +63,9 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('argrescontainersexports', '1901-01-01T00:00:00Z', -1, 'ResourceContainersV1', 'ARGResourceContainers')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'rbacexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('rbacexports', '1901-01-01T00:00:00Z', -1, 'RBACAssignmentsV1', 'RBACAssignments')
+END

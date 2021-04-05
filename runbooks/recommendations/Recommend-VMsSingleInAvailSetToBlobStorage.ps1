@@ -121,7 +121,7 @@ $baseQuery = @"
     $vmsTableName
     | where TimeGenerated > ago(1d) and isnotempty(AvailabilitySetId_s) and isempty(Zones_s)
     | distinct TimeGenerated, VMName_s, InstanceId_s, AvailabilitySetId_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s, Tags_s
-    | summarize any(TimeGenerated, VMName_s, InstanceId_s, Tags_s), VMCount = count() by AvailabilitySetId_s, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
+    | summarize any(TimeGenerated, VMName_s, InstanceId_s, Tags_s), VMCount = count() by AvailabilitySetId_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
     | where VMCount == 1
     | project TimeGenerated = any_TimeGenerated, VMName_s = any_VMName_s, InstanceId_s = any_InstanceId_s, Tags_s = any_Tags_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
 "@
