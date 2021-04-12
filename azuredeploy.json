@@ -631,7 +631,7 @@
             },
             {
                 "name": "[variables('unusedLBsRecommendationsRunbookName')]",
-                "version": "1.2.0.0",
+                "version": "1.2.1.0",
                 "description": "Generates unused Load Balancers recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unusedLBsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -645,7 +645,7 @@
             },
             {
                 "name": "[variables('recommendationsIngestRunbookName')]",
-                "version": "1.6.0.0",
+                "version": "1.6.1.0",
                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
