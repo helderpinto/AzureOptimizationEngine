@@ -200,140 +200,142 @@ $laWorkspaceNameTemplate = "{0}-la"
 $automationAccountNameTemplate = "{0}-auto"
 $sqlServerNameTemplate = "{0}-sql"
 
-do {
-    $nameAvailable = $true
-    if (-not($deploymentOptions["NamePrefix"]))
+$nameAvailable = $true
+if (-not($deploymentOptions["NamePrefix"]))
+{
+    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
+    if (-not($namePrefix))
     {
-        $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
-        if (-not($namePrefix))
-        {
-            $namePrefix = "EmptyNamePrefix"
-        }
-        $deploymentOptions["NamePrefix"] = $namePrefix
+        $namePrefix = "EmptyNamePrefix"
     }
-    else {
-        if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
-        {
-            $namePrefix = $null
-        }
-        else
-        {
-            $namePrefix = $deploymentOptions["NamePrefix"]            
-        }
-    }
-
-    if (-not($deploymentOptions["WorkspaceReuse"]))
+    $deploymentOptions["NamePrefix"] = $namePrefix
+}
+else {
+    if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
     {
-        if ($null -eq $workspaceReuse) {
-            $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
-        }
-        $deploymentOptions["WorkspaceReuse"] = $workspaceReuse
+        $namePrefix = $null
     }
     else
     {
-        $workspaceReuse = $deploymentOptions["WorkspaceReuse"]
-    }
-
-    if (-not($deploymentOptions["ResourceGroupName"]))
-    {
-        if ([string]::IsNullOrEmpty($namePrefix) -or $namePrefix -eq "EmptyNamePrefix") {
-            $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
-            $deploymentName = $deploymentNameTemplate -f $resourceGroupName
-            $storageAccountName = Read-Host "Enter the Storage Account name"
-            $automationAccountName = Read-Host "Automation Account name"
-            $sqlServerName = Read-Host "Azure SQL Server name"
-            $sqlDatabaseName = Read-Host "Azure SQL Database name"
-            if ("N", "n" -contains $workspaceReuse) {
-                $laWorkspaceName = Read-Host "Log Analytics Workspace"
-            }
-        }
-        else {
-            if ($namePrefix.Length -gt 21) {
-                throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
-            }
-        
-            $deploymentName = $deploymentNameTemplate -f $namePrefix
-            $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
-            $storageAccountName = $storageAccountNameTemplate -f $namePrefix
-            $automationAccountName = $automationAccountNameTemplate -f $namePrefix
-            $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
-            $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
-            $sqlDatabaseName = "azureoptimization"
-        }
-    
-        $deploymentOptions["ResourceGroupName"] = $resourceGroupName
-        $deploymentOptions["StorageAccountName"] = $storageAccountName
-        $deploymentOptions["AutomationAccountName"] = $automationAccountName
-        $deploymentOptions["SqlServerName"] = $sqlServerName
-        $deploymentOptions["SqlDatabaseName"] = $sqlDatabaseName
-        $deploymentOptions["WorkspaceName"] = $laWorkspaceName
-    }
-    else
-    {
-        $resourceGroupName = $deploymentOptions["ResourceGroupName"]
-        $storageAccountName = $deploymentOptions["StorageAccountName"]
-        $automationAccountName = $deploymentOptions["AutomationAccountName"]
-        $sqlServerName = $deploymentOptions["SqlServerName"]
-        $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
-        $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
-        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
-    }
-
-    Write-Host "Checking name prefix availability..." -ForegroundColor Green
-
-    Write-Host "...for the Storage Account..." -ForegroundColor Green
-    $sa = Get-AzStorageAccount -ResourceGroupName $resourceGroupName -Name $storageAccountName.Replace("-", "") -ErrorAction SilentlyContinue
-    if ($null -eq $sa) {
-        $saNameResult = Get-AzStorageAccountNameAvailability -Name $storageAccountName.Replace("-", "")
-        if (-not($saNameResult.NameAvailable)) {
-            $nameAvailable = $false
-            Write-Host "$($saNameResult.Message)" -ForegroundColor Red
-        }    
-    }
-    else {
-        Write-Host "(The Storage Account was already deployed)" -ForegroundColor Green
-    }
-
-    if ("N", "n" -contains $workspaceReuse) {
-        Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
-
-        $logAnalyticsReuse = $false
-        $laWorkspaceResourceGroup = $resourceGroupName
-
-        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $laWorkspaceName -ErrorAction SilentlyContinue
-        if ($null -eq $la) {
-            $laNameResult = Invoke-WebRequest -Uri "https://portal.loganalytics.io/api/workspaces/IsWorkspaceExists?name=$laWorkspaceName"
-            if ($laNameResult.Content -eq "true") {
-                $nameAvailable = $false
-                Write-Host "The Log Analytics workspace $laWorkspaceName is already taken." -ForegroundColor Red
-            }
-        }
-        else {
-            Write-Host "(The Log Analytics Workspace was already deployed)" -ForegroundColor Green
-        }
-    }
-    else {
-        $logAnalyticsReuse = $true
-    }
-
-    Write-Host "...for the Azure SQL Server..." -ForegroundColor Green
-    $sql = Get-AzSqlServer -ResourceGroupName $resourceGroupName -Name $sqlServerName -ErrorAction SilentlyContinue
-    if ($null -eq $sql) {
-
-        $SqlServerNameAvailabilityUriPath = "/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
-        $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
-        $sqlNameResult = (Invoke-AzRestMethod -Path $SqlServerNameAvailabilityUriPath -Method POST -Payload $body).Content | ConvertFrom-Json
-        
-        if (-not($sqlNameResult.available)) {
-            $nameAvailable = $false
-            Write-Host "$($sqlNameResult.message) ($sqlServerName)" -ForegroundColor Red
-        }
-    }
-    else {
-        Write-Host "(The SQL Server was already deployed)" -ForegroundColor Green
+        $namePrefix = $deploymentOptions["NamePrefix"]            
     }
 }
-while (-not($nameAvailable))
+
+if (-not($deploymentOptions["WorkspaceReuse"]))
+{
+    if ($null -eq $workspaceReuse) {
+        $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
+    }
+    $deploymentOptions["WorkspaceReuse"] = $workspaceReuse
+}
+else
+{
+    $workspaceReuse = $deploymentOptions["WorkspaceReuse"]
+}
+
+if (-not($deploymentOptions["ResourceGroupName"]))
+{
+    if ([string]::IsNullOrEmpty($namePrefix) -or $namePrefix -eq "EmptyNamePrefix") {
+        $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
+        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+        $storageAccountName = Read-Host "Enter the Storage Account name"
+        $automationAccountName = Read-Host "Automation Account name"
+        $sqlServerName = Read-Host "Azure SQL Server name"
+        $sqlDatabaseName = Read-Host "Azure SQL Database name"
+        if ("N", "n" -contains $workspaceReuse) {
+            $laWorkspaceName = Read-Host "Log Analytics Workspace"
+        }
+    }
+    else {
+        if ($namePrefix.Length -gt 21) {
+            throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
+        }
+    
+        $deploymentName = $deploymentNameTemplate -f $namePrefix
+        $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
+        $storageAccountName = $storageAccountNameTemplate -f $namePrefix
+        $automationAccountName = $automationAccountNameTemplate -f $namePrefix
+        $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
+        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        $sqlDatabaseName = "azureoptimization"
+    }
+
+    $deploymentOptions["ResourceGroupName"] = $resourceGroupName
+    $deploymentOptions["StorageAccountName"] = $storageAccountName
+    $deploymentOptions["AutomationAccountName"] = $automationAccountName
+    $deploymentOptions["SqlServerName"] = $sqlServerName
+    $deploymentOptions["SqlDatabaseName"] = $sqlDatabaseName
+    $deploymentOptions["WorkspaceName"] = $laWorkspaceName
+}
+else
+{
+    $resourceGroupName = $deploymentOptions["ResourceGroupName"]
+    $storageAccountName = $deploymentOptions["StorageAccountName"]
+    $automationAccountName = $deploymentOptions["AutomationAccountName"]
+    $sqlServerName = $deploymentOptions["SqlServerName"]
+    $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
+    $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
+    $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+}
+
+Write-Host "Checking name prefix availability..." -ForegroundColor Green
+
+Write-Host "...for the Storage Account..." -ForegroundColor Green
+$sa = Get-AzStorageAccount -ResourceGroupName $resourceGroupName -Name $storageAccountName -ErrorAction SilentlyContinue
+if ($null -eq $sa) {
+    $saNameResult = Get-AzStorageAccountNameAvailability -Name $storageAccountName
+    if (-not($saNameResult.NameAvailable)) {
+        $nameAvailable = $false
+        Write-Host "$($saNameResult.Message)" -ForegroundColor Red
+    }    
+}
+else {
+    Write-Host "(The Storage Account was already deployed)" -ForegroundColor Green
+}
+
+if ("N", "n" -contains $workspaceReuse) {
+    Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
+
+    $logAnalyticsReuse = $false
+    $laWorkspaceResourceGroup = $resourceGroupName
+
+    $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $laWorkspaceName -ErrorAction SilentlyContinue
+    if ($null -eq $la) {
+        $laNameResult = Invoke-WebRequest -Uri "https://portal.loganalytics.io/api/workspaces/IsWorkspaceExists?name=$laWorkspaceName"
+        if ($laNameResult.Content -eq "true") {
+            $nameAvailable = $false
+            Write-Host "The Log Analytics workspace $laWorkspaceName is already taken." -ForegroundColor Red
+        }
+    }
+    else {
+        Write-Host "(The Log Analytics Workspace was already deployed)" -ForegroundColor Green
+    }
+}
+else {
+    $logAnalyticsReuse = $true
+}
+
+Write-Host "...for the Azure SQL Server..." -ForegroundColor Green
+$sql = Get-AzSqlServer -ResourceGroupName $resourceGroupName -Name $sqlServerName -ErrorAction SilentlyContinue
+if ($null -eq $sql) {
+
+    $SqlServerNameAvailabilityUriPath = "/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
+    $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
+    $sqlNameResult = (Invoke-AzRestMethod -Path $SqlServerNameAvailabilityUriPath -Method POST -Payload $body).Content | ConvertFrom-Json
+    
+    if (-not($sqlNameResult.available)) {
+        $nameAvailable = $false
+        Write-Host "$($sqlNameResult.message) ($sqlServerName)" -ForegroundColor Red
+    }
+}
+else {
+    Write-Host "(The SQL Server was already deployed)" -ForegroundColor Green
+}
+
+if (-not($nameAvailable))
+{
+    throw "Please, fix naming issues. Terminating execution."
+}
 
 Write-Host "Chosen resource names are available for all services" -ForegroundColor Green
 
