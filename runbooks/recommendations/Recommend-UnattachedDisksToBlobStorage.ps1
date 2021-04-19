@@ -141,7 +141,8 @@ $baseQuery = @"
     ) on InstanceId_s
     | summarize Last30DaysCost=sum(todouble(Cost_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d) 
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g

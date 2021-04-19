@@ -255,7 +255,8 @@ $baseQuery = @"
     | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
     | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d) 
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g

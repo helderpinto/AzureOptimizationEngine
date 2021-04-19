@@ -163,7 +163,8 @@ $baseQuery = @"
     ) on `$left.DiskInstanceId == `$right.BillingInstanceId
     | summarize TotalDisksCosts = sum(DisksCosts) by InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d) 
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g

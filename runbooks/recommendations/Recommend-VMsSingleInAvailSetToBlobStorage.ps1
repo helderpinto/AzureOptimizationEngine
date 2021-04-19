@@ -126,7 +126,8 @@ $baseQuery = @"
     | where VMCount == 1
     | project TimeGenerated = any_TimeGenerated, VMName_s = any_VMName_s, InstanceId_s = any_InstanceId_s, Tags_s = any_Tags_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d) 
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g        

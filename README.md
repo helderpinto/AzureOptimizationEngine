@@ -121,7 +121,7 @@ The simplest, quickest and recommended method for installing AOE is by using the
 
 If the deployment fails for some reason, you can simply repeat it, as it is idempotent. The same if you want to upgrade a previous deployment with the latest version of the repo. You just have to keep the same deployment options. _Cool feature_: the deployment script persists your previous deployment options and lets you reuse it! 
 
-If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)). **IMPORTANT**: don't forget to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell always runs elevated).
+If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)) and also the AzureADPreview module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/active-directory/install-adv2?view=azureadps-2.0)). **IMPORTANT**: don't forget to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell always runs elevated).
 
 If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token (see syntax and example below)
 

@@ -450,7 +450,8 @@ $advisorTableName
 | extend PNetworkMbps = PNetwork * 8 / 1000 / 1000
 | distinct Last30DaysCost, Last30DaysQuantity, InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, PNetworkMbps, MaxPIOPS, MaxPMiBps, Tags_s
 | join kind=leftouter ( 
-    $subscriptionsTableName 
+    $subscriptionsTableName
+    | where TimeGenerated > ago(1d)
     | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
     | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
 ) on SubscriptionGuid_g

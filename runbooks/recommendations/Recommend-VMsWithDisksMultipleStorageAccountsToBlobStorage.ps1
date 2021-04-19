@@ -132,7 +132,8 @@ $baseQuery = @"
         | distinct VMName_s, InstanceId_s, Cloud_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Tags_s
     ) on `$left.OwnerVMId_s == `$right.InstanceId_s
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d) 
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g

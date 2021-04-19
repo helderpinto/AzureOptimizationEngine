@@ -133,7 +133,8 @@ $baseQuery = @"
     | where VMCount > 1
     | extend StorageAccountId = strcat('/subscriptions/', SubscriptionGuid_g, '/resourcegroups/', ResourceGroupName_s, '/providers/microsoft.storage/storageaccounts/', StorageAccountName)
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g

@@ -123,7 +123,8 @@ $baseQuery = @"
     | where TimeGenerated > ago(1d) and toint(FaultDomains_s) < 3 and toint(FaultDomains_s) < toint(VmCount_s)/2
     | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s, FaultDomains_s, VmCount_s
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g

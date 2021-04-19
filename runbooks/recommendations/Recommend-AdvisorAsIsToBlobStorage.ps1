@@ -186,7 +186,8 @@ $advisorTableName
 ) on InstanceId_s 
 | summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s
 | join kind=leftouter ( 
-    $subscriptionsTableName 
+    $subscriptionsTableName
+    | where TimeGenerated > ago(1d) 
     | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
     | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
 ) on SubscriptionGuid_g

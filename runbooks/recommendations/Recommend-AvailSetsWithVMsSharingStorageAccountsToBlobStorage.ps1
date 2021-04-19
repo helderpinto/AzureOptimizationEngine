@@ -133,7 +133,8 @@ $baseQuery = @"
     | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by AvailabilitySetName, AvailabilitySetId_s, StorageAccountName, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s
     | where VMCount > 1
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g
