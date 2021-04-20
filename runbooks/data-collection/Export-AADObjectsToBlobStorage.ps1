@@ -245,7 +245,8 @@ if ("Group" -in $aadObjectsTypes)
     
     foreach ($group in $groups)
     {
-        $groupMembers = (Get-AzADGroupMember -GroupObjectId $group.Id).Id
+        $groupMembersObject = Get-AzADGroupMember -GroupObjectId $group.Id -ErrorAction Continue
+        $groupMembers = $groupMembersObject.Id
 
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
