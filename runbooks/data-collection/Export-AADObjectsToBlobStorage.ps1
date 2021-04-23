@@ -111,7 +111,7 @@ if ("Application" -in $aadObjectsTypes)
 
     foreach ($app in $apps)
     {
-        $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId
+        $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId -ErrorAction Continue
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
             TenantGuid = $tenantId
@@ -154,7 +154,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     
     foreach ($spn in $spns)
     {
-        $spnCred = Get-AzADSpCredential -ObjectId $spn.Id
+        $spnCred = Get-AzADSpCredential -ObjectId $spn.Id -ErrorAction Continue
         if ($spn.ServicePrincipalNames)
         {
             $principalNames = $spn.ServicePrincipalNames | ConvertTo-Json
