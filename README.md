@@ -141,7 +141,7 @@ Once successfully deployed, and assuming you have your VMs onboarded to Log Anal
 
 ### Validating whether Log Analytics is collecting the right performance counters
 
-To ensure the VM right-size recommendations have all the required data to provide its full value, Log Analytics must be collecting specific performance counters. You can use the [Setup-LogAnalyticsWorkspaces.ps1](.\Setup-LogAnalyticsWorkspaces.ps1) script as a configuration checker/fixer. For more details, see [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md).
+To ensure the VM right-size recommendations have all the required data to provide its full value, Log Analytics must be collecting specific performance counters. You can use the [Setup-LogAnalyticsWorkspaces.ps1](./Setup-LogAnalyticsWorkspaces.ps1) script as a configuration checker/fixer. For more details, see [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md).
 
 ### Widening the scope of AOE recommendations - more subscriptions or more workspaces
 
