@@ -2,6 +2,22 @@
   "version": "Notebook/1.0",
   "items": [
     {
+      "type": 1,
+      "content": {
+        "json": "### Outliers/growing costs conditions"
+      },
+      "customWidth": "50",
+      "name": "text - 5"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### Filters"
+      },
+      "customWidth": "50",
+      "name": "text - 5 - Copy"
+    },
+    {
       "type": 9,
       "content": {
         "version": "KqlParameterItem/1.0",
@@ -101,13 +117,59 @@
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
+      "customWidth": "50",
       "name": "parameters - 1"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "crossComponentResources": [
+          "value::all"
+        ],
+        "parameters": [
+          {
+            "id": "b48a696e-cf64-450b-a7cc-9e0a5e457170",
+            "version": "KqlParameterItem/1.0",
+            "name": "SelectedSubscriptions",
+            "label": "Subscription",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "resourcecontainers\r\n| where type =~ 'microsoft.resources/subscriptions'\r\n| project subscriptionId, name",
+            "crossComponentResources": [
+              "value::all"
+            ],
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources"
+          }
+        ],
+        "style": "pills",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources"
+      },
+      "customWidth": "50",
+      "name": "parameters - 7"
     },
     {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let CostStartIndex = 1;\r\nlet GrowthFactor = 1 + todouble({GrowthPercentage}) / 100;\r\nlet SubscriptionSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage'\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by SubscriptionGuid_g, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by SubscriptionGuid_g\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet ResourceGroupSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and isnotempty(ResourceGroupName_s)\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by ResourceGroupName_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by ResourceGroupName_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet ResourceSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage'\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by InstanceId_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by InstanceId_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet MeterCategorySeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage'\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by MeterCategory_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by MeterCategory_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet MeterSubCategorySeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and isnotempty(MeterSubCategory_s)\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by MeterSubCategory_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by MeterSubCategory_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet MeterNameSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage'\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by MeterName_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by MeterName_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nSubscriptionSeries\r\n| extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n| mvexpand outliers, UsageDate_t\r\n| summarize arg_max(todatetime(UsageDate_t), *) by SubscriptionGuid_g\r\n| where outliers == 1\r\n| extend SeriesType='Outliers', PerspectiveType = 'SubscriptionGuid_g', PerspectiveId = SubscriptionGuid_g\r\n| distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n| union (\r\n    SubscriptionSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'SubscriptionGuid_g', PerspectiveId = SubscriptionGuid_g\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    ResourceGroupSeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by ResourceGroupName_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'ResourceGroupName_s', PerspectiveId = ResourceGroupName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    ResourceGroupSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'ResourceGroupName_s', PerspectiveId = ResourceGroupName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    ResourceSeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by InstanceId_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'InstanceId_s', PerspectiveId = InstanceId_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    ResourceSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'InstanceId_s', PerspectiveId = InstanceId_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    MeterCategorySeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by MeterCategory_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'MeterCategory_s', PerspectiveId = MeterCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    MeterCategorySeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'MeterCategory_s', PerspectiveId = MeterCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    MeterSubCategorySeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by MeterSubCategory_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'MeterSubCategory_s', PerspectiveId = MeterSubCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    MeterSubCategorySeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'MeterSubCategory_s', PerspectiveId = MeterSubCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    MeterNameSeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by MeterName_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'MeterName_s', PerspectiveId = MeterName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    MeterNameSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'MeterName_s', PerspectiveId = MeterName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| extend FirstCost = round(StartCost, 0), LastCost = round(EndCost, 0)\r\n| distinct PerspectiveId, PerspectiveType, FirstCost, LastCost\r\n| top {TopN} by LastCost-FirstCost desc",
+        "query": "let CostStartIndex = 1;\r\nlet GrowthFactor = 1 + todouble({GrowthPercentage}) / 100;\r\nlet SubscriptionSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by SubscriptionGuid_g, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by SubscriptionGuid_g\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet ResourceGroupSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and isnotempty(ResourceGroupName_s) and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by ResourceGroupName_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by ResourceGroupName_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet ResourceSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by InstanceId_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by InstanceId_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet MeterCategorySeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by MeterCategory_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by MeterCategory_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet MeterSubCategorySeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and isnotempty(MeterSubCategory_s) and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by MeterSubCategory_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by MeterSubCategory_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nlet MeterNameSeries = materialize(AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t > datetime('{CostTimeRange:startISO}') and ChargeType_s == 'Usage' and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize InstanceCost = sum(todouble(Cost_s)) by MeterName_s, UsageDate_t\r\n| order by UsageDate_t\r\n| make-series Cost=sum(InstanceCost) on UsageDate_t in range(startofday(datetime('{CostTimeRange:startISO}')), endofday(ago(6d)), 1d) by MeterName_s\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| where StartCost > 0 and EndCost > {InstanceMinCost} and EndCost > (StartCost * GrowthFactor));\r\nSubscriptionSeries\r\n| extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n| mvexpand outliers, UsageDate_t\r\n| summarize arg_max(todatetime(UsageDate_t), *) by SubscriptionGuid_g\r\n| where outliers == 1\r\n| extend SeriesType='Outliers', PerspectiveType = 'SubscriptionGuid_g', PerspectiveId = SubscriptionGuid_g\r\n| distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n| union (\r\n    SubscriptionSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'SubscriptionGuid_g', PerspectiveId = SubscriptionGuid_g\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    ResourceGroupSeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by ResourceGroupName_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'ResourceGroupName_s', PerspectiveId = ResourceGroupName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    ResourceGroupSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'ResourceGroupName_s', PerspectiveId = ResourceGroupName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    ResourceSeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by InstanceId_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'InstanceId_s', PerspectiveId = InstanceId_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    ResourceSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'InstanceId_s', PerspectiveId = InstanceId_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    MeterCategorySeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by MeterCategory_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'MeterCategory_s', PerspectiveId = MeterCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    MeterCategorySeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'MeterCategory_s', PerspectiveId = MeterCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    MeterSubCategorySeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by MeterSubCategory_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'MeterSubCategory_s', PerspectiveId = MeterSubCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    MeterSubCategorySeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'MeterSubCategory_s', PerspectiveId = MeterSubCategory_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union ( \r\n    MeterNameSeries\r\n    | extend outliers=series_decompose_anomalies(Cost, 1.5)\r\n    | mvexpand outliers, UsageDate_t\r\n    | summarize arg_max(todatetime(UsageDate_t), *) by MeterName_s\r\n    | where outliers == 1\r\n    | extend SeriesType='Outliers', PerspectiveType = 'MeterName_s', PerspectiveId = MeterName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| union (\r\n    MeterNameSeries\r\n    | extend SeriesType='Growing', PerspectiveType = 'MeterName_s', PerspectiveId = MeterName_s\r\n    | distinct PerspectiveId, SeriesType, PerspectiveType, StartCost, EndCost\r\n)\r\n| extend FirstCost = round(StartCost, 0), LastCost = round(EndCost, 0)\r\n| distinct PerspectiveId, PerspectiveType, FirstCost, LastCost\r\n| top {TopN} by LastCost-FirstCost desc",
         "size": 1,
         "title": "Top Growing/Outliers (daily costs)",
         "timeContext": {
@@ -140,7 +202,7 @@
         "size": 1,
         "title": "Evolution over time (select growing/outlier cost)",
         "timeContext": {
-          "durationMs": 0
+          "durationMs": 2592000000
         },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
@@ -157,7 +219,7 @@
         "size": 1,
         "title": "Top contributing instances over time",
         "timeContext": {
-          "durationMs": 0
+          "durationMs": 2592000000
         },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
@@ -174,7 +236,7 @@
         "size": 1,
         "title": "Top contributing resource groups over time",
         "timeContext": {
-          "durationMs": 0
+          "durationMs": 2592000000
         },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
