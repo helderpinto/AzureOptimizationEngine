@@ -118,6 +118,13 @@ $argQuery = @"
     | extend bootDiagnosticsEnabled = tostring(properties.diagnosticsProfile.bootDiagnostics.enabled)
     | extend bootDiagnosticsStorageAccount = split(split(properties.diagnosticsProfile.bootDiagnostics.storageUri, '/')[2],'.')[0]
     | extend powerState = tostring(properties.extended.instanceView.powerState.code) 
+    | extend imagePublisher = iif(isnotempty(properties.storageProfile.imageReference.publisher),tostring(properties.storageProfile.imageReference.publisher),'Custom')
+    | extend imageOffer = iif(isnotempty(properties.storageProfile.imageReference.offer),tostring(properties.storageProfile.imageReference.offer),tostring(properties.storageProfile.imageReference.id))
+    | extend imageSku = tostring(properties.storageProfile.imageReference.sku)
+    | extend imageVersion = tostring(properties.storageProfile.imageReference.version)
+    | extend imageExactVersion = tostring(properties.storageProfile.imageReference.exactVersion)
+    | extend osName = tostring(properties.extended.instanceView.osName)
+    | extend osVersion = tostring(properties.extended.instanceView.osVersion)
     | order by id asc
 "@
 
@@ -154,6 +161,7 @@ $argQuery = @"
 	| extend bootDiagnosticsEnabled = tostring(properties.debugProfile.bootDiagnosticsEnabled)
     | extend bootDiagnosticsStorageAccount = split(split(properties.debugProfile.serialOutputBlobUri, '/')[2],'.')[0]
     | extend powerState = tostring(properties.instanceView.status)
+    | extend imageOffer = tostring(properties.storageProfile.operatingSystemDisk.sourceImageName)
     | order by id asc
 "@
 
@@ -217,6 +225,13 @@ foreach ($vm in $armVmsTotal)
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         StatusDate = $statusDate
         PowerState = $vm.powerState
+        ImagePublisher = $vm.imagePublisher
+        ImageOffer = $vm.imageOffer
+        ImageSku = $vm.imageSku
+        ImageVersion = $vm.imageVersion
+        ImageExactVersion = $vm.imageExactVersion
+        OSName = $vm.osName
+        OSVersion = $vm.osVersion
         Tags = $vm.tags
     }
     
@@ -258,6 +273,13 @@ foreach ($vm in $classicVmsTotal)
         BootDiagnosticsStorageAccount = $vm.bootDiagnosticsStorageAccount
         PowerState = $vm.powerState
         StatusDate = $statusDate
+        ImagePublisher = $vm.imagePublisher
+        ImageOffer = $vm.imageOffer
+        ImageSku = $vm.imageSku
+        ImageVersion = $vm.imageVersion
+        ImageExactVersion = $vm.imageExactVersion
+        OSName = $vm.osName
+        OSVersion = $vm.osVersion
         Tags = $null
     }
     
