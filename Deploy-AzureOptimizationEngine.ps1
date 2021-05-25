@@ -399,7 +399,69 @@ else
 }
 $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
 
-$continueInput = Read-Host "Deploying Azure Optimization Engine to subscription $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
+<#
+    Checking if AOE was already deployed and we're just upgrading it to the newest version
+#>
+
+$upgrading = $true
+
+if ($null -ne $rg)
+{
+    $resourceGroupName
+    $storageAccountName
+    $sqlServerName
+    $sqlDatabaseName
+    $automationAccountName
+
+    if ($upgrading -and $null -ne $sa) 
+    {
+        $containers = Get-AzStorageContainer -Context $sa.Context
+    }
+    else
+    {
+        $upgrading = $false    
+    }
+
+    if ($upgrading -and $null -ne $sql)
+    {
+        $databases = Get-AzSqlDatabase -ServerName $sql.ServerName -ResourceGroupName $resourceGroupName
+        if (-not($databases | Where-Object { $_.DatabaseName -eq $databaseName}))
+        {
+            $upgrading = $false
+        }
+    }
+    else
+    {
+        $upgrading = $false    
+    }
+
+    $auto = Get-AzAutomationAccount -ResourceGroupName $resourceGroupName -Name $automationAccountName -ErrorAction SilentlyContinue
+    if ($null -ne $auto)
+    {
+        $runbooks = Get-AzAutomationRunbook -ResourceGroupName $resourceGroupName `
+            -AutomationAccountName $auto.AutomationAccountName | Where-Object { $_.Name.StartsWith('Export') }
+        if ($runbooks.Count -lt 3)
+        {
+            $upgrading = $false    
+        }
+    }
+    else
+    {
+        $upgrading = $false    
+    }
+}
+else
+{
+    $upgrading = $false    
+}
+
+$deploymentMessage = "Deploying Azure Optimization Engine to subscription"
+if ($upgrading)
+{
+    $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
+}
+
+$continueInput = Read-Host "$deploymentMessage $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
 if ("Y", "y" -contains $continueInput) {
 
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
@@ -425,33 +487,138 @@ if ("Y", "y" -contains $continueInput) {
     else {
         Write-Host "Automation schedules base time automatically set to $baseTime." -ForegroundColor Green
     }
-    $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
-    if ($jobSchedules.Count -gt 0) {
-        Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
-        foreach ($jobSchedule in $jobSchedules) {
-            if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization")) {
-                Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                    -JobScheduleId $jobSchedule.JobScheduleId -Force
-            }
+
+    if (-not($upgrading))
+    {
+        $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
+        if ($jobSchedules.Count -gt 0) {
+            Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
+            foreach ($jobSchedule in $jobSchedules) {
+                if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization")) {
+                    Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                        -JobScheduleId $jobSchedule.JobScheduleId -Force
+                }
+            }    
+        }
+    
+        Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
+        if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
+            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
+                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+        }
+        else {
+            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
+                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
         }    
     }
+    else
+    {
+        $upgradeManifest = Get-Content -Path "./upgrade-manifest.json" | ConvertFrom-Json
+        Write-Host "Creating missing storage account containers..." -ForegroundColor Green
+        $upgradeContainers = $upgradeManifest.dataCollection.container
+        foreach ($container in $upgradeContainers)
+        {
+            if (-not($container -in $containers.Name))
+            {
+                New-AzStorageContainer -Name $container -Context $sa.Context -Permission Off | Out-Null
+                Write-Host "$container container created." -ForegroundColor Green
+            }
+        }
 
-    Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
-    if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-        New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-            -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-            -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-            -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-            -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
-            -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
-    }
-    else {
-        New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-            -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-            -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-            -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-            -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
-            -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
+        Write-Host "Importing runbooks..." -ForegroundColor Green
+        $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook
+        foreach ($runbook in $allRunbooks)
+        {
+            Import-AzAutomationRunbook -Path $runbook -Name ([System.IO.Path]::GetFilenameWithoutExtension($runbook)) -ResourceGroupName $resourceGroupName `
+                -AutomationAccountName $automationAccountName -Type PowerShell -Published -Force | Out-Null
+            Write-Host "$runbook imported." -ForegroundColor Green
+        }
+
+        Write-Host "Updating schedules..." -ForegroundColor Green
+        $allSchedules = $upgradeManifest.schedules
+        foreach ($schedule in $allSchedules)
+        {
+            if (-not($schedules | Where-Object { $_.Name -eq $schedule.name }))
+            {
+                if ($schedule.frequency -eq "Day")
+                {
+                    New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -DayInterval 1
+                }
+                if ($schedule.frequency -eq "Week")
+                {
+                    New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -WeekInterval 1
+                }
+                Write-Host "$($schedule.name) schedule created." -ForegroundColor Green
+            }
+
+            $scheduledRunbooks = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                -ScheduleName $schedule.name
+
+            $dataExportsToSchedule = ($upgradeManifest.dataCollection + $upgradeManifest.recommendations) | Where-Object { $_.exportSchedule -eq $schedule.name }
+            foreach ($dataExport in $dataExportsToSchedule)
+            {
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
+                {
+                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker
+                    }
+                    else
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name                        
+                    }
+                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook." -ForegroundColor Green
+                }
+            }
+
+            $dataIngestToSchedule = $upgradeManifest.dataCollection | Where-Object { $_.ingestSchedule -eq $schedule.name }
+            foreach ($dataIngest in $dataIngestToSchedule)
+            {
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook)
+                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
+                {
+                    $params = @{"StorageSinkContainer"=$dataIngest.container}
+
+                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params
+                    }
+                    else
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params                        
+                    }
+                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook." -ForegroundColor Green
+                }
+            }
+        }
+
+        Write-Host "Updating variables..." -ForegroundColor Green
+        $allVariables = $upgradeManifest.dataCollection.requiredVariables + $upgradeManifest.recommendations.requiredVariables
+        foreach ($variable in $allVariables)
+        {
+            $existingVariables = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
+            if (-not($existingVariables | Where-Object { $_.Name -eq $variable.name }))
+            {
+                New-AzAutomationVariable -Name $variable.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                    -Value $variable.defaultValue
+                Write-Host "$($variable.name) variable created." -ForegroundColor Green
+            }
+        }
     }
 
     if ($upgradingSchedules) {
