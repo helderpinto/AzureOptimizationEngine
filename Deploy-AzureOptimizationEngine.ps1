@@ -399,20 +399,10 @@ else
 }
 $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
 
-<#
-    Checking if AOE was already deployed and we're just upgrading it to the newest version
-#>
-
 $upgrading = $true
 
 if ($null -ne $rg)
 {
-    $resourceGroupName
-    $storageAccountName
-    $sqlServerName
-    $sqlDatabaseName
-    $automationAccountName
-
     if ($upgrading -and $null -ne $sa) 
     {
         $containers = Get-AzStorageContainer -Context $sa.Context
@@ -537,9 +527,16 @@ if ("Y", "y" -contains $continueInput) {
         $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook
         foreach ($runbook in $allRunbooks)
         {
-            Import-AzAutomationRunbook -Path $runbook -Name ([System.IO.Path]::GetFilenameWithoutExtension($runbook)) -ResourceGroupName $resourceGroupName `
-                -AutomationAccountName $automationAccountName -Type PowerShell -Published -Force | Out-Null
-            Write-Host "$runbook imported." -ForegroundColor Green
+            if ((Test-Path -Path $runbook))
+            {
+                Import-AzAutomationRunbook -Path $runbook -Name ([System.IO.Path]::GetFilenameWithoutExtension($runbook)) -ResourceGroupName $resourceGroupName `
+                    -AutomationAccountName $automationAccountName -Type PowerShell -Published -Force | Out-Null
+                Write-Host "$runbook imported." -ForegroundColor Green
+            }
+            else
+            {
+                Write-Host "$runbook not imported (not found)." -ForegroundColor Yellow
+            }
         }
 
         Write-Host "Updating schedules..." -ForegroundColor Green

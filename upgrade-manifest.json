@@ -130,7 +130,7 @@
             "ingestSchedule": "AzureOptimization_IngestARGAvailSetsDaily"
         },
         {
-            "runbook": "runbooks/data-collection/Export-ARGLoadBalancerSetPropertiesToBlobStorage.ps1",
+            "runbook": "runbooks/data-collection/Export-ARGLoadBalancerPropertiesToBlobStorage.ps1",
             "container": "arglbexports",
             "requiredVariables": [
             ],
