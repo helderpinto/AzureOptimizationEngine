@@ -882,8 +882,5 @@
       "name": "armRoleHistory"
     }
   ],
-  "fallbackResourceIds": [
-    "/subscriptions/dfabc7a1-ca6f-4a95-8a7a-faddb6ef9b7b/resourceGroups/pfe-governance-rg/providers/Microsoft.OperationalInsights/workspaces/helderpintopfe"
-  ],
   "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
 }

@@ -410,19 +410,22 @@ if ($null -ne $rg)
     else
     {
         $upgrading = $false    
+        Write-Host "Did not find the $storageAccountName Storage Account." -ForegroundColor Yellow
     }
 
     if ($upgrading -and $null -ne $sql)
     {
         $databases = Get-AzSqlDatabase -ServerName $sql.ServerName -ResourceGroupName $resourceGroupName
-        if (-not($databases | Where-Object { $_.DatabaseName -eq $databaseName}))
+        if (-not($databases | Where-Object { $_.DatabaseName -eq $sqlDatabaseName}))
         {
             $upgrading = $false
+            Write-Host "Did not find the $sqlDatabaseName database." -ForegroundColor Yellow
         }
     }
     else
     {
         $upgrading = $false    
+        Write-Host "Did not find the $sqlServerName SQL Server." -ForegroundColor Yellow
     }
 
     $auto = Get-AzAutomationAccount -ResourceGroupName $resourceGroupName -Name $automationAccountName -ErrorAction SilentlyContinue
@@ -433,11 +436,13 @@ if ($null -ne $rg)
         if ($runbooks.Count -lt 3)
         {
             $upgrading = $false    
+            Write-Host "Did not find existing runbooks in the $automationAccountName Automation Account." -ForegroundColor Yellow
         }
     }
     else
     {
         $upgrading = $false    
+        Write-Host "Did not find the $automationAccountName Automation Account." -ForegroundColor Yellow
     }
 }
 else
@@ -448,6 +453,7 @@ else
 $deploymentMessage = "Deploying Azure Optimization Engine to subscription"
 if ($upgrading)
 {
+    Write-Host "Looks like this deployment was already done in the past. We will only upgrade runbooks, storage and the database." -ForegroundColor Yellow
     $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
 }
 
@@ -519,7 +525,7 @@ if ("Y", "y" -contains $continueInput) {
             if (-not($container -in $containers.Name))
             {
                 New-AzStorageContainer -Name $container -Context $sa.Context -Permission Off | Out-Null
-                Write-Host "$container container created." -ForegroundColor Green
+                Write-Host "$container container created."
             }
         }
 
@@ -531,7 +537,7 @@ if ("Y", "y" -contains $continueInput) {
             {
                 Import-AzAutomationRunbook -Path $runbook -Name ([System.IO.Path]::GetFilenameWithoutExtension($runbook)) -ResourceGroupName $resourceGroupName `
                     -AutomationAccountName $automationAccountName -Type PowerShell -Published -Force | Out-Null
-                Write-Host "$runbook imported." -ForegroundColor Green
+                Write-Host "$runbook imported."
             }
             else
             {
@@ -555,7 +561,7 @@ if ("Y", "y" -contains $continueInput) {
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
                         -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -WeekInterval 1
                 }
-                Write-Host "$($schedule.name) schedule created." -ForegroundColor Green
+                Write-Host "$($schedule.name) schedule created."
             }
 
             $scheduledRunbooks = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
@@ -577,7 +583,7 @@ if ("Y", "y" -contains $continueInput) {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                             -RunbookName $runbookName -ScheduleName $schedule.name                        
                     }
-                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook." -ForegroundColor Green
+                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
                 }
             }
 
@@ -599,7 +605,7 @@ if ("Y", "y" -contains $continueInput) {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                             -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params                        
                     }
-                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook." -ForegroundColor Green
+                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
                 }
             }
         }
@@ -613,7 +619,7 @@ if ("Y", "y" -contains $continueInput) {
             {
                 New-AzAutomationVariable -Name $variable.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
                     -Value $variable.defaultValue
-                Write-Host "$($variable.name) variable created." -ForegroundColor Green
+                Write-Host "$($variable.name) variable created."
             }
         }
     }
