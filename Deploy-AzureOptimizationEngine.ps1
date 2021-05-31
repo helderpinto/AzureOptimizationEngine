@@ -545,7 +545,7 @@ if ("Y", "y" -contains $continueInput) {
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
+                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
         }
         else {
@@ -553,7 +553,7 @@ if ("Y", "y" -contains $continueInput) {
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
+                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
         }    
     }
