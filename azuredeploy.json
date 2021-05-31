@@ -391,6 +391,7 @@
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "consumptionExportsScheduleName": "AzureOptimization_ExportConsumptionDaily",
         "aadObjectsExportsScheduleName": "AzureOptimization_ExportAADObjectsDaily",
+        "rbacExportsScheduleName": "AzureOptimization_ExportRBACDaily",
         "argDiskIngestScheduleName": "AzureOptimization_IngestARGDisksDaily",
         "argVhdIngestScheduleName": "AzureOptimization_IngestARGVHDsDaily",
         "argVmIngestScheduleName": "AzureOptimization_IngestARGVMsDaily",
@@ -401,7 +402,7 @@
         "argLBsIngestScheduleName": "AzureOptimization_IngestARGLoadBalancersDaily",
         "argAppGWsIngestScheduleName": "AzureOptimization_IngestARGAppGWsDaily",
         "argResContainersIngestScheduleName": "AzureOptimization_IngestARGResourceContainersDaily",
-        "rbacIngestScheduleName": "AzureOptimization_IngestRBACAssignmentsDaily",
+        "rbacIngestScheduleName": "AzureOptimization_IngestRBACDaily",
         "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorWeekly",
         "recommendationsScheduleName": "AzureOptimization_RecommendationsWeekly",
         "recommendationsIngestScheduleName": "AzureOptimization_IngestRecommendationsWeekly",
@@ -1423,6 +1424,23 @@
                 "frequency": "Day"
             }
         },
+        // Automation RBAC Exports Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('rbacExportsScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily RBAC assignments exports",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
         // Automation ARG Disk Ingest Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', variables('argDiskIngestScheduleName'))]",
@@ -1879,13 +1897,13 @@
             "location": "[parameters('projectLocation')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('aadObjectsExportsScheduleName')]",
+                "[variables('rbacExportsScheduleName')]",
                 "modulesLoop",
                 "[variables('rbacExportsRunbookName')]"
             ],
             "properties": {
                 "schedule": {
-                    "name": "[variables('aadObjectsExportsScheduleName')]"
+                    "name": "[variables('rbacExportsScheduleName')]"
                 },
                 "runbook": {
                     "name": "[variables('rbacExportsRunbookName')]"
