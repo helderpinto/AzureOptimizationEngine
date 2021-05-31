@@ -1,6 +1,10 @@
 {
     "modules": [
         {
+            "name": "Az.Accounts",
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.3.0"
+        },
+        {
             "name": "Az.Advisor",
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
         },

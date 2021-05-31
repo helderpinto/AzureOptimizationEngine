@@ -616,7 +616,7 @@ if ("Y", "y" -contains $continueInput) {
                 "`"contentLink`": { `"uri`": `"$($allModules[$i].url)`" } } "
             if ($allModules[$i].name -ne "Az.Accounts")
             {
-                $moduleJson += "`"dependsOn`": [ `"Az.Accounts`" ]"
+                $moduleJson += ", `"dependsOn`": [ `"Az.Accounts`" ]"
             }
             $moduleJson += "}"
             $modulesDeploymentTemplateJson += $moduleJson
