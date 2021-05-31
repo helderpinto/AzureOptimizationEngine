@@ -436,7 +436,7 @@ else
 }
 $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
 
-if (-not($PartialUpgrade))
+if (-not($DoPartialUpgrade))
 {
     $upgrading = $false
 }
