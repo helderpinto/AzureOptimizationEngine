@@ -7,8 +7,43 @@ param (
     [string] $AzureEnvironment = "AzureCloud",
 
     [Parameter(Mandatory = $false)]
-    [string] $ArtifactsSasToken
+    [string] $ArtifactsSasToken,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $Overwrite
 )
+
+function ConvertTo-Hashtable {
+    [CmdletBinding()]
+    [OutputType('hashtable')]
+    param (
+        [Parameter(ValueFromPipeline)]
+        $InputObject
+    )
+ 
+    process {
+        if ($null -eq $InputObject) {
+            return $null
+        }
+ 
+        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+            $collection = @(
+                foreach ($object in $InputObject) {
+                    ConvertTo-Hashtable -InputObject $object
+                }
+            ) 
+            Write-Output -NoEnumerate $collection
+        } elseif ($InputObject -is [psobject]) { 
+            $hash = @{}
+            foreach ($property in $InputObject.PSObject.Properties) {
+                $hash[$property.Name] = ConvertTo-Hashtable -InputObject $property.Value
+            }
+            $hash
+        } else {
+            $InputObject
+        }
+    }
+}
 
 function CreateSelfSignedCertificate([string] $certificateName, [string] $selfSignedCertPlainPassword,
     [string] $certPath, [string] $certPathCer, [int] $selfSignedCertNoOfMonthsUntilExpired ) {
@@ -399,55 +434,62 @@ else
 }
 $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
 
-$upgrading = $true
-
-if ($null -ne $rg)
+if ($Overwrite)
 {
-    if ($upgrading -and $null -ne $sa) 
-    {
-        $containers = Get-AzStorageContainer -Context $sa.Context
-    }
-    else
-    {
-        $upgrading = $false    
-        Write-Host "Did not find the $storageAccountName Storage Account." -ForegroundColor Yellow
-    }
-
-    if ($upgrading -and $null -ne $sql)
-    {
-        $databases = Get-AzSqlDatabase -ServerName $sql.ServerName -ResourceGroupName $resourceGroupName
-        if (-not($databases | Where-Object { $_.DatabaseName -eq $sqlDatabaseName}))
-        {
-            $upgrading = $false
-            Write-Host "Did not find the $sqlDatabaseName database." -ForegroundColor Yellow
-        }
-    }
-    else
-    {
-        $upgrading = $false    
-        Write-Host "Did not find the $sqlServerName SQL Server." -ForegroundColor Yellow
-    }
-
-    $auto = Get-AzAutomationAccount -ResourceGroupName $resourceGroupName -Name $automationAccountName -ErrorAction SilentlyContinue
-    if ($null -ne $auto)
-    {
-        $runbooks = Get-AzAutomationRunbook -ResourceGroupName $resourceGroupName `
-            -AutomationAccountName $auto.AutomationAccountName | Where-Object { $_.Name.StartsWith('Export') }
-        if ($runbooks.Count -lt 3)
-        {
-            $upgrading = $false    
-            Write-Host "Did not find existing runbooks in the $automationAccountName Automation Account." -ForegroundColor Yellow
-        }
-    }
-    else
-    {
-        $upgrading = $false    
-        Write-Host "Did not find the $automationAccountName Automation Account." -ForegroundColor Yellow
-    }
+    $upgrading = $false
 }
 else
 {
-    $upgrading = $false    
+    $upgrading = $true
+
+    if ($null -ne $rg)
+    {
+        if ($upgrading -and $null -ne $sa) 
+        {
+            $containers = Get-AzStorageContainer -Context $sa.Context
+        }
+        else
+        {
+            $upgrading = $false    
+            Write-Host "Did not find the $storageAccountName Storage Account." -ForegroundColor Yellow
+        }
+    
+        if ($upgrading -and $null -ne $sql)
+        {
+            $databases = Get-AzSqlDatabase -ServerName $sql.ServerName -ResourceGroupName $resourceGroupName
+            if (-not($databases | Where-Object { $_.DatabaseName -eq $sqlDatabaseName}))
+            {
+                $upgrading = $false
+                Write-Host "Did not find the $sqlDatabaseName database." -ForegroundColor Yellow
+            }
+        }
+        else
+        {
+            $upgrading = $false    
+            Write-Host "Did not find the $sqlServerName SQL Server." -ForegroundColor Yellow
+        }
+    
+        $auto = Get-AzAutomationAccount -ResourceGroupName $resourceGroupName -Name $automationAccountName -ErrorAction SilentlyContinue
+        if ($null -ne $auto)
+        {
+            $runbooks = Get-AzAutomationRunbook -ResourceGroupName $resourceGroupName `
+                -AutomationAccountName $auto.AutomationAccountName | Where-Object { $_.Name.StartsWith('Export') }
+            if ($runbooks.Count -lt 3)
+            {
+                $upgrading = $false    
+                Write-Host "Did not find existing runbooks in the $automationAccountName Automation Account." -ForegroundColor Yellow
+            }
+        }
+        else
+        {
+            $upgrading = $false    
+            Write-Host "Did not find the $automationAccountName Automation Account." -ForegroundColor Yellow
+        }
+    }
+    else
+    {
+        $upgrading = $false    
+    }        
 }
 
 $deploymentMessage = "Deploying Azure Optimization Engine to subscription"
@@ -531,19 +573,36 @@ if ("Y", "y" -contains $continueInput) {
 
         Write-Host "Importing runbooks..." -ForegroundColor Green
         $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook
-        foreach ($runbook in $allRunbooks)
+        $runbookBaseUri = $TemplateUri.Replace("azuredeploy.json", "")
+        $topTemplateJson = "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", " + `
+            "`"contentVersion`": `"1.0.0.0`", `"resources`": ["
+        $bottomTemplateJson = "] }"
+        $runbookDeploymentTemplateJson = $topTemplateJson
+        for ($i = 0; $i -lt $allRunbooks.Count; $i++)
         {
-            if ((Test-Path -Path $runbook))
-            {
-                Import-AzAutomationRunbook -Path $runbook -Name ([System.IO.Path]::GetFilenameWithoutExtension($runbook)) -ResourceGroupName $resourceGroupName `
-                    -AutomationAccountName $automationAccountName -Type PowerShell -Published -Force | Out-Null
-                Write-Host "$runbook imported."
+            try {
+                Invoke-WebRequest -Uri ($runbookBaseUri + $allRunbooks[$i]) | Out-Null
+                $runbookName = [System.IO.Path]::GetFilenameWithoutExtension($allRunbooks[$i])
+                $runbookJson = "{ `"name`": `"$automationAccountName/$runbookName`", `"type`": `"Microsoft.Automation/automationAccounts/runbooks`", " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"runbookType`": `"PowerShell`", `"logProgress`": false, `"logVerbose`": false, " + `
+                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i])`" } } }"
+                $runbookDeploymentTemplateJson += $runbookJson
+                if ($i -lt $allRunbooks.Count - 1)
+                {
+                    $runbookDeploymentTemplateJson += ", "
+                }
+                Write-Host "$($allRunbooks[$i]) imported."
             }
-            else
-            {
-                Write-Host "$runbook not imported (not found)." -ForegroundColor Yellow
+            catch {
+                Write-Host "$($allRunbooks[$i]) not imported (not found)." -ForegroundColor Yellow
             }
         }
+        $runbookDeploymentTemplateJson += $bottomTemplateJson
+        $templateObject = ConvertFrom-Json $runbookDeploymentTemplateJson | ConvertTo-Hashtable
+        Write-Host "Executing runbooks deployment..." -ForegroundColor Green
+        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
+        Write-Host "Runbooks update deployed."
 
         Write-Host "Updating schedules..." -ForegroundColor Green
         $allSchedules = $upgradeManifest.schedules
