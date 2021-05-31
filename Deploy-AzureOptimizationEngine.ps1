@@ -606,6 +606,32 @@ if ("Y", "y" -contains $continueInput) {
         New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
         Write-Host "Runbooks update deployed."
 
+        Write-Host "Importing modules..." -ForegroundColor Green
+        $allModules = $upgradeManifest.modules
+        $modulesDeploymentTemplateJson = $topTemplateJson
+        for ($i = 0; $i -lt $allModules.Count; $i++)
+        {
+            $moduleJson = "{ `"name`": `"$automationAccountName/$($allModules[$i].name)`", `"type`": `"Microsoft.Automation/automationAccounts/modules`", " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"contentLink`": { `"uri`": `"$($allModules[$i].url)`" } } "
+            if ($allModules[$i].name -ne "Az.Accounts")
+            {
+                $moduleJson += "`"dependsOn`": [ `"Az.Accounts`" ]"
+            }
+            $moduleJson += "}"
+            $modulesDeploymentTemplateJson += $moduleJson
+            if ($i -lt $allModules.Count - 1)
+            {
+                $modulesDeploymentTemplateJson += ", "
+            }
+            Write-Host "$($allModules[$i].name) imported."
+        }
+        $modulesDeploymentTemplateJson += $bottomTemplateJson
+        $templateObject = ConvertFrom-Json $modulesDeploymentTemplateJson | ConvertTo-Hashtable
+        Write-Host "Executing modules deployment..." -ForegroundColor Green
+        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "modules") | Out-Null
+        Write-Host "Modules update deployed."
+
         Write-Host "Updating schedules..." -ForegroundColor Green
         $allSchedules = $upgradeManifest.schedules
         foreach ($schedule in $allSchedules)
