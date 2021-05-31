@@ -159,6 +159,8 @@ if (!$isTemplateAvailable) {
     throw "Terminating due to template unavailability."
 }
 
+$cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
+
 $ctx = Get-AzContext
 if (-not($ctx)) {
     Connect-AzAccount -Environment $AzureEnvironment
@@ -779,8 +781,8 @@ if ("Y", "y" -contains $continueInput) {
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
-    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password    
-    $sqlServerEndpoint = "$sqlServerName.database.windows.net"
+    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password        
+    $sqlServerEndpoint = "$sqlServerName$($cloudDetails.SqlDatabaseDnsSuffix)"
     $databaseName = $sqlDatabaseName
     $SqlTimeout = 60
     $tries = 0
@@ -904,7 +906,7 @@ if ("Y", "y" -contains $continueInput) {
         }
         catch 
         { 
-            Connect-AzureAD -TenantId $ctx.Subscription.TenantId
+            Connect-AzureAD -TenantId $ctx.Subscription.TenantId -AzureEnvironmentName $AzureEnvironment
         }
         $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId
