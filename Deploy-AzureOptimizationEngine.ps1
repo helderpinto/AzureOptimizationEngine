@@ -922,6 +922,17 @@ if ("Y", "y" -contains $continueInput) {
     Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
     Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
 
+    Write-Host "Publishing workbooks..." -ForegroundColor Green
+    $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
+    $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
+    foreach ($workbook in $workbooks)
+    {
+        $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
+        Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
+        New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
+            -workbookSourceId $la.ResourceId | Out-Null        
+    }
+
     try
     {
         Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account (look for the login window that may have popped up)..." -ForegroundColor Green
