@@ -615,12 +615,12 @@ if ("Y", "y" -contains $continueInput) {
                 if ($schedule.frequency -eq "Day")
                 {
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -DayInterval 1
+                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -DayInterval 1 | Out-Null
                 }
                 if ($schedule.frequency -eq "Week")
                 {
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -WeekInterval 1
+                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -WeekInterval 1 | Out-Null
                 }
                 Write-Host "$($schedule.name) schedule created."
             }
@@ -637,12 +637,12 @@ if ("Y", "y" -contains $continueInput) {
                     if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker | Out-Null
                     }
                     else
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name                        
+                            -RunbookName $runbookName -ScheduleName $schedule.name | Out-Null                        
                     }
                     Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
                 }
@@ -659,12 +659,12 @@ if ("Y", "y" -contains $continueInput) {
                     if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
                     }
                     else
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params                        
+                            -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
                     }
                     Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
                 }
@@ -679,7 +679,7 @@ if ("Y", "y" -contains $continueInput) {
             if (-not($existingVariables | Where-Object { $_.Name -eq $variable.name }))
             {
                 New-AzAutomationVariable -Name $variable.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                    -Value $variable.defaultValue
+                    -Value $variable.defaultValue | Out-Null
                 Write-Host "$($variable.name) variable created."
             }
         }
