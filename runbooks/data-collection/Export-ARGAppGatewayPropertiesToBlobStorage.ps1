@@ -124,11 +124,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $appGWs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $appGWs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $appGWs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $appGWs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data 
     }
     $resultsCount = $appGWs.Count
     $resultsSoFar += $resultsCount

@@ -105,11 +105,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $avSets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $avSets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $avSets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $avSets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $avSets.Count
     $resultsSoFar += $resultsCount

@@ -128,10 +128,10 @@ resources
 
 do {
     if ($resultsSoFar -eq 0) {
-        $resources = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $resources = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else {
-        $resources = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $resources = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $resources.Count
     $resultsSoFar += $resultsCount

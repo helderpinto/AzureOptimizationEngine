@@ -132,11 +132,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $armVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $armVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $armVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $armVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $armVms.Count
     $resultsSoFar += $resultsCount
@@ -169,11 +169,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $classicVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $classicVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $classicVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $classicVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $classicVms.Count
     $resultsSoFar += $resultsCount

@@ -170,11 +170,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $policyStates = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $policyStates = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $policyStates.Count
     $resultsSoFar += $resultsCount

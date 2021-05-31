@@ -120,11 +120,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $subnets.Count
     $resultsSoFar += $resultsCount
@@ -210,11 +210,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $subnets.Count
     $resultsSoFar += $resultsCount

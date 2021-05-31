@@ -132,11 +132,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $nics = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $nics = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $nics = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $nics = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $nics.Count
     $resultsSoFar += $resultsCount

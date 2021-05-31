@@ -10,7 +10,7 @@ param (
     [string] $ArtifactsSasToken,
 
     [Parameter(Mandatory = $false)]
-    [switch] $Overwrite
+    [switch] $DoPartialUpgrade # updates only storage account containers, Automation assets and SQL Database model
 )
 
 function ConvertTo-Hashtable {
@@ -436,7 +436,7 @@ else
 }
 $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
 
-if ($Overwrite)
+if (-not($PartialUpgrade))
 {
     $upgrading = $false
 }
