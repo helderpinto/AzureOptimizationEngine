@@ -176,7 +176,7 @@ else {
 
 Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
 
-$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
+$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "Internal*" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
 
 if ($subscriptions.Count -gt 1) {
 
@@ -209,8 +209,16 @@ if ($subscriptions.Count -gt 1) {
         throw "The selected subscription does not exist. Check if you are logged in with the right Azure AD account."        
     }
 }
-else {
-    $selectedSubscription = 0
+else
+{
+    if ($subscriptions.Count -ne 0)
+    {
+        $selectedSubscription = 0
+    }
+    else
+    {
+        throw "No valid subscriptions found. Azure AD or Internal subscriptions are currently not supported."
+    }
 }
 
 if ($subscriptions.Count -eq 0) {
