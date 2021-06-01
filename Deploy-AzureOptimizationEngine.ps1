@@ -76,6 +76,15 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
     $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris ("http://" + $keyId)
     # Requires Application administrator or GLOBAL ADMIN
+    $AppId = $Application.ApplicationId
+    $tries = 0
+    do
+    {
+        Start-Sleep -Seconds 20
+        $Application = Get-AzADApplication -ApplicationId $AppId
+        $tries++
+
+    } while ($null -eq $Application -and $tries -lt 5)
     $AppCredential = New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
     # Requires Application administrator or GLOBAL ADMIN
     $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.ApplicationId
