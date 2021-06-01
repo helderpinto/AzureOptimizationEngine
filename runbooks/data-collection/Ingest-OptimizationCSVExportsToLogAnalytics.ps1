@@ -191,7 +191,7 @@ if (-not($connectionSuccess))
 $Conn.Close()    
 $Conn.Dispose()            
 
-if (-not($controlRow.LastProcessedDateTime))
+if ($controlRows.Count -eq 0 -or -not($controlRows[0].LastProcessedDateTime))
 {
     throw "Could not find a valid ingestion control row for $storageAccountSinkContainer"
 }
