@@ -46,6 +46,33 @@ if ([string]::IsNullOrEmpty($sqldatabase))
     $sqldatabase = "azureoptimization"
 }
 
+$subnetMaxUsedThresholdVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationVNetSubnetMaxUsedPercentageThreshold" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($subnetMaxUsedThresholdVar) -or $subnetMaxUsedThresholdVar -eq 0)
+{
+    $subnetMaxUsedThreshold = 80
+}
+else
+{
+    $subnetMaxUsedThreshold = [int] $subnetMaxUsedThresholdVar
+}
+
+$subnetMinUsedThresholdVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationVNetSubnetMinUsedPercentageThreshold" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($subnetMinUsedThresholdVar) -or $subnetMinUsedThresholdVar -eq 0)
+{
+    $subnetMinUsedThreshold = 5
+}
+else
+{
+    $subnetMinUsedThreshold = [int] $subnetMinUsedThresholdVar
+}
+
+# must be a comma-separated, single-quote enclosed list of subnet names, e.g., 'gatewaysubnet','azurebastionsubnet'
+$subnetFreeExclusions = Get-AutomationVariable -Name  "AzureOptimization_RecommendationVNetSubnetUsedPercentageExclusions" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($subnetFreeExclusions))
+{
+    $subnetFreeExclusions = "'gatewaysubnet'"
+}
+
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
@@ -82,7 +109,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGLoadBalancer','AzureConsumption','ARGResourceContainers')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGNetworkInterface','ARGVirtualNetwork','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -102,11 +129,11 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$lbsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGLoadBalancer' }).LogAnalyticsSuffix + "_CL"
-$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+$nicsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGNetworkInterface' }).LogAnalyticsSuffix + "_CL"
+$vNetsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualNetwork' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $lbsTableName, $subscriptionsTableName and $consumptionTableName"
+Write-Output "Will run query against tables $nicsTableName, $subscriptionsTableName and $vNetsTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -123,8 +150,6 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
-# Execute the Cost recommendation query against Log Analytics
-
 <#
 
 Orphaned NICs
@@ -133,34 +158,22 @@ AzureOptimizationNICsV1_CL
 | where isempty(OwnerVMId_s) and isempty(OwnerPEId_s)
 
 AzureOptimizationVNetsV1_CL
-| where SubnetName_s !in ('GatewaySubnet','gatewaysubnet')
-| extend FreeIPs = toint(SubnetTotalPrefixIPs_s) - toint(SubnetUsedIPs_s)
-| extend UsedIPPercentage = (todouble(SubnetUsedIPs_s) / todouble(SubnetTotalPrefixIPs_s)) * 100
-| where UsedIPPercentage > 80
-
-AzureOptimizationVNetsV1_CL
 | where toint(SubnetUsedIPs_s) == 0
 
 #>
 
+Write-Output "Looking for subnets with free IP space less than $subnetMaxUsedThreshold%, excluding $subnetFreeExclusions..."
 
 $baseQuery = @"
-    let interval = 30d;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
-    let stime = etime-interval; 
-    $lbsTableName
+    $vNetsTableName
     | where TimeGenerated > ago(1d)
-    | where SkuName_s == 'Standard'
-    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
-    | where toint(LbRulesCount_s) != 0 or toint(InboundNatRulesCount_s) != 0 or toint(OutboundRulesCount_s) != 0
-    | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
-    | join kind=leftouter (
-        $consumptionTableName
-        | where UsageDate_t between (stime..etime)
-    ) on InstanceId_s
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s    
+    | where SubnetName_s !in ($subnetFreeExclusions)
+    | extend FreeIPs = toint(SubnetTotalPrefixIPs_s) - toint(SubnetUsedIPs_s)
+    | extend UsedIPPercentage = (todouble(SubnetUsedIPs_s) / todouble(SubnetTotalPrefixIPs_s)) * 100
+    | where UsedIPPercentage >= $subnetMaxUsedThreshold
     | join kind=leftouter ( 
         $subscriptionsTableName 
+        | where TimeGenerated > ago(1d)
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g
@@ -179,7 +192,7 @@ catch
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
 }
 
-Write-Output "Costs query finished with $($results.Count) results."
+Write-Output "Query finished with $($results.Count) results."
 
 Write-Output "Query statistics: $($queryResults.Statistics.query)"
 
@@ -192,133 +205,15 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
-    $queryText = @"
-    $lbsTableName
-    | where InstanceId_s == '$queryInstanceId'
-    | where SkuName_s == 'Standard'
-    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
-    | where toint(LbRulesCount_s) != 0 or toint(InboundNatRulesCount_s) != 0 or toint(OutboundRulesCount_s) != 0
-    | distinct InstanceId_s, InstanceName_s, SkuName_s, TimeGenerated
-    | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s, SkuName_s
-    | join kind=inner (
-        $consumptionTableName
-    ) on InstanceId_s
-    | where UsageDate_t > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(Cost_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
-"@
-    $encodedQuery = [System.Uri]::EscapeDataString($queryText)
-    $detailsQueryStart = $deploymentDate
-    $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
-    $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
+    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/subnets"
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
-    $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
-    $additionalInfoDictionary["savingsAmount"] = [double] $result.Last30DaysCost 
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "Cost"
-        ImpactedArea = "Microsoft.Network/loadBalancers"
-        Impact = "Medium"
-        RecommendationType = "Saving"
-        RecommendationSubType = "UnusedStandardLoadBalancers"
-        RecommendationSubTypeId = "f1ed3bb2-3cb5-41e6-ba38-7001d5ff87f5"
-        RecommendationDescription = "Standard Load Balancers with rules defined and without a backend pool incur in unnecessary costs"
-        RecommendationAction = "Delete the Load Balancer"
-        InstanceId = $result.InstanceId_s
-        InstanceName = $result.InstanceName_s
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unusedstdloadbalancers-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-
-# Execute the Operational Excellence recommendation query against Log Analytics
-
-$baseQuery = @"
-    $lbsTableName
-    | where TimeGenerated > ago(1d)
-    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
-    | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
-    | join kind=leftouter ( 
-        $subscriptionsTableName
-        | where TimeGenerated > ago(1d) 
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-"@
-
-try 
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days 2) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Operational Excellence query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
+    $additionalInfoDictionary["subnetName"] = $result.SubnetName_s
+    $additionalInfoDictionary["subnetPrefix"] = $result.SubnetPrefix_s 
+    $additionalInfoDictionary["subnetTotalIPs"] = $result.SubnetTotalPrefixIPs_s 
+    $additionalInfoDictionary["subnetFreeIPs"] = $result.FreeIPs 
+    $additionalInfoDictionary["subnetUsedIPPercentage"] = $result.UsedIPPercentage 
 
     $fitScore = 5
 
@@ -343,15 +238,15 @@ foreach ($result in $results)
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
         Category = "OperationalExcellence"
-        ImpactedArea = "Microsoft.Network/loadBalancers"
+        ImpactedArea = "Microsoft.Network/virtualNetworks"
         Impact = "Medium"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "UnusedLoadBalancers"
-        RecommendationSubTypeId = "48619512-f4e6-4241-9c85-16f7c987950c"
-        RecommendationDescription = "Load Balancers without a backend pool are useless"
-        RecommendationAction = "Delete the Load Balancer"
+        RecommendationSubType = "HighSubnetIPSpaceUsage"
+        RecommendationSubTypeId = "5292525b-5095-4e52-803e-e17192f1d099"
+        RecommendationDescription = "Subnets with a high IP space usage may constrain operations"
+        RecommendationAction = "Move network devices to a subnet with a larger address space"
         InstanceId = $result.InstanceId_s
-        InstanceName = $result.InstanceName_s
+        InstanceName = "$($result.VNetName_s)/$($result.SubnetName_s)"
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -368,7 +263,115 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unusedloadbalancers-$fileDate.json"
+$jsonExportPath = "subnetshighspaceusage-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for subnets with used IP space less than $subnetMinUsedThreshold%..."
+
+$baseQuery = @"
+    $vNetsTableName
+    | where TimeGenerated > ago(1d)
+    | where SubnetName_s !in ($subnetFreeExclusions)
+    | extend FreeIPs = toint(SubnetTotalPrefixIPs_s) - toint(SubnetUsedIPs_s)
+    | extend UsedIPPercentage = (todouble(SubnetUsedIPs_s) / todouble(SubnetTotalPrefixIPs_s)) * 100
+    | where UsedIPPercentage > 0 and UsedIPPercentage <= $subnetMinUsedThreshold
+    | join kind=leftouter ( 
+        $subscriptionsTableName 
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g
+"@
+
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/subnets"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["subnetName"] = $result.SubnetName_s
+    $additionalInfoDictionary["subnetPrefix"] = $result.SubnetPrefix_s 
+    $additionalInfoDictionary["subnetTotalIPs"] = $result.SubnetTotalPrefixIPs_s 
+    $additionalInfoDictionary["subnetUsedIPs_s"] = $result.SubnetUsedIPs_s
+    $additionalInfoDictionary["subnetUsedIPPercentage"] = $result.UsedIPPercentage 
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "OperationalExcellence"
+        ImpactedArea = "Microsoft.Network/virtualNetworks"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "LowSubnetIPSpaceUsage"
+        RecommendationSubTypeId = "0f27b41c-869a-4563-86e9-d1c94232ba81"
+        RecommendationDescription = "Subnets with a low IP space usage are a waste of virtual network address space"
+        RecommendationAction = "Move network devices to a subnet with a smaller address space"
+        InstanceId = $result.InstanceId_s
+        InstanceName = "$($result.VNetName_s)/$($result.SubnetName_s)"
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "subnetslowspaceusage-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
