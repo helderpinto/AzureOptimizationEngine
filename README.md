@@ -52,8 +52,33 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
 
 ![Fit score history for a specific recommendation](./docs/powerbi-dashboard-fitscorehistory.jpg "Fit score history for a specific recommendation")
 
+### Log Analytics Workbooks
+
+With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned or how your resources are distributed.
+
+![Costs growing anomalies](./docs/workbooks-costsgrowing-anomalies.jpg "Costs growing anomalies")
+
+![Virtual Machines perspectives over time](./docs/workbooks-resourcesinventory-vms.jpg "Virtual Machines perspectives over time")
+
+![Azure AD/RM principals and roles summary, with service principal credentials expiration](./docs/workbooks-identitiesroles-summary.jpg "Azure AD/RM principals and roles summary, with service principal credentials expiration")
+
+![Privileged Azure AD roles and assignment history](./docs/workbooks-identitiesroles-rolehistory.jpg "Priviliged Azure AD roles and assignment history")
+
 ## <a id="releases"></a>Releases ##
 
+* 06/2021
+    * Introduced Log Analytics Workbooks with additional insights besides Power BI recommendations:
+        * Identities and Roles - Azure AD principals (user and service) and roles assigned both in Azure AD and Azure RM, credentials expiration (for service principals)
+        * Resouces Inventory (overall, VMs, disks, all with an historical perspective)
+        * Costs Growing - cost anomalies observed during a specific period
+    * Support for partial AOE upgrades - useful in scenarios where the solution was customized (e.g., Private Link or Hybrid Worker setups or changes in Automation Variables)
+    * Added daily Azure AD and Azure RM RBAC assignments exports
+    * Added daily resource containers exports (subscriptions and resource groups)
+    * Added OS and image models to VM exports
+    * Improved support for Azure China and US Government clouds
+    * Support for Azure subscription names in recommendations
+    * SQL Database component changed from Serveless to cheaper Basic plan
+    * Several bug fixes
 * 03/2021 - support for suppressions, new recommendations added and deployment improvements
     * Support for recommendations suppressions (exclude, dismiss, snooze)
     * Five new recommendations added
@@ -138,6 +163,24 @@ If you choose to deploy all the dependencies from your own local repository, you
 ## <a id="usage"></a>Usage instructions ##
 
 Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones! The first recommendations will be available more or less 3h30m after the deployment. In order to see them, you'll need to connect Power BI to the AOE database (see details below). Every week at the same time, AOE recommendations will be updated according to the current state of your environment.
+
+## <a id="upgrade"></a>Upgrading AOE
+
+If you have a previous version of AOE and wish to upgrade, it's as simple as re-running the deployment script with the resource naming options you chose at the initial deployment. It will re-deploy the ARM template, adding new resources and updating existing ones. 
+
+However, if you previously customized components such as Automation variables or schedules, improved job execution performance with Hybrid Workers, or hardened the solution with Private Link, then you should run the deployment script with the `DoPartialUpgrade` switch, e.g.:
+
+`.\Deploy-AzureOptimizationEngine.ps1 -DoPartialUpgrade`
+
+With the `DoPartialUpgrade` switch, the deployment will only:
+
+* Add new storage containers
+* Update/add Automation runbooks
+* Update/add Automation modules
+* Add new Automation schedules
+* Add new Automation variables
+* Upgrade the SQL database model
+* Update Log Analytics Workbooks
 
 ### Validating whether Log Analytics is collecting the right performance counters
 
