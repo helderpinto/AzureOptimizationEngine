@@ -492,7 +492,7 @@
             },
             {
                 "name": "[variables('consumptionExportsRunbookName')]",
-                "version": "1.1.0.0",
+                "version": "1.1.1.0",
                 "description": "Exports Azure Consumption events to Blob Storage using Azure Consumption API",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('consumptionExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
