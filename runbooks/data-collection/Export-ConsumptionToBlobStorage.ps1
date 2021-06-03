@@ -93,7 +93,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 }
 else
 {
-    $subscriptions = Get-AzSubscription | ForEach-Object { "$($_.Id)"}
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
 }
 
 # for each subscription, get billing data
@@ -210,6 +210,8 @@ foreach ($subscription in $subscriptions)
     Write-Output "Generated $($billingEntries.Count) entries..."
 
     $csvExportPath = "$targetStartDate-$subscription.csv"
+    
+    Write-Output "Uploading CSV to Storage"
 
     $billingEntries | Export-Csv -Path $csvExportPath -NoTypeInformation
 
