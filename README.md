@@ -11,6 +11,7 @@ It is highly recommended that you read the whole blog series dedicated to this p
 * [Architecture](#architecture)
 * [Deployment instructions](#deployment)
 * [Usage instructions](#usage)
+* [Upgrade instructions](#usage)
 * [Frequently Asked Questions](#faq)
 
 ## <a id="whatyoucanget"></a>What you can get ##
@@ -164,7 +165,7 @@ If you choose to deploy all the dependencies from your own local repository, you
 
 Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones! The first recommendations will be available more or less 3h30m after the deployment. In order to see them, you'll need to connect Power BI to the AOE database (see details below). Every week at the same time, AOE recommendations will be updated according to the current state of your environment.
 
-## <a id="upgrade"></a>Upgrading AOE
+## <a id="upgrade"></a>Upgrading AOE ##
 
 If you have a previous version of AOE and wish to upgrade, it's as simple as re-running the deployment script with the resource naming options you chose at the initial deployment. It will re-deploy the ARM template, adding new resources and updating existing ones. 
 
@@ -222,13 +223,13 @@ If some recommendation is not applicable or you want it to be removed from the r
 
 * **Is the AOE supported by Microsoft?** No, the Azure Optimization Engine is not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind. The entire risk arising out of the use or performance of the scripts and documentation remains with you.
 
+* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). It was designed to also operate in the Azure China and US Government clouds, but needs thorough testing to be considered as supported. Azure Internal subscriptions are not supported.
+
 * **Why is my report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
 
 * **Why is my VM right-size recommendations overview page empty?** The AOE depends on Azure Advisor Cost recommendations for VM right-sizing. If no VMs are showing up, try increasing the CPU threshold in the Azure Advisor configuration... or maybe your infrastructure is not oversized after all!
 
 * **Why are my VM right-size recommendations showing up with so many Unknowns for the metrics thresholds?** The AOE depends on your VMs being monitored by Log Analytics agents and configured to send a set of performance metrics that are then used to augment Advisor recommendations. See more details [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687).
-
-* **Why am I getting an SQL timeout whenever I try to refresh the Power BI report after some time?** The default AOE setup deploys the recommendations database in a serverless plan. The database is paused after 1 hour without usage. If you try to connect to SQL in a paused state, it will awake the database but will return a timeout at the first try. If you don't want this to happen, upgrade the database to a non-serverless SKU.
 
 * **Why am I getting values so small for costs and savings after setting up AOE?** The Azure consumption exports runbook has just begun its daily execution and only got one day of consumption data. After one month - or after manually kicking off the runbook for past dates -, you should see the correct consumption data.
 
