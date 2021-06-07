@@ -25,6 +25,12 @@
             "description": "Standard Load Balancers with rules defined and without a backend pool incur in unnecessary costs"
         },
         {
+            "category": "Cost",
+            "typeId": "ff68f4e5-1197-4be9-8e5f-8760d7863cb4",
+            "impact": "High",
+            "description": "Underused SQL Databases (performance capacity waste)"
+        },
+        {
             "category": "HighAvailability",
             "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
             "impact": "High",
@@ -89,6 +95,18 @@
             "typeId": "48619512-f4e6-4241-9c85-16f7c987950c",
             "impact": "Medium",
             "description": "Load Balancers without a backend pool are useless"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "5292525b-5095-4e52-803e-e17192f1d099",
+            "impact": "Medium",
+            "description": "Subnets with a high IP space usage may constrain operations"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "0f27b41c-869a-4563-86e9-d1c94232ba81",
+            "impact": "Medium",
+            "description": "Subnets with a low IP space usage are a waste of virtual network address space"
         }
     ]
 }

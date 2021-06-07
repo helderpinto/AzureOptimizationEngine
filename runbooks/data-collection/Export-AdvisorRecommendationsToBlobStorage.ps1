@@ -3,6 +3,9 @@ param(
     [string] $targetSubscription = "",
 
     [Parameter(Mandatory = $false)]
+    [string] $advisorFilter = "all",
+
+    [Parameter(Mandatory = $false)]
     [string] $externalCloudEnvironment = "",
 
     [Parameter(Mandatory = $false)]
@@ -33,11 +36,6 @@ $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
     $storageAccountSinkContainer = "advisorexports"
-}
-$advisorFilter = Get-AutomationVariable -Name  "AzureOptimization_AdvisorFilter" -ErrorAction SilentlyContinue # set to 'all' to obtain all recommendations
-if ([string]::IsNullOrEmpty($advisorFilter))
-{
-    $advisorFilter = "cost"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -83,6 +81,8 @@ else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
 }
+
+$tenantId = (Get-AzContext).Tenant.Id
 
 $recommendations = @()
 
@@ -166,12 +166,13 @@ foreach ($subscription in $subscriptions)
             AdditionalInfo = $advisorRecommendation.ExtendedProperties
             ResourceGroup = $resourceGroup.ToLower()
             SubscriptionGuid = $subscriptionId
+            TenantGuid = $tenantId
         }
     
         $recommendations += $recommendation    
     }
 
-    Write-Output "Found $($recommendations.Count) $advisorFilter recommendations for $subscription subscription"
+    Write-Output "Found $($recommendations.Count) recommendations ($advisorFilter) for $subscription subscription"
 
     <#
     Actually exporting CSV to Azure Storage

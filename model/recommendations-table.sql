@@ -19,6 +19,8 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[dbo].[Recommenda
 			[AdditionalInfo] [nvarchar](max) NULL,
 			[ResourceGroup] [varchar](200) NULL,
 			[SubscriptionGuid] [varchar](50) NULL,
+			[SubscriptionName] [varchar](250) NULL,
+			[TenantGuid] [varchar](50) NULL,
 			[FitScore] [real] NOT NULL,
 			[Tags] [nvarchar](max) NULL,
 			[DetailsUrl] [nvarchar](max) NULL
@@ -38,5 +40,13 @@ ELSE
 		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'FitScore'
 )		BEGIN
 			EXEC sp_rename '[dbo].[Recommendations].ConfidenceScore', 'FitScore', 'COLUMN'
+		END
+		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'SubscriptionName'
+)		BEGIN
+			ALTER TABLE [dbo].[Recommendations] ADD [SubscriptionName] VARCHAR (250) NULL
+		END
+		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'TenantGuid'
+)		BEGIN
+			ALTER TABLE [dbo].[Recommendations] ADD [TenantGuid] VARCHAR (50) NULL
 		END
 	END

@@ -77,6 +77,8 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 # compute start+end dates
 
 if ([string]::IsNullOrEmpty($targetStartDate) -or [string]::IsNullOrEmpty($targetEndDate))
@@ -91,7 +93,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 }
 else
 {
-    $subscriptions = Get-AzSubscription | ForEach-Object { "$($_.Id)"}
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
 }
 
 # for each subscription, get billing data
@@ -165,6 +167,7 @@ foreach ($subscription in $subscriptions)
                 Timestamp = $timestamp
                 Cloud = $cloudEnvironment
                 SubscriptionGuid = $consumptionLine.properties.subscriptionId
+                TenantGuid = $tenantId
                 ResourceGroupName = $rgName
                 InstanceName = $instanceName
                 InstanceId = $instanceId
@@ -192,6 +195,12 @@ foreach ($subscription in $subscriptions)
                 ReservationName = $consumptionLine.properties.reservationName
                 UsageId = $consumptionLine.id
                 UsageName = $consumptionLine.name
+                PublisherType = $consumptionLine.properties.publisherType
+                PublisherName = $consumptionLine.properties.publisherName
+                PlanName = $consumptionLine.properties.planName
+                AccountOwnerId = $consumptionLine.properties.accountOwnerId
+                BillingAccountId = $consumptionLine.properties.billingAccountId
+                BillingProfileId = $consumptionLine.properties.billingProfileId
             }            
             $billingEntries += $billingEntry
         }    
@@ -201,6 +210,8 @@ foreach ($subscription in $subscriptions)
     Write-Output "Generated $($billingEntries.Count) entries..."
 
     $csvExportPath = "$targetStartDate-$subscription.csv"
+    
+    Write-Output "Uploading CSV to Storage"
 
     $billingEntries | Export-Csv -Path $csvExportPath -NoTypeInformation
 

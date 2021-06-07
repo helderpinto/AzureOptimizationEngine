@@ -7,8 +7,43 @@ param (
     [string] $AzureEnvironment = "AzureCloud",
 
     [Parameter(Mandatory = $false)]
-    [string] $ArtifactsSasToken
+    [string] $ArtifactsSasToken,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $DoPartialUpgrade # updates only storage account containers, Automation assets and SQL Database model
 )
+
+function ConvertTo-Hashtable {
+    [CmdletBinding()]
+    [OutputType('hashtable')]
+    param (
+        [Parameter(ValueFromPipeline)]
+        $InputObject
+    )
+ 
+    process {
+        if ($null -eq $InputObject) {
+            return $null
+        }
+ 
+        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+            $collection = @(
+                foreach ($object in $InputObject) {
+                    ConvertTo-Hashtable -InputObject $object
+                }
+            ) 
+            Write-Output -NoEnumerate $collection
+        } elseif ($InputObject -is [psobject]) { 
+            $hash = @{}
+            foreach ($property in $InputObject.PSObject.Properties) {
+                $hash[$property.Name] = ConvertTo-Hashtable -InputObject $property.Value
+            }
+            $hash
+        } else {
+            $InputObject
+        }
+    }
+}
 
 function CreateSelfSignedCertificate([string] $certificateName, [string] $selfSignedCertPlainPassword,
     [string] $certPath, [string] $certPathCer, [int] $selfSignedCertNoOfMonthsUntilExpired ) {
@@ -41,6 +76,15 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
     $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris ("http://" + $keyId)
     # Requires Application administrator or GLOBAL ADMIN
+    $AppId = $Application.ApplicationId
+    $tries = 0
+    do
+    {
+        Start-Sleep -Seconds 20
+        $Application = Get-AzADApplication -ApplicationId $AppId
+        $tries++
+
+    } while ($null -eq $Application -and $tries -lt 5)
     $AppCredential = New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
     # Requires Application administrator or GLOBAL ADMIN
     $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.ApplicationId
@@ -124,6 +168,8 @@ if (!$isTemplateAvailable) {
     throw "Terminating due to template unavailability."
 }
 
+$cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
+
 $ctx = Get-AzContext
 if (-not($ctx)) {
     Connect-AzAccount -Environment $AzureEnvironment
@@ -139,7 +185,7 @@ else {
 
 Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
 
-$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
+$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "Internal*" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
 
 if ($subscriptions.Count -gt 1) {
 
@@ -172,8 +218,16 @@ if ($subscriptions.Count -gt 1) {
         throw "The selected subscription does not exist. Check if you are logged in with the right Azure AD account."        
     }
 }
-else {
-    $selectedSubscription = 0
+else
+{
+    if ($subscriptions.Count -ne 0)
+    {
+        $selectedSubscription = 0
+    }
+    else
+    {
+        throw "No valid subscriptions found. Azure AD or Internal subscriptions are currently not supported."
+    }
 }
 
 if ($subscriptions.Count -eq 0) {
@@ -200,140 +254,142 @@ $laWorkspaceNameTemplate = "{0}-la"
 $automationAccountNameTemplate = "{0}-auto"
 $sqlServerNameTemplate = "{0}-sql"
 
-do {
-    $nameAvailable = $true
-    if (-not($deploymentOptions["NamePrefix"]))
+$nameAvailable = $true
+if (-not($deploymentOptions["NamePrefix"]))
+{
+    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
+    if (-not($namePrefix))
     {
-        $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
-        if (-not($namePrefix))
-        {
-            $namePrefix = "EmptyNamePrefix"
-        }
-        $deploymentOptions["NamePrefix"] = $namePrefix
+        $namePrefix = "EmptyNamePrefix"
     }
-    else {
-        if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
-        {
-            $namePrefix = $null
-        }
-        else
-        {
-            $namePrefix = $deploymentOptions["NamePrefix"]            
-        }
-    }
-
-    if (-not($deploymentOptions["WorkspaceReuse"]))
+    $deploymentOptions["NamePrefix"] = $namePrefix
+}
+else {
+    if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
     {
-        if ($null -eq $workspaceReuse) {
-            $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
-        }
-        $deploymentOptions["WorkspaceReuse"] = $workspaceReuse
+        $namePrefix = $null
     }
     else
     {
-        $workspaceReuse = $deploymentOptions["WorkspaceReuse"]
-    }
-
-    if (-not($deploymentOptions["ResourceGroupName"]))
-    {
-        if ([string]::IsNullOrEmpty($namePrefix) -or $namePrefix -eq "EmptyNamePrefix") {
-            $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
-            $deploymentName = $deploymentNameTemplate -f $resourceGroupName
-            $storageAccountName = Read-Host "Enter the Storage Account name"
-            $automationAccountName = Read-Host "Automation Account name"
-            $sqlServerName = Read-Host "Azure SQL Server name"
-            $sqlDatabaseName = Read-Host "Azure SQL Database name"
-            if ("N", "n" -contains $workspaceReuse) {
-                $laWorkspaceName = Read-Host "Log Analytics Workspace"
-            }
-        }
-        else {
-            if ($namePrefix.Length -gt 21) {
-                throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
-            }
-        
-            $deploymentName = $deploymentNameTemplate -f $namePrefix
-            $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
-            $storageAccountName = $storageAccountNameTemplate -f $namePrefix
-            $automationAccountName = $automationAccountNameTemplate -f $namePrefix
-            $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
-            $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
-            $sqlDatabaseName = "azureoptimization"
-        }
-    
-        $deploymentOptions["ResourceGroupName"] = $resourceGroupName
-        $deploymentOptions["StorageAccountName"] = $storageAccountName
-        $deploymentOptions["AutomationAccountName"] = $automationAccountName
-        $deploymentOptions["SqlServerName"] = $sqlServerName
-        $deploymentOptions["SqlDatabaseName"] = $sqlDatabaseName
-        $deploymentOptions["WorkspaceName"] = $laWorkspaceName
-    }
-    else
-    {
-        $resourceGroupName = $deploymentOptions["ResourceGroupName"]
-        $storageAccountName = $deploymentOptions["StorageAccountName"]
-        $automationAccountName = $deploymentOptions["AutomationAccountName"]
-        $sqlServerName = $deploymentOptions["SqlServerName"]
-        $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
-        $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
-        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
-    }
-
-    Write-Host "Checking name prefix availability..." -ForegroundColor Green
-
-    Write-Host "...for the Storage Account..." -ForegroundColor Green
-    $sa = Get-AzStorageAccount -ResourceGroupName $resourceGroupName -Name $storageAccountName.Replace("-", "") -ErrorAction SilentlyContinue
-    if ($null -eq $sa) {
-        $saNameResult = Get-AzStorageAccountNameAvailability -Name $storageAccountName.Replace("-", "")
-        if (-not($saNameResult.NameAvailable)) {
-            $nameAvailable = $false
-            Write-Host "$($saNameResult.Message)" -ForegroundColor Red
-        }    
-    }
-    else {
-        Write-Host "(The Storage Account was already deployed)" -ForegroundColor Green
-    }
-
-    if ("N", "n" -contains $workspaceReuse) {
-        Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
-
-        $logAnalyticsReuse = $false
-        $laWorkspaceResourceGroup = $resourceGroupName
-
-        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $laWorkspaceName -ErrorAction SilentlyContinue
-        if ($null -eq $la) {
-            $laNameResult = Invoke-WebRequest -Uri "https://portal.loganalytics.io/api/workspaces/IsWorkspaceExists?name=$laWorkspaceName"
-            if ($laNameResult.Content -eq "true") {
-                $nameAvailable = $false
-                Write-Host "The Log Analytics workspace $laWorkspaceName is already taken." -ForegroundColor Red
-            }
-        }
-        else {
-            Write-Host "(The Log Analytics Workspace was already deployed)" -ForegroundColor Green
-        }
-    }
-    else {
-        $logAnalyticsReuse = $true
-    }
-
-    Write-Host "...for the Azure SQL Server..." -ForegroundColor Green
-    $sql = Get-AzSqlServer -ResourceGroupName $resourceGroupName -Name $sqlServerName -ErrorAction SilentlyContinue
-    if ($null -eq $sql) {
-
-        $SqlServerNameAvailabilityUriPath = "/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
-        $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
-        $sqlNameResult = (Invoke-AzRestMethod -Path $SqlServerNameAvailabilityUriPath -Method POST -Payload $body).Content | ConvertFrom-Json
-        
-        if (-not($sqlNameResult.available)) {
-            $nameAvailable = $false
-            Write-Host "$($sqlNameResult.message) ($sqlServerName)" -ForegroundColor Red
-        }
-    }
-    else {
-        Write-Host "(The SQL Server was already deployed)" -ForegroundColor Green
+        $namePrefix = $deploymentOptions["NamePrefix"]            
     }
 }
-while (-not($nameAvailable))
+
+if (-not($deploymentOptions["WorkspaceReuse"]))
+{
+    if ($null -eq $workspaceReuse) {
+        $workspaceReuse = Read-Host "Are you going to reuse an existing Log Analytics workspace (Y/N)?"
+    }
+    $deploymentOptions["WorkspaceReuse"] = $workspaceReuse
+}
+else
+{
+    $workspaceReuse = $deploymentOptions["WorkspaceReuse"]
+}
+
+if (-not($deploymentOptions["ResourceGroupName"]))
+{
+    if ([string]::IsNullOrEmpty($namePrefix) -or $namePrefix -eq "EmptyNamePrefix") {
+        $resourceGroupName = Read-Host "Please, enter the new or existing Resource Group for this deployment"
+        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+        $storageAccountName = Read-Host "Enter the Storage Account name"
+        $automationAccountName = Read-Host "Automation Account name"
+        $sqlServerName = Read-Host "Azure SQL Server name"
+        $sqlDatabaseName = Read-Host "Azure SQL Database name"
+        if ("N", "n" -contains $workspaceReuse) {
+            $laWorkspaceName = Read-Host "Log Analytics Workspace"
+        }
+    }
+    else {
+        if ($namePrefix.Length -gt 21) {
+            throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
+        }
+    
+        $deploymentName = $deploymentNameTemplate -f $namePrefix
+        $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
+        $storageAccountName = $storageAccountNameTemplate -f $namePrefix
+        $automationAccountName = $automationAccountNameTemplate -f $namePrefix
+        $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
+        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        $sqlDatabaseName = "azureoptimization"
+    }
+
+    $deploymentOptions["ResourceGroupName"] = $resourceGroupName
+    $deploymentOptions["StorageAccountName"] = $storageAccountName
+    $deploymentOptions["AutomationAccountName"] = $automationAccountName
+    $deploymentOptions["SqlServerName"] = $sqlServerName
+    $deploymentOptions["SqlDatabaseName"] = $sqlDatabaseName
+    $deploymentOptions["WorkspaceName"] = $laWorkspaceName
+}
+else
+{
+    $resourceGroupName = $deploymentOptions["ResourceGroupName"]
+    $storageAccountName = $deploymentOptions["StorageAccountName"]
+    $automationAccountName = $deploymentOptions["AutomationAccountName"]
+    $sqlServerName = $deploymentOptions["SqlServerName"]
+    $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
+    $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
+    $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+}
+
+Write-Host "Checking name prefix availability..." -ForegroundColor Green
+
+Write-Host "...for the Storage Account..." -ForegroundColor Green
+$sa = Get-AzStorageAccount -ResourceGroupName $resourceGroupName -Name $storageAccountName -ErrorAction SilentlyContinue
+if ($null -eq $sa) {
+    $saNameResult = Get-AzStorageAccountNameAvailability -Name $storageAccountName
+    if (-not($saNameResult.NameAvailable)) {
+        $nameAvailable = $false
+        Write-Host "$($saNameResult.Message)" -ForegroundColor Red
+    }    
+}
+else {
+    Write-Host "(The Storage Account was already deployed)" -ForegroundColor Green
+}
+
+if ("N", "n" -contains $workspaceReuse) {
+    Write-Host "...for the Log Analytics workspace..." -ForegroundColor Green
+
+    $logAnalyticsReuse = $false
+    $laWorkspaceResourceGroup = $resourceGroupName
+
+    $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroupName -Name $laWorkspaceName -ErrorAction SilentlyContinue
+    if ($null -eq $la) {
+        $laNameResult = Invoke-WebRequest -Uri "https://portal.loganalytics.io/api/workspaces/IsWorkspaceExists?name=$laWorkspaceName"
+        if ($laNameResult.Content -eq "true") {
+            $nameAvailable = $false
+            Write-Host "The Log Analytics workspace $laWorkspaceName is already taken." -ForegroundColor Red
+        }
+    }
+    else {
+        Write-Host "(The Log Analytics Workspace was already deployed)" -ForegroundColor Green
+    }
+}
+else {
+    $logAnalyticsReuse = $true
+}
+
+Write-Host "...for the Azure SQL Server..." -ForegroundColor Green
+$sql = Get-AzSqlServer -ResourceGroupName $resourceGroupName -Name $sqlServerName -ErrorAction SilentlyContinue
+if ($null -eq $sql) {
+
+    $SqlServerNameAvailabilityUriPath = "/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
+    $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
+    $sqlNameResult = (Invoke-AzRestMethod -Path $SqlServerNameAvailabilityUriPath -Method POST -Payload $body).Content | ConvertFrom-Json
+    
+    if (-not($sqlNameResult.available)) {
+        $nameAvailable = $false
+        Write-Host "$($sqlNameResult.message) ($sqlServerName)" -ForegroundColor Red
+    }
+}
+else {
+    Write-Host "(The SQL Server was already deployed)" -ForegroundColor Green
+}
+
+if (-not($nameAvailable))
+{
+    throw "Please, fix naming issues. Terminating execution."
+}
 
 Write-Host "Chosen resource names are available for all services" -ForegroundColor Green
 
@@ -397,7 +453,72 @@ else
 }
 $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
 
-$continueInput = Read-Host "Deploying Azure Optimization Engine to subscription $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
+if (-not($DoPartialUpgrade))
+{
+    $upgrading = $false
+}
+else
+{
+    $upgrading = $true
+
+    if ($null -ne $rg)
+    {
+        if ($upgrading -and $null -ne $sa) 
+        {
+            $containers = Get-AzStorageContainer -Context $sa.Context
+        }
+        else
+        {
+            $upgrading = $false    
+            Write-Host "Did not find the $storageAccountName Storage Account." -ForegroundColor Yellow
+        }
+    
+        if ($upgrading -and $null -ne $sql)
+        {
+            $databases = Get-AzSqlDatabase -ServerName $sql.ServerName -ResourceGroupName $resourceGroupName
+            if (-not($databases | Where-Object { $_.DatabaseName -eq $sqlDatabaseName}))
+            {
+                $upgrading = $false
+                Write-Host "Did not find the $sqlDatabaseName database." -ForegroundColor Yellow
+            }
+        }
+        else
+        {
+            $upgrading = $false    
+            Write-Host "Did not find the $sqlServerName SQL Server." -ForegroundColor Yellow
+        }
+    
+        $auto = Get-AzAutomationAccount -ResourceGroupName $resourceGroupName -Name $automationAccountName -ErrorAction SilentlyContinue
+        if ($null -ne $auto)
+        {
+            $runbooks = Get-AzAutomationRunbook -ResourceGroupName $resourceGroupName `
+                -AutomationAccountName $auto.AutomationAccountName | Where-Object { $_.Name.StartsWith('Export') }
+            if ($runbooks.Count -lt 3)
+            {
+                $upgrading = $false    
+                Write-Host "Did not find existing runbooks in the $automationAccountName Automation Account." -ForegroundColor Yellow
+            }
+        }
+        else
+        {
+            $upgrading = $false    
+            Write-Host "Did not find the $automationAccountName Automation Account." -ForegroundColor Yellow
+        }
+    }
+    else
+    {
+        $upgrading = $false    
+    }        
+}
+
+$deploymentMessage = "Deploying Azure Optimization Engine to subscription"
+if ($upgrading)
+{
+    Write-Host "Looks like this deployment was already done in the past. We will only upgrade runbooks, storage and the database." -ForegroundColor Yellow
+    $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
+}
+
+$continueInput = Read-Host "$deploymentMessage $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
 if ("Y", "y" -contains $continueInput) {
 
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
@@ -423,33 +544,188 @@ if ("Y", "y" -contains $continueInput) {
     else {
         Write-Host "Automation schedules base time automatically set to $baseTime." -ForegroundColor Green
     }
-    $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
-    if ($jobSchedules.Count -gt 0) {
-        Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
-        foreach ($jobSchedule in $jobSchedules) {
-            if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization")) {
-                Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                    -JobScheduleId $jobSchedule.JobScheduleId -Force
-            }
+
+    if (-not($upgrading))
+    {
+        $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
+        if ($jobSchedules.Count -gt 0) {
+            Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
+            foreach ($jobSchedule in $jobSchedules) {
+                if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization")) {
+                    Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                        -JobScheduleId $jobSchedule.JobScheduleId -Force
+                }
+            }    
+        }
+    
+        Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
+        if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
+            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+        }
+        else {
+            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
         }    
     }
+    else
+    {
+        $upgradeManifest = Get-Content -Path "./upgrade-manifest.json" | ConvertFrom-Json
+        Write-Host "Creating missing storage account containers..." -ForegroundColor Green
+        $upgradeContainers = $upgradeManifest.dataCollection.container
+        foreach ($container in $upgradeContainers)
+        {
+            if (-not($container -in $containers.Name))
+            {
+                New-AzStorageContainer -Name $container -Context $sa.Context -Permission Off | Out-Null
+                Write-Host "$container container created."
+            }
+        }
 
-    Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
-    if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-        New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-            -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-            -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-            -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-            -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
-            -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
-    }
-    else {
-        New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
-            -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-            -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-            -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-            -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName `
-            -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
+        Write-Host "Importing runbooks..." -ForegroundColor Green
+        $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook
+        $runbookBaseUri = $TemplateUri.Replace("azuredeploy.json", "")
+        $topTemplateJson = "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", " + `
+            "`"contentVersion`": `"1.0.0.0`", `"resources`": ["
+        $bottomTemplateJson = "] }"
+        $runbookDeploymentTemplateJson = $topTemplateJson
+        for ($i = 0; $i -lt $allRunbooks.Count; $i++)
+        {
+            try {
+                Invoke-WebRequest -Uri ($runbookBaseUri + $allRunbooks[$i]) | Out-Null
+                $runbookName = [System.IO.Path]::GetFilenameWithoutExtension($allRunbooks[$i])
+                $runbookJson = "{ `"name`": `"$automationAccountName/$runbookName`", `"type`": `"Microsoft.Automation/automationAccounts/runbooks`", " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"runbookType`": `"PowerShell`", `"logProgress`": false, `"logVerbose`": false, " + `
+                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i])`" } } }"
+                $runbookDeploymentTemplateJson += $runbookJson
+                if ($i -lt $allRunbooks.Count - 1)
+                {
+                    $runbookDeploymentTemplateJson += ", "
+                }
+                Write-Host "$($allRunbooks[$i]) imported."
+            }
+            catch {
+                Write-Host "$($allRunbooks[$i]) not imported (not found)." -ForegroundColor Yellow
+            }
+        }
+        $runbookDeploymentTemplateJson += $bottomTemplateJson
+        $templateObject = ConvertFrom-Json $runbookDeploymentTemplateJson | ConvertTo-Hashtable
+        Write-Host "Executing runbooks deployment..." -ForegroundColor Green
+        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
+        Write-Host "Runbooks update deployed."
+
+        Write-Host "Importing modules..." -ForegroundColor Green
+        $allModules = $upgradeManifest.modules
+        $modulesDeploymentTemplateJson = $topTemplateJson
+        for ($i = 0; $i -lt $allModules.Count; $i++)
+        {
+            $moduleJson = "{ `"name`": `"$automationAccountName/$($allModules[$i].name)`", `"type`": `"Microsoft.Automation/automationAccounts/modules`", " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"contentLink`": { `"uri`": `"$($allModules[$i].url)`" } } "
+            if ($allModules[$i].name -ne "Az.Accounts")
+            {
+                $moduleJson += ", `"dependsOn`": [ `"Az.Accounts`" ]"
+            }
+            $moduleJson += "}"
+            $modulesDeploymentTemplateJson += $moduleJson
+            if ($i -lt $allModules.Count - 1)
+            {
+                $modulesDeploymentTemplateJson += ", "
+            }
+            Write-Host "$($allModules[$i].name) imported."
+        }
+        $modulesDeploymentTemplateJson += $bottomTemplateJson
+        $templateObject = ConvertFrom-Json $modulesDeploymentTemplateJson | ConvertTo-Hashtable
+        Write-Host "Executing modules deployment..." -ForegroundColor Green
+        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "modules") | Out-Null
+        Write-Host "Modules update deployed."
+
+        Write-Host "Updating schedules..." -ForegroundColor Green
+        $allSchedules = $upgradeManifest.schedules
+        foreach ($schedule in $allSchedules)
+        {
+            if (-not($schedules | Where-Object { $_.Name -eq $schedule.name }))
+            {
+                if ($schedule.frequency -eq "Day")
+                {
+                    New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -DayInterval 1 | Out-Null
+                }
+                if ($schedule.frequency -eq "Week")
+                {
+                    New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -WeekInterval 1 | Out-Null
+                }
+                Write-Host "$($schedule.name) schedule created."
+            }
+
+            $scheduledRunbooks = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                -ScheduleName $schedule.name
+
+            $dataExportsToSchedule = ($upgradeManifest.dataCollection + $upgradeManifest.recommendations) | Where-Object { $_.exportSchedule -eq $schedule.name }
+            foreach ($dataExport in $dataExportsToSchedule)
+            {
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
+                {
+                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker | Out-Null
+                    }
+                    else
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name | Out-Null                        
+                    }
+                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                }
+            }
+
+            $dataIngestToSchedule = $upgradeManifest.dataCollection | Where-Object { $_.ingestSchedule -eq $schedule.name }
+            foreach ($dataIngest in $dataIngestToSchedule)
+            {
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook)
+                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
+                {
+                    $params = @{"StorageSinkContainer"=$dataIngest.container}
+
+                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
+                    }
+                    else
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
+                    }
+                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                }
+            }
+        }
+
+        Write-Host "Updating variables..." -ForegroundColor Green
+        $allVariables = $upgradeManifest.dataCollection.requiredVariables + $upgradeManifest.recommendations.requiredVariables
+        foreach ($variable in $allVariables)
+        {
+            $existingVariables = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
+            if (-not($existingVariables | Where-Object { $_.Name -eq $variable.name }))
+            {
+                New-AzAutomationVariable -Name $variable.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                    -Value $variable.defaultValue | Out-Null
+                Write-Host "$($variable.name) variable created."
+            }
+        }
     }
 
     if ($upgradingSchedules) {
@@ -548,8 +824,8 @@ if ("Y", "y" -contains $continueInput) {
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
-    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password    
-    $sqlServerEndpoint = "$sqlServerName.database.windows.net"
+    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password        
+    $sqlServerEndpoint = "$sqlServerName$($cloudDetails.SqlDatabaseDnsSuffix)"
     $databaseName = $sqlDatabaseName
     $SqlTimeout = 60
     $tries = 0
@@ -663,6 +939,17 @@ if ("Y", "y" -contains $continueInput) {
     Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
     Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
 
+    Write-Host "Publishing workbooks..." -ForegroundColor Green
+    $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
+    $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
+    foreach ($workbook in $workbooks)
+    {
+        $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
+        Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
+        New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
+            -workbookSourceId $la.ResourceId | Out-Null        
+    }
+
     try
     {
         Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account (look for the login window that may have popped up)..." -ForegroundColor Green
@@ -673,7 +960,7 @@ if ("Y", "y" -contains $continueInput) {
         }
         catch 
         { 
-            Connect-AzureAD -TenantId $ctx.Subscription.TenantId
+            Connect-AzureAD -TenantId $ctx.Subscription.TenantId -AzureEnvironmentName $AzureEnvironment
         }
         $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId

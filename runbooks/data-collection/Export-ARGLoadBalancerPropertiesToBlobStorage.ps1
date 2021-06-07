@@ -73,6 +73,8 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 $allLBs = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
@@ -84,7 +86,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "all"
+    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
 }
 
 $LBsTotal = @()
@@ -118,11 +120,11 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $LBs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
     }
     else
     {
-        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
+        $LBs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
     }
     $resultsCount = $LBs.Count
     $resultsSoFar += $resultsCount

@@ -1,0 +1,37 @@
+let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d));
+let RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d));
+let EnabledGuestUsers = materialize(AADObjectsTable
+| where isnotempty(ObjectId_g)
+| where ObjectType_s == 'User' and ObjectSubType_s == 'Guest' and SecurityEnabled_s == 'True'
+| project UserId = ObjectId_g, PrincipalNames_s, DisplayName_s);
+let GroupMemberships = AADObjectsTable
+| where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'
+| where PrincipalNames_s startswith '['
+| extend GroupMember = parse_json(PrincipalNames_s)
+| project-away PrincipalNames_s
+| mv-expand GroupMember
+| union (
+    AADObjectsTable
+    | where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'
+    | where isnotempty(PrincipalNames_s) and PrincipalNames_s !startswith '['
+    | extend GroupMember = parse_json(PrincipalNames_s)
+    | project-away PrincipalNames_s
+)
+| project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;
+let DirectUserAssignments = RBACAssignmentsTable
+| join kind=inner (
+    EnabledGuestUsers
+) on $left.PrincipalId_g == $right.UserId
+| project DisplayName_s, PrincipalNames_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g;
+let GroupUserAssignments = RBACAssignmentsTable
+| join kind=inner (
+    GroupMemberships
+    | join kind=inner ( 
+        EnabledGuestUsers
+    ) on $left.GroupMember == $right.UserId
+) on $left.PrincipalId_g == $right.GroupId
+| project DisplayName_s, PrincipalNames_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g;
+GroupUserAssignments
+| union DirectUserAssignments
+| distinct DisplayName_s, PrincipalNames_s, RoleDefinition_s, Model_s, Scope_s, Assignment, TenantGuid_g
+| order by PrincipalNames_s asc

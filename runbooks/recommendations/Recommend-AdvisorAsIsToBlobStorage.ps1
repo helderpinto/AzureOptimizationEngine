@@ -13,7 +13,6 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
 $workspaceSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceSubId"
-$workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceTenantId"
 
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
@@ -88,7 +87,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','AzureAdvisor','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -110,8 +109,9 @@ if (-not($connectionSuccess))
 
 $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 $advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
+$subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmsTableName and $advisorTableName"
+Write-Output "Will run query against tables $vmsTableName, $subscriptionsTableName and $advisorTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -148,11 +148,6 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
-$advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
-
-Write-Output "Will run query against tables $vmsTableName and $advisorTableName"
-
 $Conn.Close()    
 $Conn.Dispose()            
 
@@ -182,7 +177,6 @@ if (-not([string]::IsNullOrEmpty($CategoryFilter)))
 
 $baseQuery = @"
 let advisorInterval = $($daysBackwards)d;
-
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval)$FinalCategoryFilter
 | join kind=leftouter (
@@ -190,13 +184,29 @@ $advisorTableName
     | where TimeGenerated > ago(1d) 
     | distinct InstanceId_s, Tags_s
 ) on InstanceId_s 
-| summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s            
+| summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s
+| join kind=leftouter ( 
+    $subscriptionsTableName
+    | where TimeGenerated > ago(1d) 
+    | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+) on SubscriptionGuid_g
 "@
 
 Write-Output "Getting $CategoryFilter recommendations for $($daysBackwards)d Advisor..."
 
-$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $daysBackwards) -Wait 600 -IncludeStatistics
-$results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+try 
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $daysBackwards) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
 
 Write-Output "Query finished with $($results.Count) results."
 
@@ -246,7 +256,7 @@ foreach ($result in $results) {
 
     $queryInstanceId = $result.InstanceId_s
 
-    $detailsURL = "https://portal.azure.com/#@$workspaceTenantId/resource/$queryInstanceId/overview"
+    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
 
     $recommendationSubType = "Advisor" + $result.Category
 
@@ -266,6 +276,8 @@ foreach ($result in $results) {
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionGuid_g
+        SubscriptionName            = $result.SubscriptionName
+        TenantGuid                  = $result.TenantGuid_g
         FitScore                    = $fitScore
         Tags                        = $tags
         DetailsURL                  = $detailsURL

@@ -124,6 +124,7 @@ $baseQuery = @"
     let expiryInterval = $($expiringCredsDays)d;
     let AppsAndKeys = materialize ($aadObjectsTableName
     | where TimeGenerated > ago(1d)
+    | where ObjectType_s in ('Application','ServicePrincipal')
     | where PrincipalNames_s !has 'https://identity.azure.net'
     | where Keys_s startswith '['
     | extend Keys = parse_json(Keys_s)
@@ -133,6 +134,7 @@ $baseQuery = @"
     | union ( 
         $aadObjectsTableName
         | where TimeGenerated > ago(1d)
+        | where ObjectType_s in ('Application','ServicePrincipal')
         | where PrincipalNames_s !has 'https://identity.azure.net'
         | where isnotempty(Keys_s) and Keys_s !startswith '['
         | extend Keys = parse_json(Keys_s)
@@ -152,12 +154,22 @@ $baseQuery = @"
     | summarize ExpiresOn = max(RiskDate) by ApplicationId_g;
     AppsAndKeys
     | join kind=inner (ApplicationsInRisk) on ApplicationId_g
-    | summarize ExpiresOn = max(EndDate) by ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, TenantId
+    | summarize ExpiresOn = max(EndDate) by ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, TenantGuid_g
     | order by ExpiresOn desc
 "@
 
-$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-$results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
 
 Write-Output "Query finished with $($results.Count) results."
 
@@ -179,7 +191,6 @@ foreach ($result in $results)
     $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
     $additionalInfoDictionary["KeyType"] = $result.KeyType
     $additionalInfoDictionary["ExpiresOn"] = $result.ExpiresOn
-    $additionalInfoDictionary["TenantId"] = $result.TenantId
 
     $fitScore = 5
 
@@ -199,8 +210,7 @@ foreach ($result in $results)
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = "notavailable"
-        SubscriptionGuid = "notavailable"
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL
@@ -243,11 +253,21 @@ $baseQuery = @"
     );
     AppsAndKeys
     | where EndDate > now()+expiryInterval
-    | project ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, TenantId, EndDate
+    | project ApplicationId_g, ObjectType_s, DisplayName_s, Cloud_s, KeyType, TenantGuid_g, EndDate
 "@
 
-$queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-$results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
 
 Write-Output "Query finished with $($results.Count) results."
 
@@ -269,7 +289,6 @@ foreach ($result in $results)
     $additionalInfoDictionary["ObjectType"] = $result.ObjectType_s
     $additionalInfoDictionary["KeyType"] = $result.KeyType
     $additionalInfoDictionary["ExpiresOn"] = $result.EndDate
-    $additionalInfoDictionary["TenantId"] = $result.TenantId
 
     $fitScore = 5
 
@@ -289,8 +308,7 @@ foreach ($result in $results)
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = "notavailable"
-        SubscriptionGuid = "notavailable"
+        TenantGuid = $result.TenantGuid_g
         FitScore = $fitScore
         Tags = $tags
         DetailsURL = $detailsURL

@@ -10,6 +10,7 @@ EXEC('CREATE PROCEDURE dbo.GetRecommendations
             SELECT * FROM [dbo].[Filters]
             WHERE FilterType IN (''Snooze'', ''Dismiss'') AND 
                   IsEnabled = 1 AND 
+                  R.GeneratedDate > FilterStartDate AND
                   (FilterEndDate IS NULL OR FilterEndDate > GETDATE()) AND 
                   RecommendationSubTypeId = R.RecommendationSubTypeId AND 
                   (InstanceId IS NULL OR R.InstanceId LIKE ''%'' + InstanceId + ''%'')

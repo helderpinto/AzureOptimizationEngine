@@ -86,7 +86,7 @@ Function Build-OMSSignature ($workspaceId, $sharedKey, $date, $contentLength, $m
 }
 
 # Function to create and post the request
-Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField) {
+Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField, $AzureEnvironment) {
     $method = "POST"
     $contentType = "application/json"
     $resource = "/api/logs"
@@ -100,7 +100,20 @@ Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField
         -method $method `
         -contentType $contentType `
         -resource $resource
+    
     $uri = "https://" + $workspaceId + ".ods.opinsights.azure.com" + $resource + "?api-version=2016-04-01"
+    if ($AzureEnvironment -eq "AzureChinaCloud")
+    {
+        $uri = "https://" + $workspaceId + ".ods.opinsights.azure.cn" + $resource + "?api-version=2016-04-01"
+    }
+    if ($AzureEnvironment -eq "AzureUSGovernment")
+    {
+        $uri = "https://" + $workspaceId + ".ods.opinsights.azure.us" + $resource + "?api-version=2016-04-01"
+    }
+    if ($AzureEnvironment -eq "AzureGermanCloud")
+    {
+        throw "Azure Germany isn't suported for the Log Analytics Data Collector API"
+    }
 
     $OMSheaders = @{
         "Authorization"        = $signature;
@@ -175,13 +188,18 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
+$Conn.Close()    
+$Conn.Dispose()            
+
+if ($controlRows.Count -eq 0 -or -not($controlRows[0].LastProcessedDateTime))
+{
+    throw "Could not find a valid ingestion control row for $storageAccountSinkContainer"
+}
+
 $controlRow = $controlRows[0]
 $lastProcessedLine = $controlRow.LastProcessedLine
 $lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 $logname = $lognamePrefix + $controlRow.LogAnalyticsSuffix
-
-$Conn.Close()    
-$Conn.Dispose()            
 
 $newProcessedTime = $null
 
@@ -234,7 +252,7 @@ foreach ($blob in $unprocessedBlobs) {
         $currentObjectLines = $csvObjectSplitted[$i].Count
         if ($lastProcessedLine -lt $linesProcessed) {				
             $jsonObject = ConvertTo-Json -InputObject $csvObjectSplitted[$i]                
-            $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp"
+            $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp" -AzureEnvironment $cloudEnvironment
             If ($res -ge 200 -and $res -lt 300) {
                 Write-Output "Succesfully uploaded $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows to Log Analytics"    
                 $linesProcessed += $currentObjectLines

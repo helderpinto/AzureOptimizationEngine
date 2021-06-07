@@ -75,7 +75,8 @@ else
 }
 
 $sqlPass = Read-Host "Please, input the password for the $databaseUser SQL user" -AsSecureString
-$sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password    
+$sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password
+$sqlPassPlain = $sqlPassPlain.Replace("'", "''")
 
 $SqlTimeout = 120
 $recommendationsTable = "Recommendations"
@@ -88,7 +89,7 @@ $connectionSuccess = $false
 do {
     $tries++
     try {
-        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$databaseServer,1433;Database=$databaseName;User ID=$databaseUser;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$databaseServer,1433;Database=$databaseName;User ID=$databaseUser;Password='$sqlPassPlain';Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
         $Conn.Open() 
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
@@ -125,6 +126,7 @@ if (-not($controlRows.RecommendationId))
 
 Write-Host "You are suppressing the recommendation with the below details" -ForegroundColor Green
 Write-Host "Recommendation: $($controlRows.RecommendationDescription)" -ForegroundColor Blue
+Write-Host "Recommendation sub-type id: $($controlRows.RecommendationSubTypeId)" -ForegroundColor Blue
 Write-Host "Category: $($controlRows.Category)" -ForegroundColor Blue
 Write-Host "Instance Name: $($controlRows.InstanceName)" -ForegroundColor Blue
 Write-Host "Resource Group: $($controlRows.ResourceGroup)" -ForegroundColor Blue
@@ -232,7 +234,7 @@ if ("Y", "y" -contains $continueInput)
 
     $sqlStatement = "INSERT INTO [$suppressionsTable] VALUES (NEWID(), '$($controlRows.RecommendationSubTypeId)', '$suppressionType', $scope, GETDATE(), $endDate, '$author', '$notes', 1)"
 
-    $Conn2 = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$databaseServer,1433;Database=$databaseName;User ID=$databaseUser;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+    $Conn2 = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$databaseServer,1433;Database=$databaseName;User ID=$databaseUser;Password='$sqlPassPlain';Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
     $Conn2.Open() 
     
     $Cmd=new-object system.Data.SqlClient.SqlCommand
