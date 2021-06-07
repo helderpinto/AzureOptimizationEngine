@@ -334,6 +334,7 @@ if ($additionalPerfWorkspaces)
 {
     $additionalWorkspaces = $additionalPerfWorkspaces.Split(",")
     foreach ($additionalWorkspace in $additionalWorkspaces) {
+        $additionalWorkspace = $additionalWorkspace.Trim()
         $linuxMemoryPerfAdditionalWorkspaces += @"
         | union ( workspace('$additionalWorkspace').Perf 
         | where TimeGenerated > ago(perfInterval) and _ResourceId in (RightSizeInstanceIds) 
