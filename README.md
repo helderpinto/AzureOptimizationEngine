@@ -11,7 +11,7 @@ It is highly recommended that you read the whole blog series dedicated to this p
 * [Architecture](#architecture)
 * [Deployment instructions](#deployment)
 * [Usage instructions](#usage)
-* [Upgrade instructions](#usage)
+* [Upgrade instructions](#upgrade)
 * [Frequently Asked Questions](#faq)
 
 ## <a id="whatyoucanget"></a>What you can get ##
