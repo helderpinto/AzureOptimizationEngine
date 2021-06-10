@@ -6,10 +6,11 @@ If you want to fully leverage the VM right-size augmented recommendation, you ne
 
 ### Requirements
 
-You need first to install the Azure Resource Graph PowerShell module:
+You need first to install the Azure Resource Graph and Operational Insights PowerShell modules:
 
 ```powershell
 Install-Module -Name Az.ResourceGraph
+Install-Module -Name Az.OperationalInsights
 ```
 ### Usage
 

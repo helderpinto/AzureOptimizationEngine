@@ -45,7 +45,7 @@ $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | 
 
 $argQuery = "resources | where type =~ 'microsoft.operationalinsights/workspaces'$whereWsIds | order by id"
 
-$workspaces = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+$workspaces = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
 
 Write-Output "Found $($workspaces.Count) workspaces."
 
