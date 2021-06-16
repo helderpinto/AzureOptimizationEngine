@@ -14,10 +14,7 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 }
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
-$workspaceName = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceName"
-$workspaceRG = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceRG"
 $workspaceSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceSubId"
-$workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceTenantId"
 
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
@@ -149,18 +146,6 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 {
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
-
-<#
-
-Orphaned NICs
-
-AzureOptimizationNICsV1_CL
-| where isempty(OwnerVMId_s) and isempty(OwnerPEId_s)
-
-AzureOptimizationVNetsV1_CL
-| where toint(SubnetUsedIPs_s) == 0
-
-#>
 
 Write-Output "Looking for subnets with free IP space less than $subnetMaxUsedThreshold%, excluding $subnetFreeExclusions..."
 
@@ -372,6 +357,211 @@ foreach ($result in $results)
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
 $jsonExportPath = "subnetslowspaceusage-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for subnets without any device..."
+
+$baseQuery = @"
+    $vNetsTableName
+    | where TimeGenerated > ago(1d)
+    | where toint(SubnetUsedIPs_s) == 0
+    | join kind=leftouter ( 
+        $subscriptionsTableName 
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g
+"@
+
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/subnets"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["subnetName"] = $result.SubnetName_s
+    $additionalInfoDictionary["subnetPrefix"] = $result.SubnetPrefix_s 
+    $additionalInfoDictionary["subnetTotalIPs"] = $result.SubnetTotalPrefixIPs_s 
+    $additionalInfoDictionary["subnetUsedIPs_s"] = $result.SubnetUsedIPs_s
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "OperationalExcellence"
+        ImpactedArea = "Microsoft.Network/virtualNetworks"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "NoSubnetIPSpaceUsage"
+        RecommendationSubTypeId = "343bbfb7-5bec-4711-8353-398454d42b7b"
+        RecommendationDescription = "Subnets without any IP usage are a waste of virtual network address space"
+        RecommendationAction = "Delete the subnet to reclaim address space"
+        InstanceId = $result.InstanceId_s
+        InstanceName = "$($result.VNetName_s)/$($result.SubnetName_s)"
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "subnetsnospaceusage-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for orphaned NICs..."
+
+$baseQuery = @"
+    $nicsTableName
+    | where TimeGenerated > ago(1d)
+    | where isempty(OwnerVMId_s) and isempty(OwnerPEId_s)
+    | join kind=leftouter ( 
+        $subscriptionsTableName 
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g
+"@
+
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["privateIpAddress"] = $result.PrivateIPAddress_s
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "OperationalExcellence"
+        ImpactedArea = "Microsoft.Network/networkInterfaces"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "OrphanedNIC"
+        RecommendationSubTypeId = "4c5c2d0c-b6a4-4c59-bc18-6fff6c1f5b23"
+        RecommendationDescription = "Orphaned Network Interfaces (without owner VM or PE) unnecessarily consume IP address space"
+        RecommendationAction = "Delete the NIC to reclaim address space"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.Name_s
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "orphanednics-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath

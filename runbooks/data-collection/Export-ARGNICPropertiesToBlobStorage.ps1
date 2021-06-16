@@ -111,8 +111,8 @@ $argQuery = @"
     | extend internalDomainNameSuffix = properties.dnsSettings.internalDomainNameSuffix
     | extend appliedDnsServers = properties.dnsSettings.appliedDnsServers
     | extend dnsServers = properties.dnsSettings.dnsServers
-    | extend ownerVMId = properties.virtualMachine.id
-    | extend ownerPEId = properties.privateEndpoint.id
+    | extend ownerVMId = tolower(properties.virtualMachine.id)
+    | extend ownerPEId = tolower(properties.privateEndpoint.id)
     | extend macAddress = properties.macAddress
     | extend nicType = properties.nicType
     | mv-expand ipconfigs = properties.ipConfigurations
@@ -121,9 +121,9 @@ $argQuery = @"
     | extend privateIPAllocationMethod = tostring(ipconfigs.properties.privateIPAllocationMethod)
     | extend isIPConfigPrimary = tostring(ipconfigs.properties.primary)
     | extend privateIPAddress = tostring(ipconfigs.properties.privateIPAddress)
-    | extend publicIPId = tostring(ipconfigs.properties.publicIPAddress.id)
+    | extend publicIPId = tolower(ipconfigs.properties.publicIPAddress.id)
     | extend IPConfigName = tostring(ipconfigs.name)
-    | extend subnetId = tostring(ipconfigs.properties.subnet.id)
+    | extend subnetId = tolower(ipconfigs.properties.subnet.id)
     | project-away ipconfigs
     | order by id asc
 "@

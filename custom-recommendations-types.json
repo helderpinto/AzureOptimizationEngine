@@ -107,6 +107,18 @@
             "typeId": "0f27b41c-869a-4563-86e9-d1c94232ba81",
             "impact": "Medium",
             "description": "Subnets with a low IP space usage are a waste of virtual network address space"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "343bbfb7-5bec-4711-8353-398454d42b7b",
+            "impact": "Medium",
+            "description": "Subnets without any IP usage are a waste of virtual network address space"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "4c5c2d0c-b6a4-4c59-bc18-6fff6c1f5b23",
+            "impact": "Medium",
+            "description": "Orphaned Network Interfaces (without owner VM or PE) unnecessarily consume IP address space"
         }
     ]
 }
