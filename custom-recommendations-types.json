@@ -119,6 +119,18 @@
             "typeId": "4c5c2d0c-b6a4-4c59-bc18-6fff6c1f5b23",
             "impact": "Medium",
             "description": "Orphaned Network Interfaces (without owner VM or PE) unnecessarily consume IP address space"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "c6a88d8c-3242-44b0-9793-c91897ef68bc",
+            "impact": "High",
+            "description": "Subscriptions close to the maximum limit of RBAC assignments"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "b36dea3e-ef21-45a9-a704-6f629fab236d",
+            "impact": "High",
+            "description": "Management Groups close to the maximum limit of RBAC assignments"
         }
     ]
 }
