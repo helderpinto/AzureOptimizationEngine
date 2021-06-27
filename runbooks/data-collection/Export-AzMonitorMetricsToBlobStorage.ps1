@@ -100,7 +100,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription))) {
 }
 else {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)" }
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 [TimeSpan]::Parse($TimeGrain) | Out-Null
@@ -128,10 +128,14 @@ resources
 
 do {
     if ($resultsSoFar -eq 0) {
-        $resources = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $resources = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else {
-        $resources = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $resources = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($resources -and $resources.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $resources = $resources.Data
     }
     $resultsCount = $resources.Count
     $resultsSoFar += $resultsCount

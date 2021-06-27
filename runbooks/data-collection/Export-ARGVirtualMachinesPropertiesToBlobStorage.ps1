@@ -95,7 +95,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 $armVmsTotal = @()
@@ -132,11 +132,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $armVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $armVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $armVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $armVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($armVms -and $armVms.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $armVms = $armVms.Data
     }
     $resultsCount = $armVms.Count
     $resultsSoFar += $resultsCount
@@ -169,11 +173,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $classicVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $classicVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $classicVms = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $classicVms = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($classicVms -and $classicVms.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $classicVms = $classicVms.Data
     }
     $resultsCount = $classicVms.Count
     $resultsSoFar += $resultsCount

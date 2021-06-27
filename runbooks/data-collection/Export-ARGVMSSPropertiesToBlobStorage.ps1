@@ -19,6 +19,11 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
+$referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion" -ErrorAction SilentlyContinue # e.g., westeurope
+if ([string]::IsNullOrEmpty($referenceRegion))
+{
+    $referenceRegion = "westeurope"
+}
 $authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
@@ -29,10 +34,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVhdContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVMSSContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argvhdexports"
+    $storageAccountSinkContainer = "argvmssexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -64,6 +69,8 @@ switch ($authenticationOption) {
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
+$sizes = Get-AzVMSize -Location $referenceRegion
+
 $cloudSuffix = ""
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -75,13 +82,12 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $tenantId = (Get-AzContext).Tenant.Id
 
-$alldisks = @()
+$allvmss = @()
 
-Write-Output "Getting subscriptions target $TargetSubscription"
-if (-not([string]::IsNullOrEmpty($TargetSubscription)))
+if ($TargetSubscription)
 {
     $subscriptions = $TargetSubscription
-    $subscriptionSuffix = $TargetSubscription
+    $subscriptionSuffix = "-" + $TargetSubscription
 }
 else
 {
@@ -89,120 +95,103 @@ else
     $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
-$mdisksTotal = @()
-$resultsSoFar = 0
+$armVmssTotal = @()
 
-Write-Output "Querying for ARM Unmanaged OS Disks properties"
+$resultsSoFar = 0
 
 $argQuery = @"
 resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| extend diskType = 'OS', diskCaching = tostring(properties.storageProfile.osDisk.caching), diskSize = tostring(properties.storageProfile.osDisk.diskSizeGB)
-| extend vhdUriParts = split(tostring(properties.storageProfile.osDisk.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
+| where type =~ 'microsoft.compute/virtualmachinescalesets'
+| project id, tenantId, name, location, resourceGroup, subscriptionId, skUName = tostring(sku.name),
+	capacity = tostring(sku.capacity), priority = tostring(properties.virtualMachineProfile.priority), tags, zones,
+	osType = iif(isnotnull(properties.virtualMachineProfile.osProfile.linuxConfiguration), "Linux", "Windows"),
+	osDiskSize = tostring(properties.virtualMachineProfile.storageProfile.osDisk.diskSizeGB),
+	osDiskCaching = tostring(properties.virtualMachineProfile.storageProfile.osDisk.caching),
+	osDiskSKU = tostring(properties.virtualMachineProfile.storageProfile.osDisk.managedDisk.storageAccountType),
+	dataDiskCount = iif(isnotnull(properties.virtualMachineProfile.storageProfile.dataDisks), array_length(properties.virtualMachineProfile.storageProfile.dataDisks), 0),
+	nicCount = array_length(properties.virtualMachineProfile.networkProfile.networkInterfaceConfigurations),
+	singlePlacementGroup = tostring(properties.singlePlacementGroup),
+	upgradePolicy = tostring(properties.upgradePolicy.mode),
+	overProvision = tostring(properties.overprovision),
+	platformFaultDomainCount = tostring(properties.platformFaultDomainCount),
+    zoneBalance = tostring(properties.zoneBalance)		
+| order by id asc
 "@
 
 do
 {
     if ($resultsSoFar -eq 0)
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $armVmss = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+        $armVmss = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions 
     }
-    if ($mdisks -and $mdisks.GetType().Name -eq "PSResourceGraphResponse")
+
+    if ($armVmss -and $armVmss.GetType().Name -eq "PSResourceGraphResponse")
     {
-        $mdisks = $mdisks.Data
+        $armVmss = $armVmss.Data
     }
-    $resultsCount = $mdisks.Count
+    $resultsCount = $armVmss.Count
     $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
+    $armVmssTotal += $armVmss
 
 } while ($resultsCount -eq $ARGPageSize)
-
-$resultsSoFar = 0
-
-Write-Output "Found $($mdisksTotal.Count) Unmanaged OS Disk entries"
-
-Write-Output "Querying for ARM Unmanaged Data Disks properties"
-
-$argQuery = @"
-resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| mvexpand dataDisks = properties.storageProfile.dataDisks
-| extend diskType = 'Data', diskCaching = tostring(dataDisks.caching), diskSize = tostring(dataDisks.diskSizeGB)
-| extend vhdUriParts = split(tostring(dataDisks.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
-"@
-
-do
-{
-    if ($resultsSoFar -eq 0)
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
-    }
-    else
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
-    }
-    if ($mdisks -and $mdisks.GetType().Name -eq "PSResourceGraphResponse")
-    {
-        $mdisks = $mdisks.Data
-    }
-    $resultsCount = $mdisks.Count
-    $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
-
-} while ($resultsCount -eq $ARGPageSize)
-
-Write-Output "Found overall $($mdisksTotal.Count) Unmanaged Disk entries"
-
-<#
-    Building CSV entries 
-#>
 
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-foreach ($disk in $mdisksTotal)
+Write-Output "Building $($armVmssTotal.Count) VMSS entries"
+
+foreach ($vmss in $armVmssTotal)
 {
+    $vmSize = $sizes | Where-Object {$_.name -eq $vmss.skUName}
+
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $disk.tenantId
-        SubscriptionGuid = $disk.subscriptionId
-        ResourceGroupName = $disk.resourceGroup.ToLower()
-        DiskName = $disk.diskVhdName.ToLower()
-        InstanceId = ($disk.diskStorageAccountName + "/" + $disk.diskContainerName + "/" + $disk.diskVhdName).ToLower()
-        OwnerVMId = $disk.id.ToLower()
-        Location = $disk.location
-        DeploymentModel = "Unmanaged"
-        DiskType = $disk.diskType 
-        Caching = $disk.diskCaching 
-        DiskSizeGB = $disk.diskSize
+        TenantGuid = $vmss.tenantId
+        SubscriptionGuid = $vmss.subscriptionId
+        ResourceGroupName = $vmss.resourceGroup.ToLower()
+        Zones = $vmss.zones
+        VMSSName = $vmss.name.ToLower()
+        InstanceId = $vmss.id.ToLower()
+        VMSSSize = $vmSize.name.ToLower()
+        CoresCount = $vmSize.NumberOfCores
+        MemoryMB = $vmSize.MemoryInMB
+        OSType = $vmss.osType
+        DataDiskCount = $vmss.dataDiskCount
+        NicCount = $vmss.nicCount
         StatusDate = $statusDate
-        Tags = $disk.tags
+        Tags = $vmss.tags
+        Capacity = $vmss.capacity
+        Priority = $vmss.priority
+        OSDiskSize = $vmss.osDiskSize
+        OSDiskCaching = $vmss.osDiskCaching
+        OSDiskSKU = $vmss.osDiskSKU
+        SinglePlacementGroup = $vmss.singlePlacementGroup
+        UpgradePolicy = $vmss.upgradePolicy
+        OverProvision = $vmss.overProvision
+        PlatformFaultDomainCount = $vmss.platformFaultDomainCount
+        ZoneBalance = $vmss.zoneBalance
     }
     
-    $alldisks += $logentry
+    $allvmss += $logentry
 }
 
-<#
-    Actually exporting CSV to Azure Storage
-#>
+Write-Output "Uploading CSV to Storage"
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-vhds-$subscriptionSuffix.csv"
+$csvExportPath = "$today-vmss-$subscriptionSuffix.csv"
 
-$alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allvmss | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 
 $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+
+Write-Output "DONE"
