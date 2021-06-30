@@ -34,10 +34,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGNICContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGNSGContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argnicexports"
+    $storageAccountSinkContainer = "argnsgexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -80,7 +80,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $tenantId = (Get-AzContext).Tenant.Id
 
-$allnics = @()
+$allnsgRules = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
@@ -94,58 +94,49 @@ else
     $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
-$nicsTotal = @()
+$nsgRulesTotal = @()
 
 $resultsSoFar = 0
 
-Write-Output "Querying for NIC properties"
+Write-Output "Querying for NSG properties"
 
 $argQuery = @"
-    resources
-    | where type =~ 'microsoft.network/networkinterfaces'
-    | extend isPrimary = properties.primary
-    | extend enableAcceleratedNetworking = properties.enableAcceleratedNetworking
-    | extend enableIPForwarding = properties.enableIPForwarding
-    | extend tapConfigurationsCount = array_length(properties.tapConfigurations)
-    | extend hostedWorkloadsCount = array_length(properties.hostedWorkloads)
-    | extend internalDomainNameSuffix = properties.dnsSettings.internalDomainNameSuffix
-    | extend appliedDnsServers = properties.dnsSettings.appliedDnsServers
-    | extend dnsServers = properties.dnsSettings.dnsServers
-    | extend ownerVMId = tolower(properties.virtualMachine.id)
-    | extend ownerPEId = tolower(properties.privateEndpoint.id)
-    | extend macAddress = properties.macAddress
-    | extend nicType = properties.nicType
-    | extend nicNsgId = tolower(properties.networkSecurityGroup.id)
-	| mv-expand ipconfigs = properties.ipConfigurations
-    | project-away properties
-    | extend privateIPAddressVersion = tostring(ipconfigs.properties.privateIPAddressVersion)
-    | extend privateIPAllocationMethod = tostring(ipconfigs.properties.privateIPAllocationMethod)
-    | extend isIPConfigPrimary = tostring(ipconfigs.properties.primary)
-    | extend privateIPAddress = tostring(ipconfigs.properties.privateIPAddress)
-    | extend publicIPId = tolower(ipconfigs.properties.publicIPAddress.id)
-    | extend IPConfigName = tostring(ipconfigs.name)
-    | extend subnetId = tolower(ipconfigs.properties.subnet.id)
-    | project-away ipconfigs
-    | order by id asc
+resources
+| where type =~ 'Microsoft.Network/networkSecurityGroups' 
+| extend nicCount = iif(isnotempty(properties.networkInterfaces),array_length(properties.networkInterfaces),0)
+| extend subnetCount = iif(isnotempty(properties.subnets),array_length(properties.subnets),0)
+| mvexpand securityRules = properties.securityRules
+| extend ruleName = tolower(securityRules.name)
+| extend ruleProtocol = tolower(securityRules.properties.protocol)
+| extend ruleDirection = tolower(securityRules.properties.direction)
+| extend rulePriority = toint(securityRules.properties.priority)
+| extend ruleAccess = tolower(securityRules.properties.access)
+| extend ruleDestinationAddresses = tolower(iif(array_length(securityRules.properties.destinationAddressPrefixes) > 0,strcat_array(securityRules.properties.destinationAddressPrefixes, ','),securityRules.properties.destinationAddressPrefix))
+| extend ruleSourceAddresses = tolower(iif(array_length(securityRules.properties.sourceAddressPrefixes) > 0,strcat_array(securityRules.properties.sourceAddressPrefixes, ','),securityRules.properties.sourceAddressPrefix))
+| extend ruleDestinationPorts = iif(array_length(securityRules.properties.destinationPortRanges) > 0,strcat_array(securityRules.properties.destinationPortRanges, ','),securityRules.properties.destinationPortRange)
+| extend ruleSourcePorts = iif(array_length(securityRules.properties.sourcePortRanges) > 0,strcat_array(securityRules.properties.sourcePortRanges, ','),securityRules.properties.sourcePortRange)
+| extend ruleId = tolower(securityRules.id)
+| project-away securityRules, properties
+| order by ruleId asc
 "@
 
 do
 {
     if ($resultsSoFar -eq 0)
     {
-        $nics = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $nsgRules = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $nics = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+        $nsgRules = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
     }
-    if ($nics -and $nics.GetType().Name -eq "PSResourceGraphResponse")
+    if ($nsgRules -and $nsgRules.GetType().Name -eq "PSResourceGraphResponse")
     {
-        $nics = $nics.Data
+        $nsgRules = $nsgRules.Data
     }
-    $resultsCount = $nics.Count
+    $resultsCount = $nsgRules.Count
     $resultsSoFar += $resultsCount
-    $nicsTotal += $nics
+    $nsgRulesTotal += $nsgRules
 
 } while ($resultsCount -eq $ARGPageSize)
 
@@ -153,52 +144,43 @@ $datetime = (Get-Date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-Write-Output "Building $($nicsTotal.Count) ARM VNet nic entries"
+Write-Output "Building $($nsgRulesTotal.Count) ARM NSG entries"
 
-foreach ($nic in $nicsTotal)
+foreach ($nsgRule in $nsgRulesTotal)
 {
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $nic.tenantId
-        SubscriptionGuid = $nic.subscriptionId
-        ResourceGroupName = $nic.resourceGroup.ToLower()
-        Location = $nic.location
-        Name = $nic.name.ToLower()
-        InstanceId = $nic.id.ToLower()
-        IsPrimary = $nic.isPrimary
-        EnableAcceleratedNetworking = $nic.enableAcceleratedNetworking
-        EnableIPForwarding = $nic.enableIPForwarding
-        TapConfigurationsCount = $nic.tapConfigurationsCount
-        HostedWorkloadsCount = $nic.hostedWorkloadsCount
-        InternalDomainNameSuffix = $nic.internalDomainNameSuffix
-        AppliedDnsServers = $nic.appliedDnsServers
-        DnsServers = $nic.dnsServers
-        OwnerVMId = $nic.ownerVMId
-        OwnerPEId = $nic.ownerPEId
-        MacAddress = $nic.macAddress
-        NicType = $nic.nicType
-        NicNSGId = $nic.nicNsgId
-        PrivateIPAddressVersion = $nic.privateIPAddressVersion
-        PrivateIPAllocationMethod = $nic.privateIPAllocationMethod
-        IsIPConfigPrimary = $nic.isIPConfigPrimary
-        PrivateIPAddress = $nic.privateIPAddress
-        PublicIPId = $nic.publicIPId
-        IPConfigName = $nic.IPConfigName
-        SubnetId = $nic.subnetId
-        Tags = $nic.tags
+        TenantGuid = $nsgRule.tenantId
+        SubscriptionGuid = $nsgRule.subscriptionId
+        ResourceGroupName = $nsgRule.resourceGroup.ToLower()
+        Location = $nsgRule.location
+        NSGName = $nsgRule.name.ToLower()
+        InstanceId = $nsgRule.id.ToLower()
+        NicCount = $nsgRule.nicCount
+        SubnetCount = $nsgRule.subnetCount
+        RuleName = $nsgRule.ruleName
+        RuleProtocol = $nsgRule.ruleProtocol
+        RuleDirection = $nsgRule.ruleDirection
+        RulePriority = $nsgRule.rulePriority
+        RuleAccess = $nsgRule.ruleAccess
+        RuleDestinationAddresses = $nsgRule.ruleDestinationAddresses
+        RuleSourceAddresses = $nsgRule.ruleSourceAddresses
+        RuleDestinationPorts = $nsgRule.ruleDestinationPorts
+        RuleSourcePorts = $nsgRule.ruleSourcePorts
+        Tags = $nsgRule.tags
         StatusDate = $statusDate
     }
     
-    $allnics += $logentry
+    $allnsgRules += $logentry
 }
 
 Write-Output "Uploading CSV to Storage"
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-nics-$subscriptionSuffix.csv"
+$csvExportPath = "$today-nsgrules-$subscriptionSuffix.csv"
 
-$allnics | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allnsgRules | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 
