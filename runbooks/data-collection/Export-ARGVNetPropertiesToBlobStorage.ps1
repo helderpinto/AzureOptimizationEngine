@@ -208,7 +208,7 @@ $argQuery = @"
     | extend subnetUsedIPs = iif(isnotempty(subnetUsedIPs), subnetUsedIPs, 0)
     | extend subnetTotalPrefixIPs = pow(2, 32 - toint(split(subnetPrefix,'/')[1])) - 5
     | extend enableDdosProtection = 'false'
-    | project vNetId, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName, subnetPrefix, subnetTotalPrefixIPs, subnetUsedIPs, peeringsCount, enableDdosProtection, tags
+    | project vNetId, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName, subnetPrefix, subnetTotalPrefixIPs, subnetUsedIPs, peeringsCount, enableDdosProtection
     | order by vNetId asc
 "@
 
@@ -258,7 +258,6 @@ foreach ($subnet in $subnetsTotal)
         SubnetPrefix = $subnet.subnetPrefix
         SubnetTotalPrefixIPs = $subnet.subnetTotalPrefixIPs
         SubnetUsedIPs = $subnet.subnetUsedIPs
-        Tags = $subnet.tags
         StatusDate = $statusDate
     }
     

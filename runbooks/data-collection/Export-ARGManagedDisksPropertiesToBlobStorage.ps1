@@ -171,6 +171,7 @@ foreach ($disk in $mdisksTotal)
         OwnerVMId = $ownerVmId
         DeploymentModel = "Managed"
         DiskType = $disk.diskType 
+        Zones = $disk.zones
         Caching = $disk.diskCaching 
         DiskSizeGB = $disk.properties.diskSizeGB
         SKU = $disk.sku.name

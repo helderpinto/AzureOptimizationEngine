@@ -108,7 +108,7 @@ resources
 | extend probesCount = array_length(properties.probes)
 | extend rewriteRulesCount = array_length(properties.rewriteRuleSets)
 | extend redirectConfsCount = array_length(properties.redirectConfigurations)
-| project id, name, resourceGroup, subscriptionId, tenantId, location, skuName = properties.sku.name, skuTier = properties.sku.tier, skuCapacity = properties.sku.capacity, enableHttp2 = properties.enableHttp2, gatewayIPsCount, frontendIPsCount, frontendPortsCount, httpSettingsCount, httpListenersCount, backendPoolsCount, urlPathMapsCount, requestRoutingRulesCount, probesCount, rewriteRulesCount, redirectConfsCount, tags
+| project id, name, resourceGroup, subscriptionId, tenantId, location, zones, skuName = properties.sku.name, skuTier = properties.sku.tier, skuCapacity = properties.sku.capacity, enableHttp2 = properties.enableHttp2, gatewayIPsCount, frontendIPsCount, frontendPortsCount, httpSettingsCount, httpListenersCount, backendPoolsCount, urlPathMapsCount, requestRoutingRulesCount, probesCount, rewriteRulesCount, redirectConfsCount, tags
 | join kind=leftouter (
 	resources
 	| where type =~ 'Microsoft.Network/applicationGateways'
@@ -164,6 +164,7 @@ foreach ($appGW in $appGWsTotal)
         SkuTier = $appGW.skuTier
         SkuCapacity = $appGW.skuCapacity
         Location = $appGW.location
+        Zones = $appGW.zones
         EnableHttp2 = $appGW.enableHttp2
         GatewayIPsCount = $appGW.gatewayIPsCount
         FrontendIPsCount = $appGW.frontendIPsCount
