@@ -31,6 +31,12 @@
             "description": "Underused SQL Databases (performance capacity waste)"
         },
         {
+            "category": "Cost",
+            "typeId": "3125883f-8b9f-4bde-a0ff-6c739858c6e1",
+            "impact": "Low",
+            "description": "Orphaned Public IP (without owner resource) incur in unnecessary costs"
+        },
+        {
             "category": "HighAvailability",
             "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
             "impact": "High",
@@ -83,6 +89,24 @@
             "typeId": "ecd969c8-3f16-481a-9577-5ed32e5e1a1d",
             "impact": "Medium",
             "description": "Azure AD application with credentials expiration not set or too far in time"
+        },
+        {
+            "category": "Security",
+            "typeId": "b5491cde-f76c-4423-8c4c-89e3558ff2f2",
+            "impact": "Medium",
+            "description": "NSG rules referring to empty or inexisting subnets"
+        },
+        {
+            "category": "Security",
+            "typeId": "3dc1d1f8-19ef-4572-9c9d-78d62831f55a",
+            "impact": "Medium",
+            "description": "NSG rules referring to orphan or inexisting NICs"
+        },
+        {
+            "category": "Security",
+            "typeId": "fe40cbe7-bdee-4cce-b072-cf25e1247b7a",
+            "impact": "High",
+            "description": "NSG rules referring to orphan or inexisting Public IPs"
         },
         {
             "category": "OperationalExcellence",

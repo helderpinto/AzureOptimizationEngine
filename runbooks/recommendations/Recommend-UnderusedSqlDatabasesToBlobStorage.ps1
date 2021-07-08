@@ -164,6 +164,7 @@ $baseQuery = @"
         $consumptionTableName
         | where UsageDate_t between (stime..etime)
         | extend ResourceId = InstanceId_s
+        | project ResourceId, Cost_s, UsageDate_t
     ) on ResourceId
     | summarize Last30DaysCost=sum(todouble(Cost_s)) by DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s, P99DTUPercentage
     | join kind=leftouter ( 

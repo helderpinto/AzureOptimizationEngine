@@ -541,7 +541,7 @@
             },
             {
                 "name": "[variables('unattachedDisksRecommendationsRunbookName')]",
-                "version": "2.4.2.0",
+                "version": "2.4.3.0",
                 "description": "Generates unattached disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -632,14 +632,14 @@
             },
             {
                 "name": "[variables('unusedLBsRecommendationsRunbookName')]",
-                "version": "1.2.3.0",
+                "version": "1.2.4.0",
                 "description": "Generates unused Load Balancers recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unusedLBsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unusedAppGWsRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
+                "version": "1.2.3.0",
                 "description": "Generates unused Application Gateways recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unusedAppGWsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
