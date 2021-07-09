@@ -192,8 +192,16 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
     $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/users"
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/users"
 
     $additionalInfoDictionary = @{}
 
@@ -290,7 +298,15 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-    $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/blade/Microsoft_Azure_ManagementGroups/ManagementGroupBrowseBlade/MGBrowse_overview"
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/blade/Microsoft_Azure_ManagementGroups/ManagementGroupBrowseBlade/MGBrowse_overview"
 
     $additionalInfoDictionary = @{}
 

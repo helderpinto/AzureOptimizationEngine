@@ -183,8 +183,16 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
     $queryInstanceId = $result.ApplicationId_g
-    $detailsURL = "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Credentials/appId/$queryInstanceId"
+    $detailsURL = "https://portal.azure.$azureTld/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Credentials/appId/$queryInstanceId"
 
     $additionalInfoDictionary = @{}
 
@@ -281,8 +289,16 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
     $queryInstanceId = $result.ApplicationId_g
-    $detailsURL = "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Credentials/appId/$queryInstanceId"
+    $detailsURL = "https://portal.azure.$azureTld/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Credentials/appId/$queryInstanceId"
 
     $additionalInfoDictionary = @{}
 
