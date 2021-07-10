@@ -252,32 +252,11 @@
                 "description": "GUID for the Advisor General Recommendations Generation job schedule creation - create a unique before deploy"
             }
         },
-        "unmanagedDisksRecommendationJobId": {
+        "vmsHaRecommendationJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
             "metadata": {
-                "description": "GUID for the Unmanaged Disks Recommendation Generation job schedule creation - create a unique before deploy"
-            }
-        },
-        "availSetsLowFaultDomainRecommendationJobId": {
-            "type": "string",
-            "defaultValue": "[newGuid()]",
-            "metadata": {
-                "description": "GUID for the Availability Sets with Low Fault Domains Recommendation Generation job schedule creation - create a unique before deploy"
-            }
-        },
-        "availSetsLowUpdateDomainRecommendationJobId": {
-            "type": "string",
-            "defaultValue": "[newGuid()]",
-            "metadata": {
-                "description": "GUID for the Availability Sets with Low Update Domains Recommendation Generation job schedule creation - create a unique before deploy"
-            }
-        },
-        "availSetsSharingStorageRecommendationJobId": {
-            "type": "string",
-            "defaultValue": "[newGuid()]",
-            "metadata": {
-                "description": "GUID for the Availability Sets with VMs Sharing Storage Recommendation Generation job schedule creation - create a unique before deploy"
+                "description": "GUID for the VMs High Availability Recommendation Generation job schedule creation - create a unique before deploy"
             }
         },
         "longDeallocatedVmsRecommendationJobId": {
@@ -285,34 +264,6 @@
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the Long Deallocated VMs Recommendation Generation job schedule creation - create a unique before deploy"
-            }
-        },
-        "storageAccountsMultipleVmsRecommendationJobId": {
-            "type": "string",
-            "defaultValue": "[newGuid()]",
-            "metadata": {
-                "description": "GUID for the Storage Accounts with Multiple VMs Recommendation Generation job schedule creation - create a unique before deploy"
-            }
-        },
-        "vmsNoAvailSetRecommendationJobId": {
-            "type": "string",
-            "defaultValue": "[newGuid()]",
-            "metadata": {
-                "description": "GUID for the VMs without Availability Set Recommendation Generation job schedule creation - create a unique before deploy"
-            }
-        },
-        "vmsSingleInAvailSetRecommendationJobId": {
-            "type": "string",
-            "defaultValue": "[newGuid()]",
-            "metadata": {
-                "description": "GUID for the VMs single in Availability Set Recommendation Generation job schedule creation - create a unique before deploy"
-            }
-        },
-        "vmsDisksMultipleStorageRecommendationJobId": {
-            "type": "string",
-            "defaultValue": "[newGuid()]",
-            "metadata": {
-                "description": "GUID for the VMs with Disks in Multiple Storage Accounts Recommendation Generation job schedule creation - create a unique before deploy"
             }
         },
         "aadExpiringCredsRecommendationJobId": {
@@ -373,15 +324,8 @@
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
         "advisorAsIsRecommendationsRunbookName": "Recommend-AdvisorAsIsToBlobStorage",
-        "unmanagedDisksRecommendationsRunbookName": "Recommend-VMsWithUnmanagedDisksToBlobStorage",
-        "availSetsLowFaultDomainRecommendationsRunbookName": "Recommend-AvailSetsWithLowFaultDomainCountToBlobStorage",
-        "availSetsLowUpdateDomainRecommendationsRunbookName": "Recommend-AvailSetsWithLowUpdateDomainCountToBlobStorage",
-        "availSetsSharingStorageRecommendationsRunbookName": "Recommend-AvailSetsWithVMsSharingStorageAccountsToBlobStorage",
+        "vmsHARecommendationsRunbookName": "Recommend-VMsHighAvailabilityToBlobStorage",
         "longDeallocatedVmsRecommendationsRunbookName": "Recommend-LongDeallocatedVmsToBlobStorage",
-        "storageAccountsMultipleVmsRecommendationsRunbookName": "Recommend-StorageAccountsWithMultipleVMsToBlobStorage",
-        "vmsNoAvailSetRecommendationsRunbookName": "Recommend-VMsNoAvailSetToBlobStorage",
-        "vmsSingleInAvailSetRecommendationsRunbookName": "Recommend-VMsSingleInAvailSetToBlobStorage",
-        "vmsDisksMultipleStorageRecommendationsRunbookName": "Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage",
         "aadExpiringCredsRecommendationsRunbookName": "Recommend-AADExpiringCredentialsToBlobStorage",
         "unusedLBsRecommendationsRunbookName": "Recommend-UnusedLoadBalancersToBlobStorage",
         "unusedAppGWsRecommendationsRunbookName": "Recommend-UnusedAppGWsToBlobStorage",
@@ -541,105 +485,56 @@
             },
             {
                 "name": "[variables('unattachedDisksRecommendationsRunbookName')]",
-                "version": "2.4.3.0",
+                "version": "2.4.4.0",
                 "description": "Generates unattached disks recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unattachedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                "version": "2.8.2.0",
+                "version": "2.8.3.0",
                 "description": "Generates augmented Advisor Cost recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('advisorAsIsRecommendationsRunbookName')]",
-                "version": "1.5.2.0",
+                "version": "1.5.3.0",
                 "description": "Generates all types of Advisor recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorAsIsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
-                "name": "[variables('unmanagedDisksRecommendationsRunbookName')]",
-                "version": "1.5.2.0",
-                "description": "Generates unmanaged disks recommendations",
+                "name": "[variables('vmsHARecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates VMs High Availability recommendations",
                 "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unmanagedDisksRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "[variables('availSetsLowFaultDomainRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
-                "description": "Generates low fault domain Availability Set recommendations",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsLowFaultDomainRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "[variables('availSetsLowUpdateDomainRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
-                "description": "Generates low update domain Availability Set recommendations",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsLowUpdateDomainRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "[variables('availSetsSharingStorageRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
-                "description": "Generates Availability Set VMs sharing storage recommendations",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('availSetsSharingStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsHARecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('longDeallocatedVmsRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
+                "version": "1.2.3.0",
                 "description": "Generates long deallocated VMs recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('longDeallocatedVmsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
-                "name": "[variables('storageAccountsMultipleVmsRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
-                "description": "Generates storage accounts with multiple VMs recommendations",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('storageAccountsMultipleVmsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "[variables('vmsNoAvailSetRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
-                "description": "Generates VMs without Availability Set recommendations",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsNoAvailSetRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "[variables('vmsSingleInAvailSetRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
-                "description": "Generates VMs single in Availability Set recommendations",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsSingleInAvailSetRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
-            },
-            {
-                "name": "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]",
-                "version": "1.2.2.0",
-                "description": "Generates VMs with disks in multiple storage accounts recommendations",
-                "type": "PowerShell",
-                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmsDisksMultipleStorageRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
-            },
-            {
                 "name": "[variables('aadExpiringCredsRecommendationsRunbookName')]",
-                "version": "1.1.7.0",
+                "version": "1.1.8.0",
                 "description": "Generates AAD Objects with expiring credentials recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('aadExpiringCredsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unusedLBsRecommendationsRunbookName')]",
-                "version": "1.2.4.0",
+                "version": "1.2.5.0",
                 "description": "Generates unused Load Balancers recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unusedLBsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('unusedAppGWsRecommendationsRunbookName')]",
-                "version": "1.2.3.0",
+                "version": "1.2.4.0",
                 "description": "Generates unused Application Gateways recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unusedAppGWsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -2261,9 +2156,9 @@
                 }
             }
         },
-        // Automation Unmanaged Disks Recommendations Generation Job Schedule
+        // Automation VMs HA Recommendations Generation Job Schedule
         {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('unmanagedDisksRecommendationJobId'))]",
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('vmsHaRecommendationJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
@@ -2271,77 +2166,14 @@
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
                 "[variables('recommendationsScheduleName')]",
                 "modulesLoop",
-                "[variables('unmanagedDisksRecommendationsRunbookName')]"
+                "[variables('vmsHARecommendationsRunbookName')]"
             ],
             "properties": {
                 "schedule": {
                     "name": "[variables('recommendationsScheduleName')]"
                 },
                 "runbook": {
-                    "name": "[variables('unmanagedDisksRecommendationsRunbookName')]"
-                }
-            }
-        },
-        // Automation Availability Set Low Fault Domain Recommendations Generation Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('availSetsLowFaultDomainRecommendationJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('recommendationsScheduleName')]",
-                "modulesLoop",
-                "[variables('availSetsLowFaultDomainRecommendationsRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('recommendationsScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('availSetsLowFaultDomainRecommendationsRunbookName')]"
-                }
-            }
-        },
-        // Automation Availability Set Low Update Domain Recommendations Generation Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('availSetsLowUpdateDomainRecommendationJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('recommendationsScheduleName')]",
-                "modulesLoop",
-                "[variables('availSetsLowUpdateDomainRecommendationsRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('recommendationsScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('availSetsLowUpdateDomainRecommendationsRunbookName')]"
-                }
-            }
-        },
-        // Automation Availability Sets with VMs Sharing Storage Recommendations Generation Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('availSetsSharingStorageRecommendationJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('recommendationsScheduleName')]",
-                "modulesLoop",
-                "[variables('availSetsSharingStorageRecommendationsRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('recommendationsScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('availSetsSharingStorageRecommendationsRunbookName')]"
+                    "name": "[variables('vmsHARecommendationsRunbookName')]"
                 }
             }
         },
@@ -2363,90 +2195,6 @@
                 },
                 "runbook": {
                     "name": "[variables('longDeallocatedVmsRecommendationsRunbookName')]"
-                }
-            }
-        },
-        // Automation Storage Accounts with Multiple VMs Recommendations Generation Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('storageAccountsMultipleVmsRecommendationJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('recommendationsScheduleName')]",
-                "modulesLoop",
-                "[variables('storageAccountsMultipleVmsRecommendationsRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('recommendationsScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('storageAccountsMultipleVmsRecommendationsRunbookName')]"
-                }
-            }
-        },
-        // Automation VMs with no Availability Set Recommendations Generation Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('vmsNoAvailSetRecommendationJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('recommendationsScheduleName')]",
-                "modulesLoop",
-                "[variables('vmsNoAvailSetRecommendationsRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('recommendationsScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('vmsNoAvailSetRecommendationsRunbookName')]"
-                }
-            }
-        },
-        // Automation VMs single in Availability Set Recommendations Generation Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('vmsSingleInAvailSetRecommendationJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('recommendationsScheduleName')]",
-                "modulesLoop",
-                "[variables('vmsSingleInAvailSetRecommendationsRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('recommendationsScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('vmsSingleInAvailSetRecommendationsRunbookName')]"
-                }
-            }
-        },
-        // Automation VMs with Disks in Multiple Storage Accounts Recommendations Generation Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('vmsDisksMultipleStorageRecommendationJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('recommendationsScheduleName')]",
-                "modulesLoop",
-                "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('recommendationsScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('vmsDisksMultipleStorageRecommendationsRunbookName')]"
                 }
             }
         },
