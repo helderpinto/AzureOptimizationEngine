@@ -260,24 +260,6 @@
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
         },
         {
-            "runbook": "runbooks/recommendations/Recommend-AvailSetsWithLowFaultDomainCountToBlobStorage.ps1",
-            "requiredVariables": [
-            ],
-            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
-        },
-        {
-            "runbook": "runbooks/recommendations/Recommend-AvailSetsWithLowUpdateDomainCountToBlobStorage.ps1",
-            "requiredVariables": [
-            ],
-            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
-        },
-        {
-            "runbook": "runbooks/recommendations/Recommend-AvailSetsWithVMsSharingStorageAccountsToBlobStorage.ps1",
-            "requiredVariables": [
-            ],
-            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
-        },
-        {
             "runbook": "runbooks/recommendations/Recommend-LongDeallocatedVmsToBlobStorage.ps1",
             "requiredVariables": [
                 {
@@ -288,12 +270,6 @@
                     "name": "AzureOptimization_ConsumptionOffsetDays",
                     "defaultValue": 7
                 }
-            ],
-            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
-        },
-        {
-            "runbook": "runbooks/recommendations/Recommend-StorageAccountsWithMultipleVMsToBlobStorage.ps1",
-            "requiredVariables": [
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
         },
@@ -328,25 +304,7 @@
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
         },
         {
-            "runbook": "runbooks/recommendations/Recommend-VMsNoAvailSetToBlobStorage.ps1",
-            "requiredVariables": [
-            ],
-            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
-        },
-        {
-            "runbook": "runbooks/recommendations/Recommend-VMsSingleInAvailSetToBlobStorage.ps1",
-            "requiredVariables": [
-            ],
-            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
-        },
-        {
-            "runbook": "runbooks/recommendations/Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage.ps1",
-            "requiredVariables": [
-            ],
-            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
-        },
-        {
-            "runbook": "runbooks/recommendations/Recommend-VMsWithUnmanagedDisksToBlobStorage.ps1",
+            "runbook": "runbooks/recommendations/Recommend-VMsHighAvailabilityToBlobStorage.ps1",
             "requiredVariables": [
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

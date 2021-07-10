@@ -946,8 +946,13 @@ if ("Y", "y" -contains $continueInput) {
     {
         $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
         Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
-        New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
-            -workbookSourceId $la.ResourceId | Out-Null        
+        try {
+            New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
+                -workbookSourceId $la.ResourceId | Out-Null        
+        }
+        catch {
+            Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+        }
     }
 
     try
