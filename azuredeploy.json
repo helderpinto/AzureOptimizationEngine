@@ -231,6 +231,34 @@
                 "description": "GUID for the RBAC Ingest job schedule creation - create a unique before deploy"
             }
         },
+        "argNICIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the NIC Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argNSGIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the NSG Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argPublicIPIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Public IP Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argVNetIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the VNet Ingest job schedule creation - create a unique before deploy"
+            }
+        },
         "unattachedDisksRecommendationJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -296,19 +324,121 @@
         }
     },
     "variables": {
-        "advisorContainerName": "advisorexports",
-        "argVmContainerName": "argvmexports",
-        "argDiskContainerName": "argdiskexports",
-        "argVhdContainerName": "argvhdexports",
-        "argAvailSetContainerName": "argavailsetexports",
-        "consumptionContainerName": "consumptionexports",
+        "exportContainers": [
+            {
+                "containerName": "advisorexports",
+                "variableName": "AzureOptimization_AdvisorContainer",
+                "variableDescription": "The Storage Account container where Azure Advisor exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestAdvisorWeekly",
+                "ingestJobId": "[parameters('advisorIngestJobId')]"
+            },
+            {
+                "containerName": "argvmexports",
+                "variableName": "AzureOptimization_ARGVMContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGVMsDaily",
+                "ingestJobId": "[parameters('argVmIngestJobId')]"
+            },
+            {
+                "containerName": "argdiskexports",
+                "variableName": "AzureOptimization_ARGDiskContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGDisksDaily",
+                "ingestJobId": "[parameters('argDiskIngestJobId')]"
+            },
+            {
+                "containerName": "argvhdexports",
+                "variableName": "AzureOptimization_ARGVhdContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Unmanaged Disks exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGVHDsDaily",
+                "ingestJobId": "[parameters('argVhdIngestJobId')]"
+            },
+            {
+                "containerName": "argavailsetexports",
+                "variableName": "AzureOptimization_ARGAvailabilitySetContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Availability Set exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGAvailSetsDaily",
+                "ingestJobId": "[parameters('argAvailSetIngestJobId')]"
+            },
+            {
+                "containerName": "consumptionexports",
+                "variableName": "AzureOptimization_ConsumptionContainer",
+                "variableDescription": "The Storage Account container where Azure Consumption exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestConsumptionDaily",
+                "ingestJobId": "[parameters('consumptionIngestJobId')]"
+            },
+            {
+                "containerName": "aadobjectsexports",
+                "variableName": "AzureOptimization_AADObjectsContainer",
+                "variableDescription": "The Storage Account container where Azure AD Objects exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestAADObjectsDaily",
+                "ingestJobId": "[parameters('aadObjectsIngestJobId')]"
+            },
+            {
+                "containerName": "arglbexports",
+                "variableName": "AzureOptimization_ARGLoadBalancerContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Load Balancer exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGLoadBalancersDaily",
+                "ingestJobId": "[parameters('argLoadBalancersIngestJobId')]"
+            },
+            {
+                "containerName": "argappgwexports",
+                "variableName": "AzureOptimization_ARGAppGatewayContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Application Gateway exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGAppGWsDaily",
+                "ingestJobId": "[parameters('argAppGWsIngestJobId')]"
+            },
+            {
+                "containerName": "argrescontainersexports",
+                "variableName": "AzureOptimization_ARGResourceContainersContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Resource Containers exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGResourceContainersDaily",
+                "ingestJobId": "[parameters('argResContainersIngestJobId')]"
+            },
+            {
+                "containerName": "rbacexports",
+                "variableName": "AzureOptimization_RBACAssignmentsContainer",
+                "variableDescription": "The Storage Account container where RBAC Assignments exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestRBACDaily",
+                "ingestJobId": "[parameters('rbacIngestJobId')]"
+            },
+            {
+                "containerName": "argnicexports",
+                "variableName": "AzureOptimization_ARGNICContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph NIC exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGNICsDaily",
+                "ingestJobId": "[parameters('argNICIngestJobId')]"
+            },
+            {
+                "containerName": "argnsgexports",
+                "variableName": "AzureOptimization_ARGNSGContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph NSG exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGNSGsDaily",
+                "ingestJobId": "[parameters('argNSGIngestJobId')]"
+            },
+            {
+                "containerName": "argvnetexports",
+                "variableName": "AzureOptimization_ARGVNetContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph VNet exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGVNetsDaily",
+                "ingestJobId": "[parameters('argVNetIngestJobId')]"
+            },
+            {
+                "containerName": "argpublicipexports",
+                "variableName": "AzureOptimization_ARGPublicIpContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph Public IP exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGPublicIPsDaily",
+                "ingestJobId": "[parameters('argPublicIPIngestJobId')]"
+            },
+            {
+                "containerName": "remediationlogs",
+                "variableName": "AzureOptimization_RemediationLogsContainer",
+                "variableDescription": "The Storage Account container where remediation logs are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestRemediationLogsDaily",
+                "ingestJobId": "[parameters('remediationLogsIngestJobId')]"
+            }
+        ],
         "recommendationsContainerName": "recommendationsexports",
-        "aadObjectsContainerName": "aadobjectsexports",
-        "argLBsContainerName": "arglbexports",
-        "argAppGWsContainerName": "argappgwexports",
-        "argResContainersContainerName": "argrescontainersexports",
-        "rbacContainerName": "rbacexports",
-        "remediationLogsContainerName": "remediationlogs",
         "advisorExportsRunbookName": "Export-AdvisorRecommendationsToBlobStorage",
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
@@ -320,6 +450,10 @@
         "argAppGWsExportsRunbookName": "Export-ARGAppGatewayPropertiesToBlobStorage",
         "argResContainersExportsRunbookName": "Export-ARGResourceContainersPropertiesToBlobStorage",
         "rbacExportsRunbookName": "Export-RBACAssignmentsToBlobStorage",
+        "argNICExportsRunbookName": "Export-ARGNICPropertiesToBlobStorage",
+        "argNSGExportsRunbookName": "Export-ARGNSGPropertiesToBlobStorage",
+        "argVNetExportsRunbookName": "Export-ARGVNetPropertiesToBlobStorage",
+        "argPublicIpExportsRunbookName": "Export-ARGPublicIpPropertiesToBlobStorage",
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "unattachedDisksRecommendationsRunbookName": "Recommend-UnattachedDisksToBlobStorage",
         "advisorCostAugmentedRecommendationsRunbookName": "Recommend-AdvisorCostAugmentedToBlobStorage",
@@ -329,6 +463,8 @@
         "aadExpiringCredsRecommendationsRunbookName": "Recommend-AADExpiringCredentialsToBlobStorage",
         "unusedLBsRecommendationsRunbookName": "Recommend-UnusedLoadBalancersToBlobStorage",
         "unusedAppGWsRecommendationsRunbookName": "Recommend-UnusedAppGWsToBlobStorage",
+        "armOptimizationsRecommendationsRunbookName": "Recommend-ARMOptimizationsToBlobStorage",
+        "vnetOptimizationsRecommendationsRunbookName": "Recommend-VNetOptimizationsToBlobStorage",
         "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
         "advisorRightSizeFilteredRemediationRunbookName": "Remediate-AdvisorRightSizeFiltered",
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
@@ -347,6 +483,10 @@
         "argAppGWsIngestScheduleName": "AzureOptimization_IngestARGAppGWsDaily",
         "argResContainersIngestScheduleName": "AzureOptimization_IngestARGResourceContainersDaily",
         "rbacIngestScheduleName": "AzureOptimization_IngestRBACDaily",
+        "argNICsIngestScheduleName": "AzureOptimization_IngestARGNICsDaily",
+        "argNSGsIngestScheduleName": "AzureOptimization_IngestARGNSGsDaily",
+        "argPublicIPsIngestScheduleName": "AzureOptimization_IngestARGPublicIPsDaily",
+        "argVNetsIngestScheduleName": "AzureOptimization_IngestARGVNetsDaily",
         "advisorIngestScheduleName": "AzureOptimization_IngestAdvisorWeekly",
         "recommendationsScheduleName": "AzureOptimization_RecommendationsWeekly",
         "recommendationsIngestScheduleName": "AzureOptimization_IngestRecommendationsWeekly",
@@ -358,7 +498,7 @@
         },
         "Az.Accounts": {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.3.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.1"
         },
         "psModules": [
             {
@@ -371,7 +511,7 @@
             },
             {
                 "name": "Az.Compute",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.13.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.15.0"
             },
             {
                 "name": "Az.OperationalInsights",
@@ -379,19 +519,19 @@
             },
             {
                 "name": "Az.ResourceGraph",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.10.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.11.0"
             },
             {
                 "name": "Az.Storage",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.7.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.9.0"
             },
             {
                 "name": "Az.Resources",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.1.1"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.2.0"
             },
             {
                 "name": "Az.Monitor",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.5.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.6.0"
             },
             {
                 "name": "AzureADPreview",
@@ -477,6 +617,34 @@
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('rbacExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
+                "name": "[variables('argNICExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports NIC properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argNICExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argNSGExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports NSG properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argNSGExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argPublicIpExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Public IP properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argPublicIpExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argVNetExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports VNet properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVNetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
                 "name": "[variables('csvIngestRunbookName')]",
                 "version": "1.4.3.0",
                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
@@ -540,6 +708,20 @@
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unusedAppGWsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
+                "name": "[variables('armOptimizationsRecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates ARM optimizations recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('armOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('vnetOptimizationsRecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates Virtual Network optimizations recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vnetOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
                 "name": "[variables('recommendationsIngestRunbookName')]",
                 "version": "1.6.1.0",
                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
@@ -581,74 +763,9 @@
                 "value": "[concat('\"',subscription().subscriptionId,'\"')]"
             },
             {
-                "name": "AzureOptimization_AdvisorContainer",
-                "description": "The Storage Account container where Azure Advisor exports are dumped to",
-                "value": "[concat('\"',variables('advisorContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ARGDiskContainer",
-                "description": "The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to",
-                "value": "[concat('\"',variables('argDiskContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ARGVhdContainer",
-                "description": "The Storage Account container where Azure Resource Graph Unmanaged Disks exports are dumped to",
-                "value": "[concat('\"',variables('argVhdContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ARGVMContainer",
-                "description": "The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to",
-                "value": "[concat('\"',variables('argVmContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ARGAvailabilitySetContainer",
-                "description": "The Storage Account container where Azure Resource Graph Availability Set exports are dumped to",
-                "value": "[concat('\"',variables('argAvailSetContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ConsumptionContainer",
-                "description": "The Storage Account container where Azure Consumption exports are dumped to",
-                "value": "[concat('\"',variables('consumptionContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_AADObjectsContainer",
-                "description": "The Storage Account container where Azure AD Objects exports are dumped to",
-                "value": "[concat('\"',variables('aadObjectsContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ARGLoadBalancerContainer",
-                "description": "The Storage Account container where Azure Resource Graph Load Balancer exports are dumped to",
-                "value": "[concat('\"',variables('argLBsContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ARGAppGatewayContainer",
-                "description": "The Storage Account container where Azure Resource Graph Application Gateway exports are dumped to",
-                "value": "[concat('\"',variables('argAppGWsContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_ARGResourceContainersContainer",
-                "description": "The Storage Account container where Azure Resource Graph Resource Containers exports are dumped to",
-                "value": "[concat('\"',variables('argResContainersContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_RBACAssignmentsContainer",
-                "description": "The Storage Account container where RBAC Assignments exports are dumped to",
-                "value": "[concat('\"',variables('rbacContainerName'),'\"')]"
-            },
-            {
                 "name": "AzureOptimization_ConsumptionOffsetDays",
                 "description": "The offset (in days) for querying for consumption data",
                 "value": 7
-            },
-            {
-                "name": "AzureOptimization_RecommendationsContainer",
-                "description": "The Storage Account container where recommendations are dumped to",
-                "value": "[concat('\"',variables('recommendationsContainerName'),'\"')]"
-            },
-            {
-                "name": "AzureOptimization_RemediationLogsContainer",
-                "description": "The Storage Account container where remediation logs are dumped to",
-                "value": "[concat('\"',variables('remediationLogsContainerName'),'\"')]"
             },
             {
                 "name": "AzureOptimization_AdvisorFilter",
@@ -794,6 +911,26 @@
                 "name": "AzureOptimization_AADObjectsFilter",
                 "description": "The Azure AD object types to export",
                 "value": "[concat('\"','Application,ServicePrincipal,User,Group','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RecommendationRBACAssignmentsPercentageThreshold",
+                "description": "The percentage threshold (used to trigger recommendations) for total RBAC assignments limits",
+                "value": 80
+            },
+            {
+                "name": "AzureOptimization_RecommendationVNetSubnetMaxUsedPercentageThreshold",
+                "description": "The percentage threshold (used to trigger recommendations) for maximum subnet address space usage",
+                "value": 80
+            },
+            {
+                "name": "AzureOptimization_RecommendationVNetSubnetMinUsedPercentageThreshold",
+                "description": "The percentage threshold (used to trigger recommendations) for minimum subnet address space usage",
+                "value": 5
+            },
+            {
+                "name": "AzureOptimization_RecommendationVNetSubnetEmptyMinAgeInDays",
+                "description": "The minimum age (in days) for an empty subnet to trigger an NSG rule recommendation",
+                "value": 30
             }
         ]
     },
@@ -868,150 +1005,24 @@
                 }
             }
         },
-        // Storage Account ARG Disk exports container
+        // Storage Account containers
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argDiskContainerName'))]",
+            "name": "[concat(parameters('storageAccountName'), '/default/', variables('exportContainers')[copyIndex()].containerName)]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
             ],
+            "copy": {
+                "name": "containersLoop",
+                "count": "[length(variables('exportContainers'))]"
+            },
             "properties": {
                 "publicAccess": "None"
             }
         },
-        // Storage Account ARG VHD exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argVhdContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account ARG VM exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argVmContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account ARG Availability Set exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argAvailSetContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account Advisor exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('advisorContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account Consumption exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('consumptionContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account AAD Objects exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('aadObjectsContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account Load Balancer exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argLBsContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account App Gateway exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argAppGWsContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account Resource Containers exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('argResContainersContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account RBAC exports container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('rbacContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
-        // Storage Account Recommendations exports container
+        // Storage Account Recommendations containers
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "[variables('apiVersions').storage]",
@@ -1023,20 +1034,7 @@
             "properties": {
                 "publicAccess": "None"
             }
-        },
-        // Storage Account Remediations logs container
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "[variables('apiVersions').storage]",
-            "name": "[concat(parameters('storageAccountName'), '/default/', variables('remediationLogsContainerName'))]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
-            }
-        },
+        },        
         // Azure SQL Server
         {
             "type": "Microsoft.Sql/servers",
@@ -1192,6 +1190,23 @@
             "properties": {
                 "description": "[variables('automationVariables')[copyIndex()].description]",
                 "value": "[variables('automationVariables')[copyIndex()].value]"
+            }
+        },
+        // Automation Container Variables
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "name": "[concat(parameters('automationAccountName'), '/', variables('exportContainers')[copyIndex()].variableName)]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "copy": {
+                "name": "containerVariableLoop",
+                "count": "[length(variables('exportContainers'))]"
+            },
+            "properties": {
+                "description": "[variables('exportContainers')[copyIndex()].variableDescription]",
+                "value": "[concat('\"',variables('exportContainers')[copyIndex()].containerName,'\"')]"
             }
         },
         // Automation Variables (SQL Server Hostname)
@@ -1523,6 +1538,74 @@
                 "frequency": "Day"
             }
         },
+        // Automation NICs Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argNICsIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily NICs ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
+        // Automation NSGs Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argNSGsIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily NSGs ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
+        // Automation Public IPs Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argPublicIPsIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily Public IPs ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
+        // Automation VNets Ingest Schedule
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('argVNetsIngestScheduleName'))]",
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "description": "Starts the daily VNets ingests",
+                "expiryTime": "9999-12-31T17:59:00-06:00",
+                "isEnabled": true,
+                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT1H30M')]",
+                "interval": 1,
+                "frequency": "Day"
+            }
+        },
         // Automation Advisor Ingest Schedule
         {
             "name": "[concat(parameters('automationAccountName'), '/', variables('advisorIngestScheduleName'))]",
@@ -1805,291 +1888,115 @@
                 }
             }
         },
-        // Automation ARG Disk Ingest Job Schedule
+        // Automation ARG NICs Exports Job Schedule
         {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('argDiskIngestJobId'))]",
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAppGWsExportJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('argDiskIngestScheduleName')]",
+                "[variables('argExportsScheduleName')]",
                 "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
+                "[variables('argNICExportsRunbookName')]"
             ],
             "properties": {
                 "schedule": {
-                    "name": "[variables('argDiskIngestScheduleName')]"
+                    "name": "[variables('argExportsScheduleName')]"
                 },
                 "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('argDiskContainerName')]"
+                    "name": "[variables('argNICExportsRunbookName')]"
                 }
             }
         },
-        // Automation ARG VHD Ingest Job Schedule
+        // Automation ARG NSGs Exports Job Schedule
         {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('argVhdIngestJobId'))]",
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAppGWsExportJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('argVhdIngestScheduleName')]",
+                "[variables('argExportsScheduleName')]",
                 "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
+                "[variables('argNSGExportsRunbookName')]"
             ],
             "properties": {
                 "schedule": {
-                    "name": "[variables('argVhdIngestScheduleName')]"
+                    "name": "[variables('argExportsScheduleName')]"
                 },
                 "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('argVhdContainerName')]"
+                    "name": "[variables('argNSGExportsRunbookName')]"
                 }
             }
         },
-        // Automation ARG VM Ingest Job Schedule
+        // Automation ARG Public IPs Exports Job Schedule
         {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('argVmIngestJobId'))]",
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAppGWsExportJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('argVmIngestScheduleName')]",
+                "[variables('argExportsScheduleName')]",
                 "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
+                "[variables('argPublicIpExportsRunbookName')]"
             ],
             "properties": {
                 "schedule": {
-                    "name": "[variables('argVmIngestScheduleName')]"
+                    "name": "[variables('argExportsScheduleName')]"
                 },
                 "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('argVmContainerName')]"
+                    "name": "[variables('argPublicIpExportsRunbookName')]"
                 }
             }
         },
-        // Automation ARG Availability Set Ingest Job Schedule
+        // Automation ARG VNets Exports Job Schedule
         {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAvailSetIngestJobId'))]",
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAppGWsExportJobId'))]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('argAvailSetIngestScheduleName')]",
+                "[variables('argExportsScheduleName')]",
                 "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
+                "[variables('argVNetExportsRunbookName')]"
             ],
             "properties": {
                 "schedule": {
-                    "name": "[variables('argAvailSetIngestScheduleName')]"
+                    "name": "[variables('argExportsScheduleName')]"
                 },
                 "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('argAvailSetContainerName')]"
+                    "name": "[variables('argVNetExportsRunbookName')]"
                 }
             }
         },
-        // Automation Remediation Logs Ingest Job Schedule
+        // Automation Ingest Job Schedules
         {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('remediationLogsIngestJobId'))]",
+            "name": "[concat(parameters('automationAccountName'), '/', variables('exportContainers')[copyIndex()].ingestJobId)]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('remediationLogsIngestScheduleName')]",
+                "[variables('exportContainers')[copyIndex()].ingestSchedule]",
                 "modulesLoop",
                 "[variables('csvIngestRunbookName')]"
             ],
+            "copy": {
+                "name": "containerIngestJobScheduleLoop",
+                "count": "[length(variables('exportContainers'))]"
+            },
             "properties": {
                 "schedule": {
-                    "name": "[variables('remediationLogsIngestScheduleName')]"
+                    "name": "[variables('exportContainers')[copyIndex()].ingestSchedule]"
                 },
                 "runbook": {
                     "name": "[variables('csvIngestRunbookName')]"
                 },
                 "parameters": {
-                    "StorageSinkContainer": "[variables('remediationLogsContainerName')]"
-                }
-            }
-        },
-        // Automation Consumption Ingest Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('consumptionIngestJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('consumptionIngestScheduleName')]",
-                "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('consumptionIngestScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('consumptionContainerName')]"
-                }
-            }
-        },
-        // Automation AAD Objects Ingest Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('aadObjectsIngestJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('aadObjectsIngestScheduleName')]",
-                "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('aadObjectsIngestScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('aadObjectsContainerName')]"
-                }
-            }
-        },
-        // Automation ARG Load Balancer Ingest Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('argLoadBalancersIngestJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('argLBsIngestScheduleName')]",
-                "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('argLBsIngestScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('argLBsContainerName')]"
-                }
-            }
-        },
-        // Automation ARG App Gateway Ingest Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('argAppGWsIngestJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('argAppGWsIngestScheduleName')]",
-                "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('argAppGWsIngestScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('argAppGWsContainerName')]"
-                }
-            }
-        },
-        // Automation ARG Resource Containers Ingest Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('argResContainersIngestJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('argResContainersIngestScheduleName')]",
-                "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('argResContainersIngestScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('argResContainersContainerName')]"
-                }
-            }
-        },
-        // Automation RBAC Ingest Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('rbacIngestJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('rbacIngestScheduleName')]",
-                "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('rbacIngestScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('rbacContainerName')]"
-                }
-            }
-        },
-        // Automation Advisor Ingest Job Schedule
-        {
-            "name": "[concat(parameters('automationAccountName'), '/', parameters('advisorIngestJobId'))]",
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "[variables('apiVersions').automation]",
-            "location": "[parameters('projectLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
-                "[variables('advisorIngestScheduleName')]",
-                "modulesLoop",
-                "[variables('csvIngestRunbookName')]"
-            ],
-            "properties": {
-                "schedule": {
-                    "name": "[variables('advisorIngestScheduleName')]"
-                },
-                "runbook": {
-                    "name": "[variables('csvIngestRunbookName')]"
-                },
-                "parameters": {
-                    "StorageSinkContainer": "[variables('advisorContainerName')]"
+                    "StorageSinkContainer": "[variables('exportContainers')[copyIndex()].containerName]"
                 }
             }
         },
