@@ -93,6 +93,8 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $cloudEnvironment = $externalCloudEnvironment   
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 Import-Module AzureADPreview
 
 try
@@ -139,10 +141,9 @@ try
 }
 catch
 {
-    Write-Output "Failed Azure AD authentication."
+    Write-Warning "Failed Azure AD authentication."
 }
 
-$tenantId = (Get-AzContext).Tenant.Id
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
