@@ -170,7 +170,13 @@ foreach ($disk in $mdisksTotal)
         Location = $disk.location
         OwnerVMId = $ownerVmId
         DeploymentModel = "Managed"
-        DiskType = $disk.diskType 
+        DiskType = $disk.diskType
+        TimeCreated = $disk.properties.timeCreated 
+        DiskIOPS = $disk.properties.diskIOPSReadWrite 
+        DiskThroughput = $disk.properties.diskMBpsReadWrite
+        DiskTier = $disk.properties.tier
+        DiskState = $disk.properties.diskState
+        EncryptionType = $disk.properties.encryption.type
         Zones = $disk.zones
         Caching = $disk.diskCaching 
         DiskSizeGB = $disk.properties.diskSizeGB
