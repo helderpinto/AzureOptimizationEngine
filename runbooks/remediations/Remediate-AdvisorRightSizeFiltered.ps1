@@ -94,10 +94,10 @@ do {
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
         $Cmd.CommandText = @"
-        SELECT InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags, COUNT(InstanceId)
+        SELECT InstanceId, InstanceName, JSON_VALUE(AdditionalInfo, '`$.currentSku') AS CurrentSKU, JSON_VALUE(AdditionalInfo, '`$.targetSku') AS TargetSKU, ResourceGroup, SubscriptionGuid, Tags, COUNT(InstanceId)
         FROM [dbo].[$recommendationsTable] 
         WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
-        GROUP BY InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags
+        GROUP BY InstanceId, InstanceName, JSON_VALUE(AdditionalInfo, '`$.currentSku'), JSON_VALUE(AdditionalInfo, '`$.targetSku'), ResourceGroup, SubscriptionGuid, Tags
         HAVING COUNT(InstanceId) >= $minWeeksInARow
 "@    
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
@@ -193,7 +193,6 @@ foreach ($vm in $vmsToRightSize.Rows)
         InstanceId = $vm.InstanceId.ToLower()
         Simulate = $Simulate
         LogDetails = $logDetails
-        RecommendationId = $vm.RecommendationId
         RecommendationSubTypeId = $rightSizeRecommendationId
     }
     
