@@ -94,7 +94,7 @@ do {
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
         $Cmd.CommandText = @"
-        SELECT RecommendationId, InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags, COUNT(InstanceId)
+        SELECT InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags, COUNT(InstanceId)
         FROM [dbo].[$recommendationsTable] 
         WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
         GROUP BY InstanceId, InstanceName, AdditionalInfo, ResourceGroup, SubscriptionGuid, Tags

@@ -141,7 +141,11 @@ $baseQuery = @"
     let stime = etime-offlineInterval;
     let BilledVMs = $consumptionTableName 
     | where UsageDate_t between (stime..etime)
-    | where InstanceId_s like 'microsoft.compute/virtualmachines/' 
+    | where InstanceId_s like 'microsoft.compute/virtualmachines/' or InstanceId_s like 'microsoft.classiccompute/virtualmachines/' 
+    | distinct InstanceId_s;
+    let RunningVMs = $vmsTableName
+    | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
+    | where PowerState_s has_any ('running','starting','readyrole')
     | distinct InstanceId_s;
     let BilledDisks = $consumptionTableName 
     | where UsageDate_t between (stime..etime)
@@ -150,6 +154,7 @@ $baseQuery = @"
     | summarize DisksCosts = sum(todouble(Cost_s)) by BillingInstanceId;
     $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
+    | where InstanceId_s !in (RunningVMs)
     | join kind=leftouter (BilledVMs) on InstanceId_s
     | where isempty(InstanceId_s1)
     | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s 
