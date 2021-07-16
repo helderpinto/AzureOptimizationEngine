@@ -30,7 +30,7 @@ $SqlTimeout = 120
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RecommendationsContainer"
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RecommendationsContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "recommendationsexports"
 }
