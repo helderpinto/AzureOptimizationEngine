@@ -122,6 +122,7 @@ read the whole blog series dedicated to this project, starting [here](https://te
 
 ### Requirements
 
+* A supported Azure subscription (see the [FAQs](#faq))
 * Azure Powershell 4.5.0+
 * AzureADPreview PowerShell module
 * A user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)), so that the Automation Run As Account is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
@@ -223,7 +224,7 @@ If some recommendation is not applicable or you want it to be removed from the r
 
 * **Is the AOE supported by Microsoft?** No, the Azure Optimization Engine is not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind. The entire risk arising out of the use or performance of the scripts and documentation remains with you.
 
-* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). It was designed to also operate in the Azure China and US Government clouds, but needs thorough testing to be considered as supported. Azure Internal subscriptions are not supported.
+* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). Although not tested yet, it should also work in MCA and PAYG subscriptions. It was designed to also operate in the Azure China and US Government clouds. Azure Internal (MS-AZR-0015P), Sponsorship (MS-AZR-0036P and MS-AZR-0143P), CSP (MS-AZR-0145P, MS-AZR-0146P, and MS-AZR-159P) and DreamSpark (MS-AZR-0144P) subscriptions are not supported.
 
 * **Why is my report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
 
