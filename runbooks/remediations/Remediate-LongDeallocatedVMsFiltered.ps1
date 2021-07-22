@@ -33,26 +33,23 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "remediationlogs"
 }
 
-$minFitScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinFitScore" -ErrorAction SilentlyContinue)
-if (-not($minFitScore -gt 0.0)) {
-    $minFitScore = 5.0
-}
+$minFitScore = 5.0
 
-$minWeeksInARow = [int] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinWeeksInARow" -ErrorAction SilentlyContinue)
+$minWeeksInARow = [int] (Get-AutomationVariable -Name  "AzureOptimization_RemediateLongDeallocatedVMsMinWeeksInARow" -ErrorAction SilentlyContinue)
 if (-not($minWeeksInARow -gt 0)) {
     $minWeeksInARow = 4
 }
 
-$tagsFilter = Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeTagsFilter" -ErrorAction SilentlyContinue
+$tagsFilter = Get-AutomationVariable -Name  "AzureOptimization_RemediateLongDeallocatedVMsTagsFilter" -ErrorAction SilentlyContinue
 # example: '[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]'
 if (-not($tagsFilter)) {
     $tagsFilter = '{}'
 }
 $tagsFilter = $tagsFilter | ConvertFrom-Json
 
-$rightSizeRecommendationId = Get-AutomationVariable -Name  "AzureOptimization_RecommendationAdvisorCostRightSizeId" -ErrorAction SilentlyContinue
-if (-not($rightSizeRecommendationId)) {
-    $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
+$recommendationId = Get-AutomationVariable -Name  "AzureOptimization_RecommendationLongDeallocatedVMsId" -ErrorAction SilentlyContinue
+if (-not($recommendationId)) {
+    $recommendationId = 'c320b790-2e58-452a-aa63-7b62c383ad8a'
 }
 
 $SqlTimeout = 120
@@ -93,11 +90,23 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
+
+        <#
+
+        SELECT InstanceId, COUNT(InstanceId) as RecCount
+FROM [dbo].[Recommendations]
+WHERE RecommendationSubTypeId = 'c320b790-2e58-452a-aa63-7b62c383ad8a' AND FitScore >= 4 AND GeneratedDate >= GETDATE()-(5*7)-- AND SubscriptionGuid IN ('6cb52f26-4370-4d50-afa5-b47282f84704','e054c9f5-d781-4a83-a835-2296004b9fe6','e1c0fd01-ecae-4ae5-ae72-3f70db6ec72f')
+GROUP BY InstanceId
+HAVING COUNT(InstanceId) >= 5
+ORDER BY RecCount DESC
+
+        #>
+
         $Cmd.CommandText = @"
-        SELECT InstanceId, Cloud, TenantGuid, JSON_VALUE(AdditionalInfo, '`$.currentSku') AS CurrentSKU, JSON_VALUE(AdditionalInfo, '`$.targetSku') AS TargetSKU, COUNT(InstanceId)
+        SELECT InstanceId, Cloud, TenantGuid, COUNT(InstanceId)
         FROM [dbo].[$recommendationsTable] 
-        WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
-        GROUP BY InstanceId, Cloud, TenantGuid, JSON_VALUE(AdditionalInfo, '`$.currentSku'), JSON_VALUE(AdditionalInfo, '`$.targetSku')
+        WHERE RecommendationSubTypeId = '$recommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
+        GROUP BY InstanceId, Cloud, TenantGuid
         HAVING COUNT(InstanceId) >= $minWeeksInARow
 "@    
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
@@ -195,7 +204,7 @@ foreach ($vm in $vmsToRightSize.Rows)
         InstanceId = $vm.InstanceId.ToLower()
         Simulate = $Simulate
         LogDetails = $logDetails | ConvertTo-Json
-        RecommendationSubTypeId = $rightSizeRecommendationId
+        RecommendationSubTypeId = $recommendationId
     }
     
     $logEntries += $logentry
