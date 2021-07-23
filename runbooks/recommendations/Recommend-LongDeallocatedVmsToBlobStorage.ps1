@@ -157,6 +157,7 @@ $baseQuery = @"
     | where InstanceId_s !in (RunningVMs)
     | join kind=leftouter (BilledVMs) on InstanceId_s
     | where isempty(InstanceId_s1)
+    | extend VMName_s = iif(isnotempty(VMName_s),VMName_s,VMName_g)
     | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s 
     | join kind=leftouter (
         $disksTableName 
