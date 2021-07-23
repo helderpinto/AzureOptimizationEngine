@@ -174,7 +174,7 @@ foreach ($vm in $vmsToRightSize.Rows)
     
     if ($isVmEligible)
     {
-        Write-Output "Downsizing (SIMULATE=$Simulate) $($vm.InstanceId) to $($vm.TargetSKU)..."
+        Write-Output "Downsizing (SIMULATE=$Simulate) $($vm.InstanceId) disks Standard_LRS..."
         if (-not($Simulate) -and $ctx.Environment.Name -eq $vm.Cloud -and $ctx.Tenant.Id -eq $vm.TenantGuid)
         {
             if ($ctx.Subscription.Id -ne $subscriptionId)
@@ -182,16 +182,51 @@ foreach ($vm in $vmsToRightSize.Rows)
                 Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
                 $ctx = Get-AzContext
             }
-            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName
-            $vmObj.HardwareProfile.VmSize = $vm.TargetSKU
-            Update-AzVM -VM $vmObj -ResourceGroupName $resourceGroup
+            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName -Status
+            if ($vmObj.PowerState -eq 'VM deallocated')
+            {
+                $osDiskId = $vmObj.StorageProfile.OsDisk.ManagedDisk.Id
+                $dataDiskIds = $vmObj.StorageProfile.DataDisks.ManagedDisk.Id
+                if ($osDiskId)
+                {
+                    $disk = Get-AzDisk -ResourceGroupName $osDiskId.Split("/")[4] -DiskName $osDiskId.Split("/")[8]
+                    if ($disk.Sku.Name -ne 'Standard_LRS')
+                    {
+                        $disk.Sku = [Microsoft.Azure.Management.Compute.Models.DiskSku]::new('Standard_LRS')
+                        $disk | Update-AzDisk | Out-Null
+                    }
+                    else
+                    {
+                        Write-Output "Skipping as OS disk is already HDD."                        
+                    }
+                    foreach ($dataDiskId in $dataDiskIds)
+                    {
+                        $disk = Get-AzDisk -ResourceGroupName $dataDiskId.Split("/")[4] -DiskName $dataDiskId.Split("/")[8]
+                        if ($disk.Sku.Name -ne 'Standard_LRS')
+                        {
+                            $disk.Sku = [Microsoft.Azure.Management.Compute.Models.DiskSku]::new('Standard_LRS')
+                            $disk | Update-AzDisk | Out-Null
+                        }
+                        else
+                        {
+                            Write-Output "Skipping as Data disk is already HDD."                        
+                        }                            
+                    }
+                }
+                else
+                {
+                    Write-Output "Skipping as OS disk is not managed."    
+                }
+            }
+            else
+            {
+                Write-Output "Skipping as VM is not deallocated."    
+            }
         }
     }
 
     $logDetails = @{
         IsVmEligible = $isVmEligible
-        CurrentSku = $vm.CurrentSKU
-        TargetSku = $vm.TargetSKU
     }
 
     $logentry = New-Object PSObject -Property @{
@@ -211,7 +246,7 @@ foreach ($vm in $vmsToRightSize.Rows)
 }
     
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-rightsizefiltered.csv"
+$csvExportPath = "$today-longdeallocatedvmsfiltered.csv"
 
 $logEntries | Export-Csv -Path $csvExportPath -NoTypeInformation
 
