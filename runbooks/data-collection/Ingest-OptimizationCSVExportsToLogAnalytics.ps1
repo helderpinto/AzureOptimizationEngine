@@ -127,17 +127,18 @@ Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField
         $response = Invoke-WebRequest -Uri $uri -Method POST  -ContentType $contentType -Headers $OMSheaders -Body $body -UseBasicParsing -TimeoutSec 1000
     }
     catch {
-        $_.Message
         if ($_.Exception.Response.StatusCode.Value__ -eq 401) {            
             "REAUTHENTICATING"
 
             $response = Invoke-WebRequest -Uri $uri -Method POST  -ContentType $contentType -Headers $OMSheaders -Body $body -UseBasicParsing -TimeoutSec 1000
         }
+        else
+        {
+            return $_.Exception.Response.StatusCode.Value__
+        }
     }
 
-    write-output $response.StatusCode
-    return $response.StatusCode
-    
+    return $response.StatusCode    
 }
 #endregion Functions
 
@@ -283,7 +284,7 @@ foreach ($blob in $unprocessedBlobs) {
             }
             Else {
                 $linesProcessed += $currentObjectLines
-                Write-Warning "Failed to upload $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows"
+                Write-Warning "Failed to upload $currentObjectLines $($controlTable.LogAnalyticsSuffix) rows. Error code: $res"
                 throw
             }
         }
