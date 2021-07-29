@@ -169,7 +169,14 @@ foreach ($resource in $allResources) {
             }
             else {
                 for ($i = 0; $i -lt $valuesAggregation.Count; $i++) {
-                    $valuesAggregation[$i] += $metricValues.Data[$i]."$AggregationType"
+                    if ($metricValues.Data.Count -gt 1)
+                    {
+                        $valuesAggregation[$i] += $metricValues.Data[$i]."$AggregationType"
+                    }
+                    else
+                    {
+                        $valuesAggregation += $metricValues.Data."$AggregationType"
+                    }
                 }
             }    
         }
