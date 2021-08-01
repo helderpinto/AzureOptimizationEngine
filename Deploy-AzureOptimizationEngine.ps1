@@ -417,7 +417,9 @@ if (-not($deploymentOptions["TargetLocation"]))
 {
     if (-not($rg.Location)) {
         Write-Host "Getting Azure locations..." -ForegroundColor Green
-        $locations = Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.Automation" } | Sort-Object -Property Location
+        $locations = Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.Automation" -and $_.Providers -contains "Microsoft.Sql" `
+                                                        -and $_.Providers -contains "Microsoft.OperationalInsights" `
+                                                        -and $_.Providers -contains "Microsoft.Storage"} | Sort-Object -Property Location
         
         for ($i = 0; $i -lt $locations.Count; $i++) {
             Write-Output "[$i] $($locations[$i].location)"    
