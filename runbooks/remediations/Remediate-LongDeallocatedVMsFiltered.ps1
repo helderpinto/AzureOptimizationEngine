@@ -52,7 +52,7 @@ if (-not($recommendationId)) {
     $recommendationId = 'c320b790-2e58-452a-aa63-7b62c383ad8a'
 }
 
-$SqlTimeout = 120
+$SqlTimeout = 0
 $recommendationsTable = "Recommendations"
 
 Write-Output "Logging in to Azure with $authenticationOption..."
