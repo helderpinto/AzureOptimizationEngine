@@ -155,6 +155,12 @@
             "typeId": "b36dea3e-ef21-45a9-a704-6f629fab236d",
             "impact": "High",
             "description": "Management Groups close to the maximum limit of RBAC assignments"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "4468da8d-1e72-4998-b6d2-3bc38ddd9330",
+            "impact": "High",
+            "description": "Subscriptions close to the maximum limit of resource groups"
         }
     ]
 }

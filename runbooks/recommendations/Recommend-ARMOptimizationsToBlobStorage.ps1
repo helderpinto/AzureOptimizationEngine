@@ -73,6 +73,26 @@ else
     $assignmentsMgmtGroupsLimit = [int] $assignmentsMgmtGroupsLimitVar
 }
 
+$rgPercentageThresholdVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationResourceGroupsPerSubPercentageThreshold" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($rgPercentageThresholdVar) -or $rgPercentageThresholdVar -eq 0)
+{
+    $rgPercentageThreshold = 80
+}
+else
+{
+    $rgPercentageThreshold = [int] $rgPercentageThresholdVar
+}
+
+$rgLimitVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationResourceGroupsPerSubLimit" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($rgLimitVar) -or $rgLimitVar -eq 0)
+{
+    $rgLimit = 980
+}
+else
+{
+    $rgLimit = [int] $rgLimitVar
+}
+
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
@@ -157,7 +177,7 @@ $baseQuery = @"
     $rbacTableName
     | where TimeGenerated > ago(1d) and Model_s == 'AzureRM' and Scope_s startswith '/subscriptions/'
     | extend SubscriptionGuid_g = tostring(split(Scope_s, '/')[2])
-    | summarize AssignmentsCount=count() by SubscriptionGuid_g, TenantGuid_g
+    | summarize AssignmentsCount=count() by SubscriptionGuid_g, TenantGuid_g, Cloud_s
     | join kind=leftouter ( 
        $subscriptionsTableName
         | where TimeGenerated > ago(1d)
@@ -269,7 +289,7 @@ $baseQuery = @"
     $rbacTableName
     | where TimeGenerated > ago(1d) and Model_s == 'AzureRM' and Scope_s has 'managementGroups'
     | extend ManagementGroupId = tostring(split(Scope_s, '/')[4])
-    | summarize AssignmentsCount=count() by ManagementGroupId, TenantGuid_g, Scope_s
+    | summarize AssignmentsCount=count() by ManagementGroupId, TenantGuid_g, Scope_s, Cloud_s
     | where AssignmentsCount >= $assignmentsThreshold        
 "@
 
@@ -341,6 +361,118 @@ foreach ($result in $results)
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
 $jsonExportPath = "mgmtgroupsrbaclimits-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$rgThreshold = $rgLimit * ($rgPercentageThreshold / 100)
+
+Write-Output "Looking for subscriptions with more than $rgPercentageThreshold% of the $rgLimit Resource Groups limit..."
+
+$baseQuery = @"
+    $subscriptionsTableName
+    | where TimeGenerated > ago(1d)
+    | where ContainerType_s =~ 'microsoft.resources/subscriptions/resourceGroups' 
+    | summarize RGCount=count() by SubscriptionGuid_g, TenantGuid_g, Cloud_s
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s, Tags_s, InstanceId_s 
+    ) on SubscriptionGuid_g
+    | where RGCount >= $rgThreshold    
+"@
+
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/resourceGroups"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["resourceGroupsCount"] = $result.RGCount
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "OperationalExcellence"
+        ImpactedArea = "Microsoft.Resources/subscriptions"
+        Impact = "High"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "HighResourceGroupCountSubscriptions"
+        RecommendationSubTypeId = "4468da8d-1e72-4998-b6d2-3bc38ddd9330"
+        RecommendationDescription = "Subscriptions close to the maximum limit of resource groups"
+        RecommendationAction = "Remove unneeded resource groups or split your resource groups across multiple subscriptions"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.SubscriptionName
+        AdditionalInfo = $additionalInfoDictionary
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "subscriptionsrglimits-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
