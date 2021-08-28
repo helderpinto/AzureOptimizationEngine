@@ -111,6 +111,54 @@
             "linkLabel": "Disks",
             "subTarget": "Disks",
             "style": "link"
+          },
+          {
+            "id": "6fe330d4-6150-448b-88bd-ed0cfbe5a569",
+            "cellValue": "SelectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Virtual Networks",
+            "subTarget": "VirtualNetworks",
+            "style": "link"
+          },
+          {
+            "id": "27d46a4c-8485-44e6-971d-35c2091ecf13",
+            "cellValue": "SelectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Load Balancers",
+            "subTarget": "LoadBalancers",
+            "style": "link"
+          },
+          {
+            "id": "cdcd8c8c-4024-4266-90a3-3f8d05f51d76",
+            "cellValue": "SelectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Application Gateways",
+            "subTarget": "ApplicationGateways",
+            "style": "link"
+          },
+          {
+            "id": "49f1781d-600e-4740-ba6f-5bb77c3fa510",
+            "cellValue": "SelectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Network Interfaces",
+            "subTarget": "NetworkInterfaces",
+            "style": "link"
+          },
+          {
+            "id": "e0bd5390-0209-4d07-aaae-4aedbe44627a",
+            "cellValue": "SelectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Public IPs",
+            "subTarget": "PublicIPs",
+            "style": "link"
+          },
+          {
+            "id": "cc05569b-dfb3-455e-a472-3cd9209bf4ad",
+            "cellValue": "SelectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "NSGs",
+            "subTarget": "NSGs",
+            "style": "link"
           }
         ]
       },
@@ -211,6 +259,60 @@
       },
       "customWidth": "50",
       "name": "resourcesOverTime"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > datetime('{ResourcesTimeRange:startISO}') and Model_s == 'AzureRM' and Scope_s startswith '/subscriptions/' | extend SubscriptionGuid_g = tostring(split(Scope_s, '/')[2]) | where SubscriptionGuid_g in ({SelectedSubscriptions:value}) | join kind=inner (AzureOptimizationResourceContainersV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | where ContainerType_s =~ 'microsoft.resources/subscriptions' | extend SubscriptionName = ContainerName_s | distinct SubscriptionGuid_g, SubscriptionName) on SubscriptionGuid_g | summarize count() by SubscriptionName, bin(TimeGenerated, 1d) | render timechart",
+        "size": 1,
+        "aggregation": 5,
+        "title": "RBAC Assignments by Subscription",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "ResourcesTimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "chartSettings": {
+          "customThresholdLine": "2000",
+          "customThresholdLineStyle": 5
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "General"
+      },
+      "customWidth": "50",
+      "name": "subRbacOverTime"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > datetime('{ResourcesTimeRange:startISO}') and Model_s == 'AzureRM' and Scope_s has 'managementGroups' | extend ManagementGroupId = tostring(split(Scope_s, '/')[4]) | summarize count() by ManagementGroupId, bin(TimeGenerated, 1d) | render timechart",
+        "size": 1,
+        "aggregation": 5,
+        "title": "RBAC Assignments by Management Group",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "ResourcesTimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "chartSettings": {
+          "customThresholdLine": "500",
+          "customThresholdLineStyle": 5
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "General"
+      },
+      "customWidth": "50",
+      "name": "mgRbacOverTime"
     },
     {
       "type": 3,
@@ -558,7 +660,7 @@
         "value": "VirtualMachines"
       },
       "customWidth": "50",
-      "name": "vmLocationsOverTime - Copy"
+      "name": "vmOsTypeOverTime"
     },
     {
       "type": 3,
