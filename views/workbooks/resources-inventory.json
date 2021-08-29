@@ -59,7 +59,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationResourceContainersV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}')\r\n| where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n| project subscriptionId = SubscriptionGuid_g, SubscriptionName = ContainerName_s\r\n| distinct subscriptionId, SubscriptionName\r\n| order by SubscriptionName asc",
+            "query": "AzureOptimizationResourceContainersV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') | where ContainerType_s =~ 'microsoft.resources/subscriptions' | project subscriptionId = SubscriptionGuid_g, SubscriptionName = ContainerName_s | distinct subscriptionId, SubscriptionName | order by SubscriptionName asc",
             "value": [
               "value::all"
             ],
@@ -168,7 +168,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationResourceContainersV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n| extend SubscriptionType = tostring(parse_json(ContainerProperties_s).subscriptionPolicies.quotaId)\r\n| summarize count() by SubscriptionType, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationResourceContainersV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | where ContainerType_s =~ 'microsoft.resources/subscriptions' | extend SubscriptionType = tostring(parse_json(ContainerProperties_s).subscriptionPolicies.quotaId) | summarize count() by SubscriptionType, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
         "title": "Subscriptions by Type",
@@ -191,7 +191,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationResourceContainersV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n| extend ManagementGroup = tostring(parse_json(ContainerProperties_s).managementGroupAncestorsChain[0].displayName)\r\n| summarize count() by ManagementGroup, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationResourceContainersV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | where ContainerType_s =~ 'microsoft.resources/subscriptions' | extend ManagementGroup = tostring(parse_json(ContainerProperties_s).managementGroupAncestorsChain[0].displayName) | summarize count() by ManagementGroup, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
         "title": "Subscriptions by Management Group",
@@ -214,7 +214,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationResourceContainersV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| where ContainerType_s =~ 'microsoft.resources/subscriptions/resourcegroups'\r\n| project InstanceId_s, SubscriptionGuid_g, todatetime(StatusDate_s)\r\n| join kind=inner (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n    | extend SubscriptionName = ContainerName_s\r\n    | distinct SubscriptionGuid_g, SubscriptionName\r\n) on SubscriptionGuid_g\r\n| summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationResourceContainersV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | where ContainerType_s =~ 'microsoft.resources/subscriptions/resourcegroups' | project InstanceId_s, SubscriptionGuid_g, todatetime(StatusDate_s) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
         "title": "Resource Groups by Subscription",
@@ -241,7 +241,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationResourceContainersV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n| summarize sum(toint(ResourceCount_s)) by ContainerName_s, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationResourceContainersV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | where ContainerType_s =~ 'microsoft.resources/subscriptions' | summarize sum(toint(ResourceCount_s)) by ContainerName_s, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Resources by Subscription",
@@ -318,7 +318,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| join kind=inner (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n    | extend SubscriptionName = ContainerName_s\r\n    | distinct SubscriptionGuid_g, SubscriptionName\r\n) on SubscriptionGuid_g\r\n| summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "VMs by Subscription",
@@ -341,7 +341,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n)\r\n| join kind=inner (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n    | extend SubscriptionName = ContainerName_s\r\n    | distinct SubscriptionGuid_g, SubscriptionName\r\n) on SubscriptionGuid_g\r\n| summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) ) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Disks by Subscription",
@@ -364,7 +364,53 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize count() by Location_s, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVNetsV1_CL | distinct InstanceId_s, SubscriptionGuid_g, StatusDate_s | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
+        "size": 1,
+        "aggregation": 3,
+        "title": "VNets by Subscription",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "timeContextFromParameter": "ResourcesTimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "VirtualNetworks"
+      },
+      "customWidth": "50",
+      "name": "vnetsOverTime"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationVNetsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
+        "size": 1,
+        "aggregation": 3,
+        "title": "Subnets by Subscription",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "timeContextFromParameter": "ResourcesTimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "VirtualNetworks"
+      },
+      "customWidth": "50",
+      "name": "subnetsOverTime"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | summarize count() by Location_s, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "VMs by Region",
@@ -387,7 +433,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n)\r\n| summarize count() by Location_s, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) ) | summarize count() by Location_s, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Disks by Region",
@@ -410,7 +456,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| join kind=inner (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n    | extend SubscriptionName = ContainerName_s\r\n    | distinct SubscriptionGuid_g, SubscriptionName\r\n) on SubscriptionGuid_g\r\n| summarize sum(toint(CoresCount_s)) by SubscriptionName, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize sum(toint(CoresCount_s)) by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Cores by Subscription",
@@ -433,7 +479,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize sum(toint(CoresCount_s)) by Location_s, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | summarize sum(toint(CoresCount_s)) by Location_s, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Cores by Region",
@@ -456,7 +502,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize count() by tolower(VMSize_s), bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | summarize count() by tolower(VMSize_s), bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "VMs by Size",
@@ -479,7 +525,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where TimeGenerated > ago(1d) and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| extend Size = tolower(VMSize_s)\r\n| summarize count() by Size\r\n| order by count_\r\n",
+        "query": "AzureOptimizationVMsV1_CL | where TimeGenerated > ago(1d) and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | extend Size = tolower(VMSize_s) | summarize count() by Size | order by count_ ",
         "size": 1,
         "aggregation": 3,
         "title": "VMs by Size",
@@ -505,7 +551,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n)\r\n| extend SKU = tolower(iif(isnotempty(SKU_s), SKU_s, 'Unsupported'))\r\n| summarize count() by SKU, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) ) | extend SKU = tolower(iif(isnotempty(SKU_s), SKU_s, 'Unsupported')) | summarize count() by SKU, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Disks by SKU",
@@ -528,7 +574,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n)\r\n| summarize count() by DeploymentModel_s, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) ) | summarize count() by DeploymentModel_s, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Disks by Model",
@@ -551,7 +597,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n)\r\n| extend DiskType = iif(isnotempty(DiskType_s), DiskType_s, 'NotAvailable')\r\n| summarize count() by DiskType, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) ) | extend DiskType = iif(isnotempty(DiskType_s), DiskType_s, 'NotAvailable') | summarize count() by DiskType, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Disks by Type",
@@ -574,7 +620,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n)\r\n| extend Caching = iif(isnotempty(Caching_s), Caching_s, 'NotAvailable')\r\n| summarize count() by Caching, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) ) | extend Caching = iif(isnotempty(Caching_s), Caching_s, 'NotAvailable') | summarize count() by Caching, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Disks by Caching",
@@ -597,7 +643,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) and isempty(OwnerVMId_s)\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) and isempty(OwnerVMId_s)\r\n)\r\n| join kind=inner (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n    | extend SubscriptionName = ContainerName_s\r\n    | distinct SubscriptionGuid_g, SubscriptionName\r\n) on SubscriptionGuid_g\r\n| summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) and isempty(OwnerVMId_s) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) and isempty(OwnerVMId_s) ) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize count() by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
         "title": "Unattached Disks by Subscription",
@@ -620,7 +666,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationDisksV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| union (\r\n    AzureOptimizationVhdDisksV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n)\r\n| join kind=inner (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions'\r\n    | extend SubscriptionName = ContainerName_s\r\n    | distinct SubscriptionGuid_g, SubscriptionName\r\n) on SubscriptionGuid_g\r\n| summarize sum(toint(DiskSizeGB_s)/1024) by SubscriptionName, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationDisksV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | union (     AzureOptimizationVhdDisksV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) ) | join kind=inner (     AzureOptimizationResourceContainersV1_CL     | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})     | where ContainerType_s =~ 'microsoft.resources/subscriptions'     | extend SubscriptionName = ContainerName_s     | distinct SubscriptionGuid_g, SubscriptionName ) on SubscriptionGuid_g | summarize sum(toint(DiskSizeGB_s)/1024) by SubscriptionName, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "Total Disks Size (TB) by Subscription",
@@ -643,7 +689,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| summarize count() by OSType_s, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | summarize count() by OSType_s, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "VMs by OS Type",
@@ -666,7 +712,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| extend PowerState = iif(isnotempty(PowerState_s), iif(PowerState_s has 'PowerState', tostring(split(PowerState_s, '/')[1]), PowerState_s), 'Unsupported')\r\n| summarize count() by PowerState, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | extend PowerState = iif(isnotempty(PowerState_s), iif(PowerState_s has 'PowerState', tostring(split(PowerState_s, '/')[1]), PowerState_s), 'Unsupported') | summarize count() by PowerState, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 3,
         "title": "VMs by Power State",
@@ -689,7 +735,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| extend OSModel = iif(isnotempty(OSName_s), strcat(OSName_s, \"_\", OSVersion_s), 'NotAvailable/NotRunning')\r\n| summarize count() by OSModel, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | extend OSModel = iif(isnotempty(OSName_s), strcat(OSName_s, \"_\", OSVersion_s), 'NotAvailable/NotRunning') | summarize count() by OSModel, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
         "title": "VMs by OS Model",
@@ -712,7 +758,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where TimeGenerated > ago(1d) and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| extend OSModel = iif(isnotempty(OSName_s), strcat(OSName_s, \"_\", OSVersion_s), 'NotAvailable/NotRunning')\r\n| summarize count() by OSModel\r\n| order by count_",
+        "query": "AzureOptimizationVMsV1_CL | where TimeGenerated > ago(1d) and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | extend OSModel = iif(isnotempty(OSName_s), strcat(OSName_s, \"_\", OSVersion_s), 'NotAvailable/NotRunning') | summarize count() by OSModel | order by count_",
         "size": 1,
         "aggregation": 5,
         "title": "VMs by OS Model",
@@ -738,7 +784,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| extend ImageModel = iif(isnotempty(ImageOffer_s), iif(ImageOffer_s startswith '/', strcat(\"Custom_\", ImageOffer_s), strcat(ImageOffer_s, \"_\", ImageSku_s)), 'NotAvailable')\r\n| summarize count() by ImageModel, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | extend ImageModel = iif(isnotempty(ImageOffer_s), iif(ImageOffer_s startswith '/', strcat(\"Custom_\", ImageOffer_s), strcat(ImageOffer_s, \"_\", ImageSku_s)), 'NotAvailable') | summarize count() by ImageModel, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
         "title": "VMs by Image Model",
@@ -761,7 +807,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where TimeGenerated > ago(1d) and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| extend ImageModel = iif(isnotempty(ImageOffer_s), iif(ImageOffer_s startswith '/', strcat(\"Custom_\", ImageOffer_s), strcat(ImageOffer_s, \"_\", ImageSku_s)), 'NotAvailable')\r\n| summarize count() by ImageModel\r\n| order by count_",
+        "query": "AzureOptimizationVMsV1_CL | where TimeGenerated > ago(1d) and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | extend ImageModel = iif(isnotempty(ImageOffer_s), iif(ImageOffer_s startswith '/', strcat(\"Custom_\", ImageOffer_s), strcat(ImageOffer_s, \"_\", ImageSku_s)), 'NotAvailable') | summarize count() by ImageModel | order by count_",
         "size": 1,
         "aggregation": 5,
         "title": "VMs by Image Model",
@@ -787,7 +833,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationVMsV1_CL\r\n| where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value})\r\n| extend DiskType = iif(UsesManagedDisks_s == 'true', 'Managed', 'Unmanaged')\r\n| summarize count() by DiskType, bin(todatetime(StatusDate_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | extend DiskType = iif(UsesManagedDisks_s == 'true', 'Managed', 'Unmanaged') | summarize count() by DiskType, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
         "title": "VMs by Disk Model",
