@@ -182,7 +182,7 @@ foreach ($disk in $unattachedDisks.Rows)
                 Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
                 $ctx = Get-AzContext
             }
-            $diskObj = Get-AzDisk -ResourceGroupName $resourceGroup -DiskName $instanceName -Status
+            $diskObj = Get-AzDisk -ResourceGroupName $resourceGroup -DiskName $instanceName -ErrorAction SilentlyContinue
             if (-not($diskObj.ManagedBy))
             {
                 $diskState = "Unattached"
@@ -199,7 +199,7 @@ foreach ($disk in $unattachedDisks.Rows)
                         Write-Output "Skipping as disk is already HDD."                        
                     }
                 }
-                elseif ($remediactionAction -eq "Delete")
+                elseif ($remediationAction -eq "Delete")
                 {
                     if (-not($Simulate))
                     {
@@ -213,8 +213,16 @@ foreach ($disk in $unattachedDisks.Rows)
             }
             else
             {
-                Write-Output "Skipping as disk is not unattached."    
-                $diskState = "Attached"
+                if ($diskObj)
+                {
+                    Write-Output "Skipping as disk is not unattached."    
+                    $diskState = "Attached"    
+                }
+                else
+                {
+                    Write-Output "Skipping as disk was already removed."    
+                    $diskState = "Removed"                        
+                }
             }
         }
         else
