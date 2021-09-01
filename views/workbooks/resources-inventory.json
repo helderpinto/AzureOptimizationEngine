@@ -168,6 +168,50 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
+        "query": "AzureOptimizationVMsV1_CL | where todatetime(TimeGenerated) > ago(1d) | extend ResourceType = 'VMs' | summarize TileValue=count() by ResourceType\r\n| union ( AzureOptimizationDisksV1_CL | where todatetime(TimeGenerated) > ago(1d) | extend ResourceType = 'Managed Disks' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationVhdDisksV1_CL | where todatetime(TimeGenerated) > ago(1d) | extend ResourceType = 'VHDs' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationVNetsV1_CL | where todatetime(TimeGenerated) > ago(1d) | distinct InstanceId_s | extend ResourceType = 'VNets' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationVNetsV1_CL | where todatetime(TimeGenerated) > ago(1d) | extend ResourceType = 'Subnets' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationNICsV1_CL | where todatetime(TimeGenerated) > ago(1d) | distinct InstanceId_s | extend ResourceType = 'NICs' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationLoadBalancersV1_CL | where todatetime(TimeGenerated) > ago(1d) | extend ResourceType = 'Load Balancers' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationAppGatewaysV1_CL | where todatetime(TimeGenerated) > ago(1d) | extend ResourceType = 'App GWs' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationPublicIPsV1_CL | where todatetime(TimeGenerated) > ago(1d) | extend ResourceType = 'Public IPs' | summarize TileValue=count() by ResourceType )\r\n| union ( AzureOptimizationNSGsV1_CL | where todatetime(TimeGenerated) > ago(1d) | distinct InstanceId_s | extend ResourceType = 'NSGs' | summarize TileValue=count() by ResourceType )\r\n| project ResourceType, TileValue",
+        "size": 3,
+        "title": "Total Resources (today)",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "tiles",
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "ResourceType",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "TileValue",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "auto"
+            },
+            "numberFormat": {
+              "unit": 0,
+              "options": {
+                "style": "decimal"
+              }
+            }
+          },
+          "showBorder": true,
+          "sortCriteriaField": "TileValue",
+          "sortOrderField": 2,
+          "size": "auto"
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "General"
+      },
+      "name": "resourcesTiles"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
         "query": "AzureOptimizationResourceContainersV1_CL | where todatetime(StatusDate_s) > datetime('{ResourcesTimeRange:startISO}') and SubscriptionGuid_g in ({SelectedSubscriptions:value}) | where ContainerType_s =~ 'microsoft.resources/subscriptions' | extend SubscriptionType = tostring(parse_json(ContainerProperties_s).subscriptionPolicies.quotaId) | summarize count() by SubscriptionType, bin(todatetime(StatusDate_s), 1d) | render timechart",
         "size": 1,
         "aggregation": 5,
