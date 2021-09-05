@@ -28,14 +28,25 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Standard Load Balancers without backend pool
     * Application Gateways without backend pool
     * VMs deallocated since a long time ago (forgotten VMs)
+    * Orphaned Public IPs
 * High Availability
     * Virtual Machine high availability (availability set, managed disks, storage account distribution when using unmanaged disks)
     * Availability Sets structure (fault/update domains count)
 * Security
     * Service Principal credentials/certificates without expiration date
+    * NSG rules referring to empty or inexisting subnets
+    * NSG rules referring to orphan or removed NICs
+    * NSG rules referring to orphan or removed Public IPs
 * Operational Excellence
     * Load Balancers without backend pool
     * Service Principal credentials/certificates expired or about to expire
+    * Subscriptions close to the maximum limit of RBAC assignments
+    * Management Groups close to the maximum limit of RBAC assignments
+    * Subscriptions close to the maximum limit of resource groups
+    * Subnets with low free IP space
+    * Subnets with too much IP space wasted
+    * Empty subnets
+    * Orphaned NICs
 
 ### Recommendations overview
 
@@ -67,6 +78,27 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ## <a id="releases"></a>Releases ##
 
+* 09/2021
+    * Several new recommendations added
+        * **Operational Excellence** - Subscriptions close to the maximum limit of RBAC assignments
+        * **Operational Excellence** - Management Groups close to the maximum limit of RBAC assignments
+        * **Operational Excellence** - Subscriptions close to the maximum limit of resource groups
+        * **Operational Excellence** - Subnets with low free IP space
+        * **Operational Excellence** - Subnets with too much IP space wasted
+        * **Operational Excellence** - Empty subnets
+        * **Operational Excellence** - Orphan NICs
+        * **Cost** - Orphan Public IPs
+        * **Security** - NSG rules referring to empty or inexisting subnets
+        * **Security** - NSG rules referring to orphan or removed NICs
+        * **Security** - NSG rules referring to orphan or removed Public IPs
+    * Two new remediations added
+        * Downgrade long-deallocated VMs disks
+        * Delete/downgrade unattached disks
+    * Added Networking assets and RBAC assignments to the Resources Inventory Workbook
+    * Simplified ARM template deployment
+    * Upgraded PowerShell module dependencies
+    * Merged VMs High Availability recommendations into a single runbook
+    * Several bug fixes
 * 06/2021
     * Introduced Log Analytics Workbooks with additional insights besides Power BI recommendations:
         * Identities and Roles - Azure AD principals (user and service) and roles assigned both in Azure AD and Azure RM, credentials expiration (for service principals)

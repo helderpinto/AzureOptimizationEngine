@@ -88,6 +88,26 @@
             "frequency": "Day"
         },
         {
+            "name": "AzureOptimization_IngestARGPublicIPsDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestARGNICsDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestARGNSGsDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestARGVNetsDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_IngestARGVHDsDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
@@ -148,14 +168,6 @@
             "ingestSchedule": "AzureOptimization_IngestAADObjectsDaily"
         },
         {
-            "runbook": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
-            "container": "advisorexports",
-            "requiredVariables": [
-            ],
-            "exportSchedule": "AzureOptimization_ExportAdvisorWeekly",
-            "ingestSchedule": "AzureOptimization_IngestAdvisorWeekly"
-        },
-        {
             "runbook": "runbooks/data-collection/Export-ARGAppGatewayPropertiesToBlobStorage.ps1",
             "container": "argappgwexports",
             "requiredVariables": [
@@ -188,6 +200,30 @@
             "ingestSchedule": "AzureOptimization_IngestARGDisksDaily"
         },
         {
+            "runbook": "runbooks/data-collection/Export-ARGNICPropertiesToBlobStorage.ps1",
+            "container": "argnicexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGNICsDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-ARGNSGPropertiesToBlobStorage.ps1",
+            "container": "argnsgexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGNSGsDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-ARGPublicIpPropertiesToBlobStorage.ps1",
+            "container": "argpublicipexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGPublicIPsDaily"
+        },
+        {
             "runbook": "runbooks/data-collection/Export-ARGResourceContainersPropertiesToBlobStorage.ps1",
             "container": "argrescontainersexports",
             "requiredVariables": [
@@ -204,12 +240,28 @@
             "ingestSchedule": "AzureOptimization_IngestARGVHDsDaily"
         },
         {
+            "runbook": "runbooks/data-collection/Export-ARGVNetPropertiesToBlobStorage.ps1",
+            "container": "argvnetexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGVNetsDaily"
+        },
+        {
             "runbook": "runbooks/data-collection/Export-ARGVirtualMachinesPropertiesToBlobStorage.ps1",
             "container": "argvmexports",
             "requiredVariables": [
             ],
             "exportSchedule": "AzureOptimization_ExportARGDaily",
             "ingestSchedule": "AzureOptimization_IngestARGVMsDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
+            "container": "advisorexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportAdvisorWeekly",
+            "ingestSchedule": "AzureOptimization_IngestAdvisorWeekly"
         },
         {
             "runbook": "runbooks/data-collection/Export-ConsumptionToBlobStorage.ps1",
@@ -306,6 +358,38 @@
         {
             "runbook": "runbooks/recommendations/Recommend-VMsHighAvailabilityToBlobStorage.ps1",
             "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-ARMOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RecommendationRBACAssignmentsPercentageThreshold",
+                    "defaultValue": 80
+                },
+                {
+                    "name": "AzureOptimization_RecommendationResourceGroupsPerSubPercentageThreshold",
+                    "defaultValue": 80
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-VNetOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RecommendationVNetSubnetMaxUsedPercentageThreshold",
+                    "defaultValue": 80
+                },
+                {
+                    "name": "AzureOptimization_RecommendationVNetSubnetMinUsedPercentageThreshold",
+                    "defaultValue": 5
+                },
+                {
+                    "name": "AzureOptimization_RecommendationVNetSubnetEmptyMinAgeInDays",
+                    "defaultValue": 30
+                }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
         }

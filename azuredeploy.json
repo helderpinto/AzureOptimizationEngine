@@ -1106,6 +1106,11 @@
                 "value": 80
             },
             {
+                "name": "AzureOptimization_RecommendationResourceGroupsPerSubPercentageThreshold",
+                "description": "The percentage threshold (used to trigger recommendations) for resource group count limits",
+                "value": 80
+            },
+            {
                 "name": "AzureOptimization_RecommendationVNetSubnetMaxUsedPercentageThreshold",
                 "description": "The percentage threshold (used to trigger recommendations) for maximum subnet address space usage",
                 "value": 80
