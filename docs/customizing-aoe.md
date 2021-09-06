@@ -31,5 +31,13 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_ReferenceRegion` - The Azure region used as a reference for getting the list of available SKUs (defaults to `westeurope`).
 * `AzureOptimization_RemediateRightSizeMinFitScore` - The minimum fit score a VM right-size recommendation must have for the remediation to occur.
 * `AzureOptimization_RemediateRightSizeMinWeeksInARow` - The minimum number of weeks in a row a VM right-size recommendation must have been done for the remediation to occur.
+* `AzureOptimization_RemediateRightSizeTagsFilter` - The tag name/value pairs a VM right-size recommendation must have for the remediation to occur. Example: `[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]`
+* `AzureOptimization_RemediateLongDeallocatedVMsMinFitScore` - The minimum fit score a long deallocated VM recommendation must have for the remediation to occur.
+* `AzureOptimization_RemediateLongDeallocatedVMsMinWeeksInARow` - The minimum number of weeks in a row a long deallocated VM recommendation must have been done for the remediation to occur.
+* `AzureOptimization_RemediateLongDeallocatedVMsTagsFilter` - The tag name/value pairs a long deallocated VM recommendation must have for the remediation to occur. Example: `[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]`
+* `AzureOptimization_RemediateUnattachedDisksMinFitScore` - The minimum fit score an unattached disk recommendation must have for the remediation to occur.
+* `AzureOptimization_RemediateUnattachedDisksMinWeeksInARow` - The minimum number of weeks in a row an unattached disk recommendation must have been done for the remediation to occur.
+* `AzureOptimization_RemediateUnattachedDisksAction` - The action to apply for an unattached disk recommendation remediation (`Delete` or `Downsize`).
+* `AzureOptimization_RemediateUnattachedDisksTagsFilter` - The tag name/value pairs an unattached disk recommendation must have for the remediation to occur. Example: `[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]`
 * `AzureOptimization_RightSizeAdditionalPerfWorkspaces` - A comma-separated list of additional Log Analytics workspace IDs where to look for VM metrics (see [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md)).
 

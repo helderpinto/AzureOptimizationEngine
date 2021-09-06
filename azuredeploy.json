@@ -675,6 +675,8 @@
         "csvIngestRunbookName": "Ingest-OptimizationCSVExportsToLogAnalytics",
         "recommendationsIngestRunbookName": "Ingest-RecommendationsToSQLServer",
         "advisorRightSizeFilteredRemediationRunbookName": "Remediate-AdvisorRightSizeFiltered",
+        "longDeallocatedVMsFilteredRemediationRunbookName": "Remediate-LongDeallocatedVMsFiltered",
+        "unattachedDisksFilteredRemediationRunbookName": "Remediate-UnattachedDisksFiltered",
         "remediationLogsIngestScheduleName": "AzureOptimization_IngestRemediationLogsDaily",
         "recommendationsScheduleName": "AzureOptimization_RecommendationsWeekly",
         "recommendationsIngestScheduleName": "AzureOptimization_IngestRecommendationsWeekly",
@@ -922,6 +924,20 @@
                 "description": "Remediates Azure Advisor right-size recommendations given fit and tag filters",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('advisorRightSizeFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('longDeallocatedVMsFilteredRemediationRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Remediates long-deallocated VMs recommendations given fit and tag filters",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('longDeallocatedVMsFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('unattachedDisksFilteredRemediationRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Remediates unattached disks recommendations given fit and tag filters",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('unattachedDisksFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             }
         ],
         "automationVariables": [
@@ -1084,6 +1100,41 @@
                 "name": "AzureOptimization_RecommendationAdvisorCostRightSizeId",
                 "description": "The Azure Advisor VM right-size recommendation ID",
                 "value": "[concat('\"','e10b1381-5f0a-47ff-8c7b-37bd13d7c974','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RemediateLongDeallocatedVMsMinFitScore",
+                "description": "The minimum fit score for long-deallocated VM remediation",
+                "value": "[concat('\"','5.0','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RemediateLongDeallocatedVMsMinWeeksInARow",
+                "description": "The minimum number of weeks in a row required for a long-deallocated VM recommendation to be remediated",
+                "value": 4
+            },
+            {
+                "name": "AzureOptimization_RecommendationLongDeallocatedVMsId",
+                "description": "The long deallocated VM recommendation ID",
+                "value": "[concat('\"','c320b790-2e58-452a-aa63-7b62c383ad8a','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RemediateUnattachedDisksMinFitScore",
+                "description": "The minimum fit score for unattached disk remediation",
+                "value": "[concat('\"','5.0','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RemediateUnattachedDisksMinWeeksInARow",
+                "description": "The minimum number of weeks in a row required for a unattached disk recommendation to be remediated",
+                "value": 4
+            },
+            {
+                "name": "AzureOptimization_RemediateUnattachedDisksAction",
+                "description": "The action for the unattached disk recommendation to be remediated (Delete or Downsize)",
+                "value": "[concat('\"','Delete','\"')]"
+            },
+            {
+                "name": "AzureOptimization_RecommendationUnattachedDisksId",
+                "description": "The unattached disk recommendation ID",
+                "value": "[concat('\"','c84d5e86-e2d6-4d62-be7c-cecfbd73b0db','\"')]"
             },
             {
                 "name": "AzureOptimization_RecommendationAADMinCredValidityDays",

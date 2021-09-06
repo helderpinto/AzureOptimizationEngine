@@ -593,7 +593,7 @@ if ("Y", "y" -contains $continueInput) {
         }
 
         Write-Host "Importing runbooks..." -ForegroundColor Green
-        $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook
+        $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook + $upgradeManifest.remediations.runbook
         $runbookBaseUri = $TemplateUri.Replace("azuredeploy.json", "")
         $topTemplateJson = "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", " + `
             "`"contentVersion`": `"1.0.0.0`", `"resources`": ["
@@ -717,7 +717,7 @@ if ("Y", "y" -contains $continueInput) {
         }
 
         Write-Host "Updating variables..." -ForegroundColor Green
-        $allVariables = $upgradeManifest.dataCollection.requiredVariables + $upgradeManifest.recommendations.requiredVariables
+        $allVariables = $upgradeManifest.dataCollection.requiredVariables + $upgradeManifest.recommendations.requiredVariables + $upgradeManifest.remediations.requiredVariables
         foreach ($variable in $allVariables)
         {
             $existingVariables = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName

@@ -393,5 +393,50 @@
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
         }
+    ],
+    "remediations": [
+        {
+            "runbook": "runbooks/remediations/Remediate-AdvisorRightSizeFiltered.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RemediateRightSizeMinFitScore",
+                    "defaultValue": 5.0
+                },
+                {
+                    "name": "AzureOptimization_RemediateRightSizeMinWeeksInARow",
+                    "defaultValue": 4
+                }
+            ]
+        },
+        {
+            "runbook": "runbooks/remediations/Remediate-LongDeallocatedVMsFiltered.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RemediateLongDeallocatedVMsMinFitScore",
+                    "defaultValue": 5.0
+                },
+                {
+                    "name": "AzureOptimization_RemediateLongDeallocatedVMsMinWeeksInARow",
+                    "defaultValue": 4
+                }
+            ]
+        },
+        {
+            "runbook": "runbooks/remediations/Remediate-UnattachedDisksFiltered.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RemediateUnattachedDisksMinFitScore",
+                    "defaultValue": 5.0
+                },
+                {
+                    "name": "AzureOptimization_RemediateUnattachedDisksMinWeeksInARow",
+                    "defaultValue": 4
+                },
+                {
+                    "name": "AzureOptimization_RemediateUnattachedDisksAction",
+                    "defaultValue": "Delete"
+                }
+            ]
+        }
     ]
 }
