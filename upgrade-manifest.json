@@ -2,7 +2,7 @@
     "modules": [
         {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.3.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.2"
         },
         {
             "name": "Az.Advisor",
@@ -14,7 +14,7 @@
         },
         {
             "name": "Az.Compute",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.13.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0"
         },
         {
             "name": "Az.OperationalInsights",
@@ -22,23 +22,23 @@
         },
         {
             "name": "Az.ResourceGraph",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.10.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.11.0"
         },
         {
             "name": "Az.Storage",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.7.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.10.0"
         },
         {
             "name": "Az.Resources",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.1.1"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.3.0"
         },
         {
             "name": "Az.Monitor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.5.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.7.0"
         },
         {
             "name": "AzureADPreview",
-            "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.136"
+            "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.138"
         }
     ],
     "schedules": [

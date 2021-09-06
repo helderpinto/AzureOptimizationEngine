@@ -688,7 +688,7 @@
         },
         "Az.Accounts": {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.1"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.2"
         },
         "psModules": [
             {
@@ -701,7 +701,7 @@
             },
             {
                 "name": "Az.Compute",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.15.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0"
             },
             {
                 "name": "Az.OperationalInsights",
@@ -713,19 +713,19 @@
             },
             {
                 "name": "Az.Storage",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.9.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.10.0"
             },
             {
                 "name": "Az.Resources",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.2.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.3.0"
             },
             {
                 "name": "Az.Monitor",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.6.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.7.0"
             },
             {
                 "name": "AzureADPreview",
-                "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.136"
+                "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.138"
             }
         ],
         "runbooks": [
@@ -836,7 +836,7 @@
             },
             {
                 "name": "[variables('csvIngestRunbookName')]",
-                "version": "1.4.3.0",
+                "version": "1.4.4.0",
                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -899,7 +899,7 @@
             },
             {
                 "name": "[variables('armOptimizationsRecommendationsRunbookName')]",
-                "version": "1.0.0.0",
+                "version": "1.0.1.0",
                 "description": "Generates ARM optimizations recommendations",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('armOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -920,7 +920,7 @@
             },
             {
                 "name": "[variables('advisorRightSizeFilteredRemediationRunbookName')]",
-                "version": "1.2.0.0",
+                "version": "1.2.1.0",
                 "description": "Remediates Azure Advisor right-size recommendations given fit and tag filters",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('advisorRightSizeFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
