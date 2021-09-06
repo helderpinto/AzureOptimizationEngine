@@ -724,7 +724,7 @@ if ("Y", "y" -contains $continueInput) {
             if (-not($existingVariables | Where-Object { $_.Name -eq $variable.name }))
             {
                 New-AzAutomationVariable -Name $variable.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                    -Value $variable.defaultValue | Out-Null
+                    -Value $variable.defaultValue -Encrypted $false | Out-Null
                 Write-Host "$($variable.name) variable created."
             }
         }
