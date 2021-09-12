@@ -164,7 +164,8 @@ foreach ($subscription in $subscriptions)
             }
 
             $billingEntry = New-Object PSObject -Property @{
-                Timestamp = $timestamp
+                Timestamp = $consumptionLine.properties.date
+                CollectedDate = $timestamp
                 Cloud = $cloudEnvironment
                 SubscriptionGuid = $consumptionLine.properties.subscriptionId
                 TenantGuid = $tenantId

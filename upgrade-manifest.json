@@ -306,7 +306,7 @@
             "requiredVariables": [
                 {
                     "name": "AzureOptimization_ConsumptionOffsetDays",
-                    "defaultValue": 7
+                    "defaultValue": 3
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
@@ -320,7 +320,7 @@
                 },
                 {
                     "name": "AzureOptimization_ConsumptionOffsetDays",
-                    "defaultValue": 7
+                    "defaultValue": 3
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
@@ -330,7 +330,7 @@
             "requiredVariables": [
                 {
                     "name": "AzureOptimization_ConsumptionOffsetDays",
-                    "defaultValue": 7
+                    "defaultValue": 3
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
@@ -340,7 +340,7 @@
             "requiredVariables": [
                 {
                     "name": "AzureOptimization_ConsumptionOffsetDays",
-                    "defaultValue": 7
+                    "defaultValue": 3
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
@@ -350,7 +350,7 @@
             "requiredVariables": [
                 {
                     "name": "AzureOptimization_ConsumptionOffsetDays",
-                    "defaultValue": 7
+                    "defaultValue": 3
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

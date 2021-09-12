@@ -969,7 +969,7 @@
             {
                 "name": "AzureOptimization_ConsumptionOffsetDays",
                 "description": "The offset (in days) for querying for consumption data",
-                "value": 7
+                "value": 3
             },
             {
                 "name": "AzureOptimization_AdvisorFilter",

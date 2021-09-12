@@ -350,7 +350,6 @@ $baseQuery = @"
     | join kind=inner (
         $vmsTableName
         | where TimeGenerated > ago(1d) and isnotempty(AvailabilitySetId_s)
-        | extend VMName_s = iif(isnotempty(VMName_s),VMName_s,VMName_g)
         | distinct VMName_s, InstanceId_s, AvailabilitySetId_s, Cloud_s, Tags_s
     ) on `$left.OwnerVMId_s == `$right.InstanceId_s
     | extend AvailabilitySetName = tostring(split(AvailabilitySetId_s,'/')[8])
@@ -582,7 +581,6 @@ Write-Output "Looking for VMs with no Availability Set..."
 $baseQuery = @"
     $vmsTableName
     | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s) and isempty(Zones_s)
-    | extend VMName_s = iif(isnotempty(VMName_s),VMName_s,VMName_g)
     | project TimeGenerated, VMName_s, InstanceId_s, Tags_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
     | join kind=leftouter ( 
         $subscriptionsTableName
@@ -690,7 +688,6 @@ Write-Output "Looking for VMs alone in an Availability Set..."
 $baseQuery = @"
     $vmsTableName
     | where TimeGenerated > ago(1d) and isnotempty(AvailabilitySetId_s) and isempty(Zones_s)
-    | extend VMName_s = iif(isnotempty(VMName_s),VMName_s,VMName_g)
     | distinct TimeGenerated, VMName_s, InstanceId_s, AvailabilitySetId_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s, Tags_s
     | summarize any(TimeGenerated, VMName_s, InstanceId_s, Tags_s), VMCount = count() by AvailabilitySetId_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
     | where VMCount == 1
@@ -808,7 +805,6 @@ $baseQuery = @"
     | join kind=inner (
         $vmsTableName
         | where TimeGenerated > ago(1d)
-        | extend VMName_s = iif(isnotempty(VMName_s),VMName_s,VMName_g)
         | distinct VMName_s, InstanceId_s, Cloud_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Tags_s
     ) on `$left.OwnerVMId_s == `$right.InstanceId_s
     | join kind=leftouter ( 
@@ -918,7 +914,6 @@ Write-Output "Looking for VMs using unmanaged disks..."
 $baseQuery = @"
     $vmsTableName 
     | where TimeGenerated > ago(1d) and UsesManagedDisks_s == 'false'
-    | extend VMName_s = iif(isnotempty(VMName_s),VMName_s,VMName_g)
     | distinct InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, DeploymentModel_s, Tags_s, Cloud_s
     | join kind=leftouter ( 
         $subscriptionsTableName
