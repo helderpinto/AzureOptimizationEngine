@@ -516,7 +516,7 @@ else
 $deploymentMessage = "Deploying Azure Optimization Engine to subscription"
 if ($upgrading)
 {
-    Write-Host "Looks like this deployment was already done in the past. We will only upgrade runbooks, storage and the database." -ForegroundColor Yellow
+    Write-Host "Looks like this deployment was already done in the past. We will only upgrade runbooks, modules, schedules, variables, storage and the database." -ForegroundColor Yellow
     $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
 }
 
