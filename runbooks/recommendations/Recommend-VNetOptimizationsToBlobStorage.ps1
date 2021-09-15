@@ -664,6 +664,7 @@ $baseQuery = @"
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g
+    | where isnotempty(SubnetPrefix_s)
     | distinct NSGId, NSGName, RuleName_s, SubscriptionGuid_g, SubscriptionName, ResourceGroupName_s, TenantGuid_g, Cloud_s, SubnetId, SubnetPrefix_s, SubnetState, Tags_s
 "@
 
