@@ -728,6 +728,13 @@ if ("Y", "y" -contains $continueInput) {
                 Write-Host "$($variable.name) variable created."
             }
         }
+
+        Write-Host "Removing deprecated runbooks..." -ForegroundColor Green
+        $deprecatedRunbooks = $upgradeManifest.deprecatedRunbooks
+        foreach ($deprecatedRunbook in $deprecatedRunbooks)
+        {
+            Remove-AzAutomationRunbook -AutomationAccountName $automationAccountName -Name $deprecatedRunbook -ResourceGroupName $resourceGroupName -Force -ErrorAction SilentlyContinue
+        }
     }
 
     if ($upgradingSchedules) {

@@ -438,5 +438,15 @@
                 }
             ]
         }
+    ],
+    "deprecatedRunbooks": [
+        "Recommend-AvailSetsWithLowFaultDomainCountToBlobStorage",
+        "Recommend-AvailSetsWithLowUpdateDomainCountToBlobStorage",
+        "Recommend-AvailSetsWithVMsSharingStorageAccountsToBlobStorage",
+        "Recommend-StorageAccountsWithMultipleVMsToBlobStorage",
+        "Recommend-VMsNoAvailSetToBlobStorage",
+        "Recommend-VMsSingleInAvailSetToBlobStorage",
+        "Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage",
+        "Recommend-VMsWithUnmanagedDisksToBlobStorage"
     ]
 }
