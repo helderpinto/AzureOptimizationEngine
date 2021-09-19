@@ -58,6 +58,18 @@ param rbacExportJobId string = newGuid()
 @description('GUID for the Resource Containers Export job schedule creation - create a unique before deploy')
 param argResContainersExportJobId string = newGuid()
 
+@description('GUID for the NIC Export job schedule creation - create a unique before deploy')
+param argNICExportJobId string = newGuid()
+
+@description('GUID for the NSG Export job schedule creation - create a unique before deploy')
+param argNSGExportJobId string = newGuid()
+
+@description('GUID for the Public IP Export job schedule creation - create a unique before deploy')
+param argPublicIPExportJobId string = newGuid()
+
+@description('GUID for the VNet Export job schedule creation - create a unique before deploy')
+param argVNetExportJobId string = newGuid()
+
 @description('GUID for the ARG Disk Ingest job schedule creation - create a unique before deploy')
 param argDiskIngestJobId string = newGuid()
 
@@ -94,6 +106,18 @@ param argResContainersIngestJobId string = newGuid()
 @description('GUID for the RBAC Ingest job schedule creation - create a unique before deploy')
 param rbacIngestJobId string = newGuid()
 
+@description('GUID for the NIC Ingest job schedule creation - create a unique before deploy')
+param argNICIngestJobId string = newGuid()
+
+@description('GUID for the NSG Ingest job schedule creation - create a unique before deploy')
+param argNSGIngestJobId string = newGuid()
+
+@description('GUID for the Public IP Ingest job schedule creation - create a unique before deploy')
+param argPublicIPIngestJobId string = newGuid()
+
+@description('GUID for the VNet Ingest job schedule creation - create a unique before deploy')
+param argVNetIngestJobId string = newGuid()
+
 @description('GUID for the Unattached Disks Recommendation Generation job schedule creation - create a unique before deploy')
 param unattachedDisksRecommendationJobId string = newGuid()
 
@@ -103,32 +127,11 @@ param advisorCostAugmentedRecommendationJobId string = newGuid()
 @description('GUID for the Advisor General Recommendations Generation job schedule creation - create a unique before deploy')
 param advisorAsIsRecommendationJobId string = newGuid()
 
-@description('GUID for the Unmanaged Disks Recommendation Generation job schedule creation - create a unique before deploy')
-param unmanagedDisksRecommendationJobId string = newGuid()
-
-@description('GUID for the Availability Sets with Low Fault Domains Recommendation Generation job schedule creation - create a unique before deploy')
-param availSetsLowFaultDomainRecommendationJobId string = newGuid()
-
-@description('GUID for the Availability Sets with Low Update Domains Recommendation Generation job schedule creation - create a unique before deploy')
-param availSetsLowUpdateDomainRecommendationJobId string = newGuid()
-
-@description('GUID for the Availability Sets with VMs Sharing Storage Recommendation Generation job schedule creation - create a unique before deploy')
-param availSetsSharingStorageRecommendationJobId string = newGuid()
+@description('GUID for the VMs High Availability Recommendation Generation job schedule creation - create a unique before deploy')
+param vmsHaRecommendationJobId string = newGuid()
 
 @description('GUID for the Long Deallocated VMs Recommendation Generation job schedule creation - create a unique before deploy')
 param longDeallocatedVmsRecommendationJobId string = newGuid()
-
-@description('GUID for the Storage Accounts with Multiple VMs Recommendation Generation job schedule creation - create a unique before deploy')
-param storageAccountsMultipleVmsRecommendationJobId string = newGuid()
-
-@description('GUID for the VMs without Availability Set Recommendation Generation job schedule creation - create a unique before deploy')
-param vmsNoAvailSetRecommendationJobId string = newGuid()
-
-@description('GUID for the VMs single in Availability Set Recommendation Generation job schedule creation - create a unique before deploy')
-param vmsSingleInAvailSetRecommendationJobId string = newGuid()
-
-@description('GUID for the VMs with Disks in Multiple Storage Accounts Recommendation Generation job schedule creation - create a unique before deploy')
-param vmsDisksMultipleStorageRecommendationJobId string = newGuid()
 
 @description('GUID for the AAD Objects with Expiring Credentials Recommendation Generation job schedule creation - create a unique before deploy')
 param aadExpiringCredsRecommendationJobId string = newGuid()
@@ -139,22 +142,15 @@ param unusedLoadBalancersRecommendationJobId string = newGuid()
 @description('GUID for the Unused Application Gateways Recommendation Generation job schedule creation - create a unique before deploy')
 param unusedAppGWsRecommendationJobId string = newGuid()
 
+@description('GUID for the ARM Optimizations Recommendation Generation job schedule creation - create a unique before deploy')
+param armOptimizationsRecommendationJobId string = newGuid()
+
+@description('GUID for the VNet Optimizations Recommendation Generation job schedule creation - create a unique before deploy')
+param vnetOptimizationsRecommendationJobId string = newGuid()
+
 @description('GUID for the Recommendations Ingest job schedule creation - create a unique before deploy')
 param recommendationsIngestJobId string = newGuid()
 
-var advisorContainerName = 'advisorexports'
-var argVmContainerName = 'argvmexports'
-var argDiskContainerName = 'argdiskexports'
-var argVhdContainerName = 'argvhdexports'
-var argAvailSetContainerName = 'argavailsetexports'
-var consumptionContainerName = 'consumptionexports'
-var recommendationsContainerName = 'recommendationsexports'
-var aadObjectsContainerName = 'aadobjectsexports'
-var argLBsContainerName = 'arglbexports'
-var argAppGWsContainerName = 'argappgwexports'
-var argResContainersContainerName = 'argrescontainersexports'
-var rbacContainerName = 'rbacexports'
-var remediationLogsContainerName = 'remediationlogs'
 var advisorExportsRunbookName = 'Export-AdvisorRecommendationsToBlobStorage'
 var argVmExportsRunbookName = 'Export-ARGVirtualMachinesPropertiesToBlobStorage'
 var argDisksExportsRunbookName = 'Export-ARGManagedDisksPropertiesToBlobStorage'
@@ -166,40 +162,304 @@ var argLoadBalancersExportsRunbookName = 'Export-ARGLoadBalancerPropertiesToBlob
 var argAppGWsExportsRunbookName = 'Export-ARGAppGatewayPropertiesToBlobStorage'
 var argResContainersExportsRunbookName = 'Export-ARGResourceContainersPropertiesToBlobStorage'
 var rbacExportsRunbookName = 'Export-RBACAssignmentsToBlobStorage'
-var csvIngestRunbookName = 'Ingest-OptimizationCSVExportsToLogAnalytics'
-var unattachedDisksRecommendationsRunbookName = 'Recommend-UnattachedDisksToBlobStorage'
-var advisorCostAugmentedRecommendationsRunbookName = 'Recommend-AdvisorCostAugmentedToBlobStorage'
-var advisorAsIsRecommendationsRunbookName = 'Recommend-AdvisorAsIsToBlobStorage'
-var unmanagedDisksRecommendationsRunbookName = 'Recommend-VMsWithUnmanagedDisksToBlobStorage'
-var availSetsLowFaultDomainRecommendationsRunbookName = 'Recommend-AvailSetsWithLowFaultDomainCountToBlobStorage'
-var availSetsLowUpdateDomainRecommendationsRunbookName = 'Recommend-AvailSetsWithLowUpdateDomainCountToBlobStorage'
-var availSetsSharingStorageRecommendationsRunbookName = 'Recommend-AvailSetsWithVMsSharingStorageAccountsToBlobStorage'
-var longDeallocatedVmsRecommendationsRunbookName = 'Recommend-LongDeallocatedVmsToBlobStorage'
-var storageAccountsMultipleVmsRecommendationsRunbookName = 'Recommend-StorageAccountsWithMultipleVMsToBlobStorage'
-var vmsNoAvailSetRecommendationsRunbookName = 'Recommend-VMsNoAvailSetToBlobStorage'
-var vmsSingleInAvailSetRecommendationsRunbookName = 'Recommend-VMsSingleInAvailSetToBlobStorage'
-var vmsDisksMultipleStorageRecommendationsRunbookName = 'Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage'
-var aadExpiringCredsRecommendationsRunbookName = 'Recommend-AADExpiringCredentialsToBlobStorage'
-var unusedLBsRecommendationsRunbookName = 'Recommend-UnusedLoadBalancersToBlobStorage'
-var unusedAppGWsRecommendationsRunbookName = 'Recommend-UnusedAppGWsToBlobStorage'
-var recommendationsIngestRunbookName = 'Ingest-RecommendationsToSQLServer'
-var advisorRightSizeFilteredRemediationRunbookName = 'Remediate-AdvisorRightSizeFiltered'
+var argNICExportsRunbookName = 'Export-ARGNICPropertiesToBlobStorage'
+var argNSGExportsRunbookName = 'Export-ARGNSGPropertiesToBlobStorage'
+var argVNetExportsRunbookName = 'Export-ARGVNetPropertiesToBlobStorage'
+var argPublicIpExportsRunbookName = 'Export-ARGPublicIpPropertiesToBlobStorage'
 var advisorExportsScheduleName = 'AzureOptimization_ExportAdvisorWeekly'
 var argExportsScheduleName = 'AzureOptimization_ExportARGDaily'
 var consumptionExportsScheduleName = 'AzureOptimization_ExportConsumptionDaily'
 var aadObjectsExportsScheduleName = 'AzureOptimization_ExportAADObjectsDaily'
-var argDiskIngestScheduleName = 'AzureOptimization_IngestARGDisksDaily'
-var argVhdIngestScheduleName = 'AzureOptimization_IngestARGVHDsDaily'
-var argVmIngestScheduleName = 'AzureOptimization_IngestARGVMsDaily'
-var argAvailSetIngestScheduleName = 'AzureOptimization_IngestARGAvailSetsDaily'
+var rbacExportsScheduleName = 'AzureOptimization_ExportRBACDaily'
+var csvExportsSchedules = [
+  {
+    exportSchedule: argExportsScheduleName
+    exportDescription: 'Daily Azure Resource Graph exports'
+    exportTimeOffset: 'PT1H'
+    exportFrequency: 'Day'
+  }
+  {
+    exportSchedule: advisorExportsScheduleName
+    exportDescription: 'Weekly Azure Advisor exports'
+    exportTimeOffset: 'PT1H15M'
+    exportFrequency: 'Week'
+  }
+  {
+    exportSchedule: consumptionExportsScheduleName
+    exportDescription: 'Daily Azure Consumption exports'
+    exportTimeOffset: 'PT1H'
+    exportFrequency: 'Day'
+  }
+  {
+    exportSchedule: aadObjectsExportsScheduleName
+    exportDescription: 'Daily Azure AD Objects exports'
+    exportTimeOffset: 'PT1H'
+    exportFrequency: 'Day'
+  }
+  {
+    exportSchedule: rbacExportsScheduleName
+    exportDescription: 'Daily Azure RBAC exports'
+    exportTimeOffset: 'PT1H'
+    exportFrequency: 'Day'
+  }
+]
+var csvExports = [
+  {
+    runbookName: advisorExportsRunbookName
+    containerName: 'advisorexports'
+    variableName: 'AzureOptimization_AdvisorContainer'
+    variableDescription: 'The Storage Account container where Azure Advisor exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestAdvisorWeekly'
+    ingestDescription: 'Weekly Azure Advisor recommendations ingests'
+    ingestTimeOffset: 'PT1H45M'
+    ingestFrequency: 'Week'
+    ingestJobId: advisorIngestJobId
+    exportSchedule: advisorExportsScheduleName
+    exportJobId: advisorExportJobId
+  }
+  {
+    runbookName: argVmExportsRunbookName
+    containerName: 'argvmexports'
+    variableName: 'AzureOptimization_ARGVMContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGVMsDaily'
+    ingestDescription: 'Daily Azure Resource Graph Virtual Machines ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argVmIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argVmExportJobId
+  }
+  {
+    runbookName: argDisksExportsRunbookName
+    containerName: 'argdiskexports'
+    variableName: 'AzureOptimization_ARGDiskContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGDisksDaily'
+    ingestDescription: 'Daily Azure Resource Graph Managed Disks ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argDiskIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argDiskExportJobId
+  }
+  {
+    runbookName: argVhdExportsRunbookName
+    containerName: 'argvhdexports'
+    variableName: 'AzureOptimization_ARGVhdContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Unmanaged Disks exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGVHDsDaily'
+    ingestDescription: 'Daily Azure Resource Graph Unmanaged Disks ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argVhdIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argVhdExportJobId
+  }
+  {
+    runbookName: argAvailSetExportsRunbookName
+    containerName: 'argavailsetexports'
+    variableName: 'AzureOptimization_ARGAvailabilitySetContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Availability Set exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGAvailSetsDaily'
+    ingestDescription: 'Daily Azure Resource Graph Availability Sets ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argAvailSetIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argAvailSetExportJobId
+  }
+  {
+    runbookName: consumptionExportsRunbookName
+    containerName: 'consumptionexports'
+    variableName: 'AzureOptimization_ConsumptionContainer'
+    variableDescription: 'The Storage Account container where Azure Consumption exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestConsumptionDaily'
+    ingestDescription: 'Daily Azure Consumption ingests'
+    ingestTimeOffset: 'PT2H'
+    ingestFrequency: 'Day'
+    ingestJobId: consumptionIngestJobId
+    exportSchedule: consumptionExportsScheduleName
+    exportJobId: consumptionExportJobId
+  }
+  {
+    runbookName: aadObjectsExportsRunbookName
+    containerName: 'aadobjectsexports'
+    variableName: 'AzureOptimization_AADObjectsContainer'
+    variableDescription: 'The Storage Account container where Azure AD Objects exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestAADObjectsDaily'
+    ingestDescription: 'Daily Azure AD Objects ingests'
+    ingestTimeOffset: 'PT2H'
+    ingestFrequency: 'Day'
+    ingestJobId: aadObjectsIngestJobId
+    exportSchedule: aadObjectsExportsScheduleName
+    exportJobId: aadObjectsExportJobId
+  }
+  {
+    runbookName: argLoadBalancersExportsRunbookName
+    containerName: 'arglbexports'
+    variableName: 'AzureOptimization_ARGLoadBalancerContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Load Balancer exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGLoadBalancersDaily'
+    ingestDescription: 'Daily Azure Resource Graph Load Balancers ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argLoadBalancersIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argLoadBalancersExportJobId
+  }
+  {
+    runbookName: argAppGWsExportsRunbookName
+    containerName: 'argappgwexports'
+    variableName: 'AzureOptimization_ARGAppGatewayContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Application Gateway exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGAppGWsDaily'
+    ingestDescription: 'Daily Azure Resource Graph Application Gateways ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argAppGWsIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argAppGWsExportJobId
+  }
+  {
+    runbookName: argResContainersExportsRunbookName
+    containerName: 'argrescontainersexports'
+    variableName: 'AzureOptimization_ARGResourceContainersContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Resource Containers exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGResourceContainersDaily'
+    ingestDescription: 'Daily Azure Resource Graph Resource Containers ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argResContainersIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argResContainersExportJobId
+  }
+  {
+    runbookName: rbacExportsRunbookName
+    containerName: 'rbacexports'
+    variableName: 'AzureOptimization_RBACAssignmentsContainer'
+    variableDescription: 'The Storage Account container where RBAC Assignments exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestRBACDaily'
+    ingestDescription: 'Daily Azure RBAC ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: rbacIngestJobId
+    exportSchedule: rbacExportsScheduleName
+    exportJobId: rbacExportJobId
+  }
+  {
+    runbookName: argNICExportsRunbookName
+    containerName: 'argnicexports'
+    variableName: 'AzureOptimization_ARGNICContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph NIC exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGNICsDaily'
+    ingestDescription: 'Daily Azure Resource Graph NIC ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argNICIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argNICExportJobId
+  }
+  {
+    runbookName: argNSGExportsRunbookName
+    containerName: 'argnsgexports'
+    variableName: 'AzureOptimization_ARGNSGContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph NSG exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGNSGsDaily'
+    ingestDescription: 'Daily Azure Resource Graph NSG ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argNSGIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argNSGExportJobId
+  }
+  {
+    runbookName: argVNetExportsRunbookName
+    containerName: 'argvnetexports'
+    variableName: 'AzureOptimization_ARGVNetContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph VNet exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGVNetsDaily'
+    ingestDescription: 'Daily Azure Resource Graph Virtual Network ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argVNetIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argVNetExportJobId
+  }
+  {
+    runbookName: argPublicIpExportsRunbookName
+    containerName: 'argpublicipexports'
+    variableName: 'AzureOptimization_ARGPublicIpContainer'
+    variableDescription: 'The Storage Account container where Azure Resource Graph Public IP exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestARGPublicIPsDaily'
+    ingestDescription: 'Daily Azure Resource Graph Public IP ingests'
+    ingestTimeOffset: 'PT1H30M'
+    ingestFrequency: 'Day'
+    ingestJobId: argPublicIPIngestJobId
+    exportSchedule: argExportsScheduleName
+    exportJobId: argPublicIPExportJobId
+  }
+]
+var unattachedDisksRecommendationsRunbookName = 'Recommend-UnattachedDisksToBlobStorage'
+var advisorCostAugmentedRecommendationsRunbookName = 'Recommend-AdvisorCostAugmentedToBlobStorage'
+var advisorAsIsRecommendationsRunbookName = 'Recommend-AdvisorAsIsToBlobStorage'
+var vmsHARecommendationsRunbookName = 'Recommend-VMsHighAvailabilityToBlobStorage'
+var longDeallocatedVmsRecommendationsRunbookName = 'Recommend-LongDeallocatedVmsToBlobStorage'
+var aadExpiringCredsRecommendationsRunbookName = 'Recommend-AADExpiringCredentialsToBlobStorage'
+var unusedLBsRecommendationsRunbookName = 'Recommend-UnusedLoadBalancersToBlobStorage'
+var unusedAppGWsRecommendationsRunbookName = 'Recommend-UnusedAppGWsToBlobStorage'
+var armOptimizationsRecommendationsRunbookName = 'Recommend-ARMOptimizationsToBlobStorage'
+var vnetOptimizationsRecommendationsRunbookName = 'Recommend-VNetOptimizationsToBlobStorage'
+var recommendations = [
+  {
+    recommendationJobId: unattachedDisksRecommendationJobId
+    runbookName: unattachedDisksRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: advisorCostAugmentedRecommendationJobId
+    runbookName: advisorCostAugmentedRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: advisorAsIsRecommendationJobId
+    runbookName: advisorAsIsRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: vmsHaRecommendationJobId
+    runbookName: vmsHARecommendationsRunbookName
+  }
+  {
+    recommendationJobId: longDeallocatedVmsRecommendationJobId
+    runbookName: longDeallocatedVmsRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: aadExpiringCredsRecommendationJobId
+    runbookName: aadExpiringCredsRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: unusedLoadBalancersRecommendationJobId
+    runbookName: unusedLBsRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: unusedAppGWsRecommendationJobId
+    runbookName: unusedAppGWsRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: armOptimizationsRecommendationJobId
+    runbookName: armOptimizationsRecommendationsRunbookName
+  }
+  {
+    recommendationJobId: vnetOptimizationsRecommendationJobId
+    runbookName: vnetOptimizationsRecommendationsRunbookName
+  }
+]
+var remediationLogsContainerName = 'remediationlogs'
+var recommendationsContainerName = 'recommendationsexports'
+var csvIngestRunbookName = 'Ingest-OptimizationCSVExportsToLogAnalytics'
+var recommendationsIngestRunbookName = 'Ingest-RecommendationsToSQLServer'
+var advisorRightSizeFilteredRemediationRunbookName = 'Remediate-AdvisorRightSizeFiltered'
+var longDeallocatedVMsFilteredRemediationRunbookName = 'Remediate-LongDeallocatedVMsFiltered'
+var unattachedDisksFilteredRemediationRunbookName = 'Remediate-UnattachedDisksFiltered'
 var remediationLogsIngestScheduleName = 'AzureOptimization_IngestRemediationLogsDaily'
-var consumptionIngestScheduleName = 'AzureOptimization_IngestConsumptionDaily'
-var aadObjectsIngestScheduleName = 'AzureOptimization_IngestAADObjectsDaily'
-var argLBsIngestScheduleName = 'AzureOptimization_IngestARGLoadBalancersDaily'
-var argAppGWsIngestScheduleName = 'AzureOptimization_IngestARGAppGWsDaily'
-var argResContainersIngestScheduleName = 'AzureOptimization_IngestARGResourceContainersDaily'
-var rbacIngestScheduleName = 'AzureOptimization_IngestRBACAssignmentsDaily'
-var advisorIngestScheduleName = 'AzureOptimization_IngestAdvisorWeekly'
 var recommendationsScheduleName = 'AzureOptimization_RecommendationsWeekly'
 var recommendationsIngestScheduleName = 'AzureOptimization_IngestRecommendationsWeekly'
 var apiVersions = {
@@ -210,7 +470,7 @@ var apiVersions = {
 }
 var Az_Accounts = {
   name: 'Az.Accounts'
-  url: 'https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.2.4'
+  url: 'https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.2'
 }
 var psModules = [
   {
@@ -223,7 +483,7 @@ var psModules = [
   }
   {
     name: 'Az.Compute'
-    url: 'https://www.powershellgallery.com/api/v2/package/Az.Compute/4.8.0'
+    url: 'https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0'
   }
   {
     name: 'Az.OperationalInsights'
@@ -231,23 +491,23 @@ var psModules = [
   }
   {
     name: 'Az.ResourceGraph'
-    url: 'https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.8.0'
+    url: 'https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.11.0'
   }
   {
     name: 'Az.Storage'
-    url: 'https://www.powershellgallery.com/api/v2/package/Az.Storage/3.2.1'
+    url: 'https://www.powershellgallery.com/api/v2/package/Az.Storage/3.10.0'
   }
   {
     name: 'Az.Resources'
-    url: 'https://www.powershellgallery.com/api/v2/package/Az.Resources/3.2.0'
+    url: 'https://www.powershellgallery.com/api/v2/package/Az.Resources/4.3.0'
   }
   {
     name: 'Az.Monitor'
-    url: 'https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.4.0'
+    url: 'https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.7.0'
   }
   {
     name: 'AzureADPreview'
-    url: 'https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.129'
+    url: 'https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.138'
   }
 ]
 var runbooks = [
@@ -260,63 +520,63 @@ var runbooks = [
   }
   {
     name: argDisksExportsRunbookName
-    version: '1.3.0.0'
+    version: '1.3.2.0'
     description: 'Exports Managed Disks properties to Blob Storage using Azure Resource Graph'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argDisksExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: argVhdExportsRunbookName
-    version: '1.1.0.0'
+    version: '1.1.2.0'
     description: 'Exports Unmanaged Disks (owned by a VM) properties to Blob Storage using Azure Resource Graph'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argVhdExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: argVmExportsRunbookName
-    version: '1.4.0.0'
+    version: '1.4.2.0'
     description: 'Exports Virtual Machine properties to Blob Storage using Azure Resource Graph'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argVmExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: argAvailSetExportsRunbookName
-    version: '1.1.0.0'
+    version: '1.1.2.0'
     description: 'Exports Availability Set properties to Blob Storage using Azure Resource Graph'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argAvailSetExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: consumptionExportsRunbookName
-    version: '1.1.0.0'
+    version: '1.1.1.0'
     description: 'Exports Azure Consumption events to Blob Storage using Azure Consumption API'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${consumptionExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: aadObjectsExportsRunbookName
-    version: '1.1.1.0'
+    version: '1.1.2.0'
     description: 'Exports Azure AAD Objects to Blob Storage using Azure ARM API'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${aadObjectsExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: argLoadBalancersExportsRunbookName
-    version: '1.1.0.0'
+    version: '1.1.2.0'
     description: 'Exports Load Balancer properties to Blob Storage using Azure Resource Graph'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argLoadBalancersExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: argAppGWsExportsRunbookName
-    version: '1.1.0.0'
+    version: '1.1.2.0'
     description: 'Exports Application Gateway properties to Blob Storage using Azure Resource Graph'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argAppGWsExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: argResContainersExportsRunbookName
-    version: '1.0.0.0'
+    version: '1.0.2.0'
     description: 'Exports Resource Containers properties to Blob Storage using Azure Resource Graph'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argResContainersExportsRunbookName}.ps1${artifactsLocationSasToken}')
@@ -329,116 +589,109 @@ var runbooks = [
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${rbacExportsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
+    name: argNICExportsRunbookName
+    version: '1.0.0.0'
+    description: 'Exports NIC properties to Blob Storage using Azure Resource Graph'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argNICExportsRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
+    name: argNSGExportsRunbookName
+    version: '1.0.0.0'
+    description: 'Exports NSG properties to Blob Storage using Azure Resource Graph'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argNSGExportsRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
+    name: argPublicIpExportsRunbookName
+    version: '1.0.0.0'
+    description: 'Exports Public IP properties to Blob Storage using Azure Resource Graph'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argPublicIpExportsRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
+    name: argVNetExportsRunbookName
+    version: '1.0.0.0'
+    description: 'Exports VNet properties to Blob Storage using Azure Resource Graph'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${argVNetExportsRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
     name: csvIngestRunbookName
-    version: '1.4.3.0'
+    version: '1.4.4.0'
     description: 'Ingests CSV blobs as custom logs to Log Analytics'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/data-collection/${csvIngestRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: unattachedDisksRecommendationsRunbookName
-    version: '2.4.1.0'
+    version: '2.4.4.0'
     description: 'Generates unattached disks recommendations'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${unattachedDisksRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: advisorCostAugmentedRecommendationsRunbookName
-    version: '2.8.1.0'
+    version: '2.8.3.0'
     description: 'Generates augmented Advisor Cost recommendations'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${advisorCostAugmentedRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: advisorAsIsRecommendationsRunbookName
-    version: '1.5.1.0'
+    version: '1.5.3.0'
     description: 'Generates all types of Advisor recommendations'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${advisorAsIsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
-    name: unmanagedDisksRecommendationsRunbookName
-    version: '1.5.1.0'
-    description: 'Generates unmanaged disks recommendations'
+    name: vmsHARecommendationsRunbookName
+    version: '1.0.0.0'
+    description: 'Generates VMs High Availability recommendations'
     type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${unmanagedDisksRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
-  }
-  {
-    name: availSetsLowFaultDomainRecommendationsRunbookName
-    version: '1.2.1.0'
-    description: 'Generates low fault domain Availability Set recommendations'
-    type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${availSetsLowFaultDomainRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
-  }
-  {
-    name: availSetsLowUpdateDomainRecommendationsRunbookName
-    version: '1.2.1.0'
-    description: 'Generates low update domain Availability Set recommendations'
-    type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${availSetsLowUpdateDomainRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
-  }
-  {
-    name: availSetsSharingStorageRecommendationsRunbookName
-    version: '1.2.1.0'
-    description: 'Generates Availability Set VMs sharing storage recommendations'
-    type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${availSetsSharingStorageRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
+    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${vmsHARecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: longDeallocatedVmsRecommendationsRunbookName
-    version: '1.2.1.0'
+    version: '1.2.3.0'
     description: 'Generates long deallocated VMs recommendations'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${longDeallocatedVmsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
-    name: storageAccountsMultipleVmsRecommendationsRunbookName
-    version: '1.2.1.0'
-    description: 'Generates storage accounts with multiple VMs recommendations'
-    type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${storageAccountsMultipleVmsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
-  }
-  {
-    name: vmsNoAvailSetRecommendationsRunbookName
-    version: '1.2.1.0'
-    description: 'Generates VMs without Availability Set recommendations'
-    type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${vmsNoAvailSetRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
-  }
-  {
-    name: vmsSingleInAvailSetRecommendationsRunbookName
-    version: '1.2.1.0'
-    description: 'Generates VMs single in Availability Set recommendations'
-    type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${vmsSingleInAvailSetRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
-  }
-  {
-    name: vmsDisksMultipleStorageRecommendationsRunbookName
-    version: '1.2.1.0'
-    description: 'Generates VMs with disks in multiple storage accounts recommendations'
-    type: 'PowerShell'
-    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${vmsDisksMultipleStorageRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
-  }
-  {
     name: aadExpiringCredsRecommendationsRunbookName
-    version: '1.1.6.0'
+    version: '1.1.8.0'
     description: 'Generates AAD Objects with expiring credentials recommendations'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${aadExpiringCredsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: unusedLBsRecommendationsRunbookName
-    version: '1.2.2.0'
+    version: '1.2.5.0'
     description: 'Generates unused Load Balancers recommendations'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${unusedLBsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: unusedAppGWsRecommendationsRunbookName
-    version: '1.2.1.0'
+    version: '1.2.4.0'
     description: 'Generates unused Application Gateways recommendations'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${unusedAppGWsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
+    name: armOptimizationsRecommendationsRunbookName
+    version: '1.0.1.0'
+    description: 'Generates ARM optimizations recommendations'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${armOptimizationsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
+    name: vnetOptimizationsRecommendationsRunbookName
+    version: '1.0.0.0'
+    description: 'Generates Virtual Network optimizations recommendations'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/recommendations/${vnetOptimizationsRecommendationsRunbookName}.ps1${artifactsLocationSasToken}')
   }
   {
     name: recommendationsIngestRunbookName
@@ -449,10 +702,24 @@ var runbooks = [
   }
   {
     name: advisorRightSizeFilteredRemediationRunbookName
-    version: '1.2.0.0'
+    version: '1.2.1.0'
     description: 'Remediates Azure Advisor right-size recommendations given fit and tag filters'
     type: 'PowerShell'
     scriptUri: uri(artifactsLocation, 'runbooks/remediations/${advisorRightSizeFilteredRemediationRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
+    name: longDeallocatedVMsFilteredRemediationRunbookName
+    version: '1.0.0.0'
+    description: 'Remediates long-deallocated VMs recommendations given fit and tag filters'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/remediations/${longDeallocatedVMsFilteredRemediationRunbookName}.ps1${artifactsLocationSasToken}')
+  }
+  {
+    name: unattachedDisksFilteredRemediationRunbookName
+    version: '1.0.0.0'
+    description: 'Remediates unattached disks recommendations given fit and tag filters'
+    type: 'PowerShell'
+    scriptUri: uri(artifactsLocation, 'runbooks/remediations/${unattachedDisksFilteredRemediationRunbookName}.ps1${artifactsLocationSasToken}')
   }
 ]
 var automationVariables = [
@@ -482,74 +749,9 @@ var automationVariables = [
     value: '"${subscription().subscriptionId}"'
   }
   {
-    name: 'AzureOptimization_AdvisorContainer'
-    description: 'The Storage Account container where Azure Advisor exports are dumped to'
-    value: '"${advisorContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ARGDiskContainer'
-    description: 'The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to'
-    value: '"${argDiskContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ARGVhdContainer'
-    description: 'The Storage Account container where Azure Resource Graph Unmanaged Disks exports are dumped to'
-    value: '"${argVhdContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ARGVMContainer'
-    description: 'The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to'
-    value: '"${argVmContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ARGAvailabilitySetContainer'
-    description: 'The Storage Account container where Azure Resource Graph Availability Set exports are dumped to'
-    value: '"${argAvailSetContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ConsumptionContainer'
-    description: 'The Storage Account container where Azure Consumption exports are dumped to'
-    value: '"${consumptionContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_AADObjectsContainer'
-    description: 'The Storage Account container where Azure AD Objects exports are dumped to'
-    value: '"${aadObjectsContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ARGLoadBalancerContainer'
-    description: 'The Storage Account container where Azure Resource Graph Load Balancer exports are dumped to'
-    value: '"${argLBsContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ARGAppGatewayContainer'
-    description: 'The Storage Account container where Azure Resource Graph Application Gateway exports are dumped to'
-    value: '"${argAppGWsContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_ARGResourceContainersContainer'
-    description: 'The Storage Account container where Azure Resource Graph Resource Containers exports are dumped to'
-    value: '"${argResContainersContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_RBACAssignmentsContainer'
-    description: 'The Storage Account container where RBAC Assignments exports are dumped to'
-    value: '"${rbacContainerName}"'
-  }
-  {
     name: 'AzureOptimization_ConsumptionOffsetDays'
     description: 'The offset (in days) for querying for consumption data'
-    value: 7
-  }
-  {
-    name: 'AzureOptimization_RecommendationsContainer'
-    description: 'The Storage Account container where recommendations are dumped to'
-    value: '"${recommendationsContainerName}"'
-  }
-  {
-    name: 'AzureOptimization_RemediationLogsContainer'
-    description: 'The Storage Account container where remediation logs are dumped to'
-    value: '"${remediationLogsContainerName}"'
+    value: 3
   }
   {
     name: 'AzureOptimization_AdvisorFilter'
@@ -569,7 +771,7 @@ var automationVariables = [
   {
     name: 'AzureOptimization_LogAnalyticsChunkSize'
     description: 'The size (in rows) for each chunk of Log Analytics ingestion request'
-    value: 10000
+    value: 9000
   }
   {
     name: 'AzureOptimization_StorageBlobsPageSize'
@@ -682,6 +884,41 @@ var automationVariables = [
     value: '"e10b1381-5f0a-47ff-8c7b-37bd13d7c974"'
   }
   {
+    name: 'AzureOptimization_RemediateLongDeallocatedVMsMinFitScore'
+    description: 'The minimum fit score for long-deallocated VM remediation'
+    value: '"5.0"'
+  }
+  {
+    name: 'AzureOptimization_RemediateLongDeallocatedVMsMinWeeksInARow'
+    description: 'The minimum number of weeks in a row required for a long-deallocated VM recommendation to be remediated'
+    value: 4
+  }
+  {
+    name: 'AzureOptimization_RecommendationLongDeallocatedVMsId'
+    description: 'The long deallocated VM recommendation ID'
+    value: '"c320b790-2e58-452a-aa63-7b62c383ad8a"'
+  }
+  {
+    name: 'AzureOptimization_RemediateUnattachedDisksMinFitScore'
+    description: 'The minimum fit score for unattached disk remediation'
+    value: '"5.0"'
+  }
+  {
+    name: 'AzureOptimization_RemediateUnattachedDisksMinWeeksInARow'
+    description: 'The minimum number of weeks in a row required for a unattached disk recommendation to be remediated'
+    value: 4
+  }
+  {
+    name: 'AzureOptimization_RemediateUnattachedDisksAction'
+    description: 'The action for the unattached disk recommendation to be remediated (Delete or Downsize)'
+    value: '"Delete"'
+  }
+  {
+    name: 'AzureOptimization_RecommendationUnattachedDisksId'
+    description: 'The unattached disk recommendation ID'
+    value: '"c84d5e86-e2d6-4d62-be7c-cecfbd73b0db"'
+  }
+  {
     name: 'AzureOptimization_RecommendationAADMinCredValidityDays'
     description: 'The minimum validity of an AAD Object credential in days'
     value: 30
@@ -696,6 +933,31 @@ var automationVariables = [
     description: 'The Azure AD object types to export'
     value: '"Application,ServicePrincipal,User,Group"'
   }
+  {
+    name: 'AzureOptimization_RecommendationRBACAssignmentsPercentageThreshold'
+    description: 'The percentage threshold (used to trigger recommendations) for total RBAC assignments limits'
+    value: 80
+  }
+  {
+    name: 'AzureOptimization_RecommendationResourceGroupsPerSubPercentageThreshold'
+    description: 'The percentage threshold (used to trigger recommendations) for resource group count limits'
+    value: 80
+  }
+  {
+    name: 'AzureOptimization_RecommendationVNetSubnetMaxUsedPercentageThreshold'
+    description: 'The percentage threshold (used to trigger recommendations) for maximum subnet address space usage'
+    value: 80
+  }
+  {
+    name: 'AzureOptimization_RecommendationVNetSubnetMinUsedPercentageThreshold'
+    description: 'The percentage threshold (used to trigger recommendations) for minimum subnet address space usage'
+    value: 5
+  }
+  {
+    name: 'AzureOptimization_RecommendationVNetSubnetEmptyMinAgeInDays'
+    description: 'The minimum age (in days) for an empty subnet to trigger an NSG rule recommendation'
+    value: 30
+  }
 ]
 
 resource logAnalyticsWorkspaceName_resource 'microsoft.operationalinsights/workspaces@2020-08-01' = if (!logAnalyticsReuse) {
@@ -703,7 +965,7 @@ resource logAnalyticsWorkspaceName_resource 'microsoft.operationalinsights/works
   location: projectLocation
   properties: {
     sku: {
-      name: 'PerGB2018'
+      name: 'pergb2018'
     }
     retentionInDays: logAnalyticsRetentionDays
   }
@@ -758,8 +1020,8 @@ resource storageAccountName_default 'Microsoft.Storage/storageAccounts/blobServi
   ]
 }
 
-resource storageAccountName_default_argDiskContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${argDiskContainerName}'
+resource storageAccountName_default_csvExports_containerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = [for item in csvExports: {
+  name: '${storageAccountName}/default/${item.containerName}'
   properties: {
     publicAccess: 'None'
   }
@@ -767,117 +1029,7 @@ resource storageAccountName_default_argDiskContainerName 'Microsoft.Storage/stor
     storageAccountName_default
     storageAccountName_resource
   ]
-}
-
-resource storageAccountName_default_argVhdContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${argVhdContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_argVmContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${argVmContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_argAvailSetContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${argAvailSetContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_advisorContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${advisorContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_consumptionContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${consumptionContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_aadObjectsContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${aadObjectsContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_argLBsContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${argLBsContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_argAppGWsContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${argAppGWsContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_argResContainersContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${argResContainersContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
-
-resource storageAccountName_default_rbacContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
-  name: '${storageAccountName}/default/${rbacContainerName}'
-  properties: {
-    publicAccess: 'None'
-  }
-  dependsOn: [
-    storageAccountName_default
-    storageAccountName_resource
-  ]
-}
+}]
 
 resource storageAccountName_default_recommendationsContainerName 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = {
   name: '${storageAccountName}/default/${recommendationsContainerName}'
@@ -1026,6 +1178,17 @@ resource automationAccountName_automationVariables_name 'Microsoft.Automation/au
   ]
 }]
 
+resource automationAccountName_csvExports_variableName 'Microsoft.Automation/automationAccounts/variables@2018-06-30' = [for item in csvExports: {
+  name: '${automationAccountName}/${item.variableName}'
+  properties: {
+    description: item.variableDescription
+    value: '"${item.containerName}"'
+  }
+  dependsOn: [
+    automationAccountName_resource
+  ]
+}]
+
 resource automationAccountName_AzureOptimization_SQLServerHostname 'Microsoft.Automation/automationAccounts/variables@2018-06-30' = {
   name: '${automationAccountName}/AzureOptimization_SQLServerHostname'
   properties: {
@@ -1074,125 +1237,35 @@ resource automationAccountName_AzureOptimization_SQLServerCredential 'Microsoft.
   ]
 }
 
-resource automationAccountName_argExportsScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argExportsScheduleName}'
+resource automationAccountName_csvExportsSchedules_exportSchedule 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = [for item in csvExportsSchedules: {
+  name: '${automationAccountName}/${item.exportSchedule}'
   properties: {
-    description: 'Starts the daily Azure Resource Graph exports'
+    description: item.exportDescription
     expiryTime: '31/12/9999 23:59:00'
     isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H')
+    startTime: dateTimeAdd(baseTime, item.exportTimeOffset)
     interval: 1
-    frequency: 'Day'
+    frequency: item.exportFrequency
   }
   dependsOn: [
     automationAccountName_resource
   ]
-}
+}]
 
-resource automationAccountName_advisorExportsScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${advisorExportsScheduleName}'
+resource automationAccountName_csvExports_ingestSchedule 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = [for item in csvExports: {
+  name: '${automationAccountName}/${item.ingestSchedule}'
   properties: {
-    description: 'Starts the weekly Azure Advisor exports'
+    description: item.ingestDescription
     expiryTime: '31/12/9999 23:59:00'
     isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H15M')
+    startTime: dateTimeAdd(baseTime, item.ingestTimeOffset)
     interval: 1
-    frequency: 'Week'
+    frequency: item.ingestFrequency
   }
   dependsOn: [
     automationAccountName_resource
   ]
-}
-
-resource automationAccountName_consumptionExportsScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${consumptionExportsScheduleName}'
-  properties: {
-    description: 'Starts the daily Azure Consumption exports'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_aadObjectsExportsScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${aadObjectsExportsScheduleName}'
-  properties: {
-    description: 'Starts the daily Azure AD Objects exports'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_argDiskIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argDiskIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily Azure Resource Graph Managed Disks ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_argVhdIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argVhdIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily Azure Resource Graph Unmanaged Disks ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_argVmIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argVmIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily Azure Resource Graph Virtual Machine ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_argAvailSetIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argAvailSetIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily Azure Resource Graph Availability Set ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
+}]
 
 resource automationAccountName_remediationLogsIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
   name: '${automationAccountName}/${remediationLogsIngestScheduleName}'
@@ -1203,111 +1276,6 @@ resource automationAccountName_remediationLogsIngestScheduleName 'Microsoft.Auto
     startTime: dateTimeAdd(baseTime, 'PT1H30M')
     interval: 1
     frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_consumptionIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${consumptionIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily Consumption ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT2H')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_aadObjectsIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${aadObjectsIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily AAD Objects ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT2H')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_argLBsIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argLBsIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily Load Balancer ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_argAppGWsIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argAppGWsIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily App Gateways ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_argResContainersIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${argResContainersIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily Resource Containers ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_rbacIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${rbacIngestScheduleName}'
-  properties: {
-    description: 'Starts the daily RBAC ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H30M')
-    interval: 1
-    frequency: 'Day'
-  }
-  dependsOn: [
-    automationAccountName_resource
-  ]
-}
-
-resource automationAccountName_advisorIngestScheduleName 'Microsoft.Automation/automationAccounts/schedules@2018-06-30' = {
-  name: '${automationAccountName}/${advisorIngestScheduleName}'
-  properties: {
-    description: 'Starts the weekly Azure Advisor ingests'
-    expiryTime: '31/12/9999 23:59:00'
-    isEnabled: true
-    startTime: dateTimeAdd(baseTime, 'PT1H45M')
-    interval: 1
-    frequency: 'Week'
   }
   dependsOn: [
     automationAccountName_resource
@@ -1344,302 +1312,46 @@ resource automationAccountName_recommendationsIngestScheduleName 'Microsoft.Auto
   ]
 }
 
-resource automationAccountName_argDiskExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argDiskExportJobId}'
+resource automationAccountName_csvExports_exportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = [for item in csvExports: {
+  name: '${automationAccountName}/${item.exportJobId}'
   location: projectLocation
   properties: {
     schedule: {
-      name: argExportsScheduleName
+      name: item.exportSchedule
     }
     runbook: {
-      name: argDisksExportsRunbookName
+      name: item.runbookName
     }
   }
   dependsOn: [
     automationAccountName_resource
-    automationAccountName_argExportsScheduleName
+    automationAccountName_csvExportsSchedules_exportSchedule
     automationAccountName_psModules_name
-    argDisksExportsRunbookName
+    automationAccountName_runbooks_name
   ]
-}
+}]
 
-resource automationAccountName_argVhdExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argVhdExportJobId}'
+resource automationAccountName_csvExports_ingestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = [for item in csvExports: {
+  name: '${automationAccountName}/${item.ingestJobId}'
   location: projectLocation
   properties: {
     schedule: {
-      name: argExportsScheduleName
-    }
-    runbook: {
-      name: argVhdExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argExportsScheduleName
-    automationAccountName_psModules_name
-    argVhdExportsRunbookName
-  ]
-}
-
-resource automationAccountName_argVmExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argVmExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argExportsScheduleName
-    }
-    runbook: {
-      name: argVmExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argExportsScheduleName
-    automationAccountName_psModules_name
-    argVmExportsRunbookName
-  ]
-}
-
-resource automationAccountName_argAvailSetExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argAvailSetExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argExportsScheduleName
-    }
-    runbook: {
-      name: argAvailSetExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argExportsScheduleName
-    automationAccountName_psModules_name
-    argAvailSetExportsRunbookName
-  ]
-}
-
-resource automationAccountName_advisorExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${advisorExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: advisorExportsScheduleName
-    }
-    runbook: {
-      name: advisorExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_advisorExportsScheduleName
-    automationAccountName_psModules_name
-    advisorExportsRunbookName
-  ]
-}
-
-resource automationAccountName_consumptionExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${consumptionExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: consumptionExportsScheduleName
-    }
-    runbook: {
-      name: consumptionExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_consumptionExportsScheduleName
-    automationAccountName_psModules_name
-    consumptionExportsRunbookName
-  ]
-}
-
-resource automationAccountName_aadObjectsExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${aadObjectsExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: aadObjectsExportsScheduleName
-    }
-    runbook: {
-      name: aadObjectsExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_aadObjectsExportsScheduleName
-    automationAccountName_psModules_name
-    aadObjectsExportsRunbookName
-  ]
-}
-
-resource automationAccountName_argLoadBalancersExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argLoadBalancersExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argExportsScheduleName
-    }
-    runbook: {
-      name: argLoadBalancersExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argExportsScheduleName
-    automationAccountName_psModules_name
-    argLoadBalancersExportsRunbookName
-  ]
-}
-
-resource automationAccountName_argAppGWsExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argAppGWsExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argExportsScheduleName
-    }
-    runbook: {
-      name: argAppGWsExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argExportsScheduleName
-    automationAccountName_psModules_name
-    argAppGWsExportsRunbookName
-  ]
-}
-
-resource automationAccountName_argResContainersExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argResContainersExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argExportsScheduleName
-    }
-    runbook: {
-      name: argResContainersExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argExportsScheduleName
-    automationAccountName_psModules_name
-    argResContainersExportsRunbookName
-  ]
-}
-
-resource automationAccountName_rbacExportJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${rbacExportJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: aadObjectsExportsScheduleName
-    }
-    runbook: {
-      name: rbacExportsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_aadObjectsExportsScheduleName
-    automationAccountName_psModules_name
-    rbacExportsRunbookName
-  ]
-}
-
-resource automationAccountName_argDiskIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argDiskIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argDiskIngestScheduleName
+      name: item.ingestSchedule
     }
     runbook: {
       name: csvIngestRunbookName
     }
     parameters: {
-      StorageSinkContainer: argDiskContainerName
+      StorageSinkContainer: item.containerName
     }
   }
   dependsOn: [
     automationAccountName_resource
-    automationAccountName_argDiskIngestScheduleName
+    automationAccountName_csvExports_ingestSchedule
     automationAccountName_psModules_name
     csvIngestRunbookName
   ]
-}
-
-resource automationAccountName_argVhdIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argVhdIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argVhdIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: argVhdContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argVhdIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_argVmIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argVmIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argVmIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: argVmContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argVmIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_argAvailSetIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argAvailSetIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argAvailSetIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: argAvailSetContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argAvailSetIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
+}]
 
 resource automationAccountName_remediationLogsIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
   name: '${automationAccountName}/${remediationLogsIngestJobId}'
@@ -1658,449 +1370,28 @@ resource automationAccountName_remediationLogsIngestJobId 'Microsoft.Automation/
   dependsOn: [
     automationAccountName_resource
     automationAccountName_remediationLogsIngestScheduleName
-    automationAccountName_psModules_name
     csvIngestRunbookName
   ]
 }
 
-resource automationAccountName_consumptionIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${consumptionIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: consumptionIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: consumptionContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_consumptionIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_aadObjectsIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${aadObjectsIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: aadObjectsIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: aadObjectsContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_aadObjectsIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_argLoadBalancersIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argLoadBalancersIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argLBsIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: argLBsContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argLBsIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_argAppGWsIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argAppGWsIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argAppGWsIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: argAppGWsContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argAppGWsIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_argResContainersIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${argResContainersIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: argResContainersIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: argResContainersContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_argResContainersIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_rbacIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${rbacIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: rbacIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: rbacContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_rbacIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_advisorIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${advisorIngestJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: advisorIngestScheduleName
-    }
-    runbook: {
-      name: csvIngestRunbookName
-    }
-    parameters: {
-      StorageSinkContainer: advisorContainerName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_advisorIngestScheduleName
-    automationAccountName_psModules_name
-    csvIngestRunbookName
-  ]
-}
-
-resource automationAccountName_unattachedDisksRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${unattachedDisksRecommendationJobId}'
+resource automationAccountName_recommendations_recommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = [for item in recommendations: {
+  name: '${automationAccountName}/${item.recommendationJobId}'
   location: projectLocation
   properties: {
     schedule: {
       name: recommendationsScheduleName
     }
     runbook: {
-      name: unattachedDisksRecommendationsRunbookName
+      name: item.runbookName
     }
   }
   dependsOn: [
     automationAccountName_resource
     automationAccountName_recommendationsScheduleName
     automationAccountName_psModules_name
-    unattachedDisksRecommendationsRunbookName
+    automationAccountName_runbooks_name
   ]
-}
-
-resource automationAccountName_advisorCostAugmentedRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${advisorCostAugmentedRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: advisorCostAugmentedRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    advisorCostAugmentedRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_advisorAsIsRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${advisorAsIsRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: advisorAsIsRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    advisorAsIsRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_unmanagedDisksRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${unmanagedDisksRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: unmanagedDisksRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    unmanagedDisksRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_availSetsLowFaultDomainRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${availSetsLowFaultDomainRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: availSetsLowFaultDomainRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    availSetsLowFaultDomainRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_availSetsLowUpdateDomainRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${availSetsLowUpdateDomainRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: availSetsLowUpdateDomainRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    availSetsLowUpdateDomainRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_availSetsSharingStorageRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${availSetsSharingStorageRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: availSetsSharingStorageRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    availSetsSharingStorageRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_longDeallocatedVmsRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${longDeallocatedVmsRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: longDeallocatedVmsRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    longDeallocatedVmsRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_storageAccountsMultipleVmsRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${storageAccountsMultipleVmsRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: storageAccountsMultipleVmsRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    storageAccountsMultipleVmsRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_vmsNoAvailSetRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${vmsNoAvailSetRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: vmsNoAvailSetRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    vmsNoAvailSetRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_vmsSingleInAvailSetRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${vmsSingleInAvailSetRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: vmsSingleInAvailSetRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    vmsSingleInAvailSetRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_vmsDisksMultipleStorageRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${vmsDisksMultipleStorageRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: vmsDisksMultipleStorageRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    vmsDisksMultipleStorageRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_aadExpiringCredsRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${aadExpiringCredsRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: aadExpiringCredsRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    aadExpiringCredsRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_unusedLoadBalancersRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${unusedLoadBalancersRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: unusedLBsRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    unusedLBsRecommendationsRunbookName
-  ]
-}
-
-resource automationAccountName_unusedAppGWsRecommendationJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
-  name: '${automationAccountName}/${unusedAppGWsRecommendationJobId}'
-  location: projectLocation
-  properties: {
-    schedule: {
-      name: recommendationsScheduleName
-    }
-    runbook: {
-      name: unusedAppGWsRecommendationsRunbookName
-    }
-  }
-  dependsOn: [
-    automationAccountName_resource
-    automationAccountName_recommendationsScheduleName
-    automationAccountName_psModules_name
-    unusedAppGWsRecommendationsRunbookName
-  ]
-}
+}]
 
 resource automationAccountName_recommendationsIngestJobId 'Microsoft.Automation/automationAccounts/jobSchedules@2018-06-30' = {
   name: '${automationAccountName}/${recommendationsIngestJobId}'
