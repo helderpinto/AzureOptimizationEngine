@@ -31,6 +31,12 @@
             "description": "Underused SQL Databases (performance capacity waste)"
         },
         {
+            "category": "Cost",
+            "typeId": "3125883f-8b9f-4bde-a0ff-6c739858c6e1",
+            "impact": "Low",
+            "description": "Orphaned Public IP (without owner resource) incur in unnecessary costs"
+        },
+        {
             "category": "HighAvailability",
             "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
             "impact": "High",
@@ -85,6 +91,24 @@
             "description": "Azure AD application with credentials expiration not set or too far in time"
         },
         {
+            "category": "Security",
+            "typeId": "b5491cde-f76c-4423-8c4c-89e3558ff2f2",
+            "impact": "Medium",
+            "description": "NSG rules referring to empty or inexisting subnets"
+        },
+        {
+            "category": "Security",
+            "typeId": "3dc1d1f8-19ef-4572-9c9d-78d62831f55a",
+            "impact": "Medium",
+            "description": "NSG rules referring to orphan or inexisting NICs"
+        },
+        {
+            "category": "Security",
+            "typeId": "fe40cbe7-bdee-4cce-b072-cf25e1247b7a",
+            "impact": "High",
+            "description": "NSG rules referring to orphan or inexisting Public IPs"
+        },
+        {
             "category": "OperationalExcellence",
             "typeId": "3292c489-2782-498b-aad0-a4cef50f6ca2",
             "impact": "Medium",
@@ -107,6 +131,36 @@
             "typeId": "0f27b41c-869a-4563-86e9-d1c94232ba81",
             "impact": "Medium",
             "description": "Subnets with a low IP space usage are a waste of virtual network address space"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "343bbfb7-5bec-4711-8353-398454d42b7b",
+            "impact": "Medium",
+            "description": "Subnets without any IP usage are a waste of virtual network address space"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "4c5c2d0c-b6a4-4c59-bc18-6fff6c1f5b23",
+            "impact": "Medium",
+            "description": "Orphaned Network Interfaces (without owner VM or PE) unnecessarily consume IP address space"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "c6a88d8c-3242-44b0-9793-c91897ef68bc",
+            "impact": "High",
+            "description": "Subscriptions close to the maximum limit of RBAC assignments"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "b36dea3e-ef21-45a9-a704-6f629fab236d",
+            "impact": "High",
+            "description": "Management Groups close to the maximum limit of RBAC assignments"
+        },
+        {
+            "category": "OperationalExcellence",
+            "typeId": "4468da8d-1e72-4998-b6d2-3bc38ddd9330",
+            "impact": "High",
+            "description": "Subscriptions close to the maximum limit of resource groups"
         }
     ]
 }

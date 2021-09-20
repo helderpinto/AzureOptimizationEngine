@@ -14,10 +14,7 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 }
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
-$workspaceName = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceName"
-$workspaceRG = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceRG"
 $workspaceSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceSubId"
-$workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceTenantId"
 
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
@@ -26,9 +23,6 @@ $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "recommendationsexports"
 }
-
-$deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # yyyy-MM-dd format
-$deploymentDate = $deploymentDate.Replace('"', "")
 
 $lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))
@@ -44,43 +38,6 @@ $sqldatabase = Get-AutomationVariable -Name  "AzureOptimization_SQLServerDatabas
 if ([string]::IsNullOrEmpty($sqldatabase))
 {
     $sqldatabase = "azureoptimization"
-}
-
-$subnetMaxUsedThresholdVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationVNetSubnetMaxUsedPercentageThreshold" -ErrorAction SilentlyContinue
-if ([string]::IsNullOrEmpty($subnetMaxUsedThresholdVar) -or $subnetMaxUsedThresholdVar -eq 0)
-{
-    $subnetMaxUsedThreshold = 80
-}
-else
-{
-    $subnetMaxUsedThreshold = [int] $subnetMaxUsedThresholdVar
-}
-
-$subnetMinUsedThresholdVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationVNetSubnetMinUsedPercentageThreshold" -ErrorAction SilentlyContinue
-if ([string]::IsNullOrEmpty($subnetMinUsedThresholdVar) -or $subnetMinUsedThresholdVar -eq 0)
-{
-    $subnetMinUsedThreshold = 5
-}
-else
-{
-    $subnetMinUsedThreshold = [int] $subnetMinUsedThresholdVar
-}
-
-# must be a comma-separated, single-quote enclosed list of subnet names, e.g., 'gatewaysubnet','azurebastionsubnet'
-$subnetFreeExclusions = Get-AutomationVariable -Name  "AzureOptimization_RecommendationVNetSubnetUsedPercentageExclusions" -ErrorAction SilentlyContinue
-if ([string]::IsNullOrEmpty($subnetFreeExclusions))
-{
-    $subnetFreeExclusions = "'gatewaysubnet'"
-}
-
-$subnetMinAgeVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationVNetSubnetEmptyMinAgeInDays" -ErrorAction SilentlyContinue
-if ([string]::IsNullOrEmpty($subnetMinAgeVar) -or $subnetMinAgeVar -eq 0)
-{
-    $subnetMinAge = 30
-}
-else
-{
-    $subnetMinAge = [int] $subnetMinAgeVar
 }
 
 $SqlTimeout = 120
@@ -119,7 +76,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGNetworkInterface','ARGVirtualNetwork','ARGResourceContainers', 'ARGNSGRule', 'ARGPublicIP','AzureConsumption')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGVirtualMachine','ARGUnmanagedDisk','ARGAvailabilitySet','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -139,19 +96,17 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$nicsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGNetworkInterface' }).LogAnalyticsSuffix + "_CL"
-$vNetsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualNetwork' }).LogAnalyticsSuffix + "_CL"
+$availSetTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGAvailabilitySet' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
-$nsgRulesTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGNSGRule' }).LogAnalyticsSuffix + "_CL"
-$publicIpsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGPublicIP' }).LogAnalyticsSuffix + "_CL"
-$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
+$vhdsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGUnmanagedDisk' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $nicsTableName, $subscriptionsTableName and $vNetsTableName"
+Write-Output "Will run query against tables $availSetTableName and $subscriptionsTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
 
-$recommendationSearchTimeSpan = 30 + $consumptionOffsetDaysStart
+$recommendationSearchTimeSpan = 1
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
@@ -163,370 +118,28 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
-Write-Output "Looking for subnets with free IP space less than $subnetMaxUsedThreshold%, excluding $subnetFreeExclusions..."
+Write-Output "Looking for Availability Sets with a low fault domain count..."
+
+# Execute the recommendation query against Log Analytics
 
 $baseQuery = @"
-    $vNetsTableName
-    | where TimeGenerated > ago(1d)
-    | where SubnetName_s !in ($subnetFreeExclusions)
-    | extend FreeIPs = toint(SubnetTotalPrefixIPs_s) - toint(SubnetUsedIPs_s)
-    | extend UsedIPPercentage = (todouble(SubnetUsedIPs_s) / todouble(SubnetTotalPrefixIPs_s)) * 100
-    | where UsedIPPercentage >= $subnetMaxUsedThreshold
+    $availSetTableName
+    | where TimeGenerated > ago(1d) and toint(FaultDomains_s) < 3 and toint(FaultDomains_s) < toint(VmCount_s)/2
+    | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s, FaultDomains_s, VmCount_s
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+        $subscriptionsTableName
         | where TimeGenerated > ago(1d)
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionGuid_g
 "@
 
-try
+try 
 {
     $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
     if ($queryResults)
     {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    switch ($result.Cloud_s)
-    {
-        "AzureCloud" { $azureTld = "com" }
-        "AzureChinaCloud" { $azureTld = "cn" }
-        "AzureUSGovernment" { $azureTld = "us" }
-        default { $azureTld = "com" }
-    }
-
-    $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/subnets"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["subnetName"] = $result.SubnetName_s
-    $additionalInfoDictionary["subnetPrefix"] = $result.SubnetPrefix_s 
-    $additionalInfoDictionary["subnetTotalIPs"] = $result.SubnetTotalPrefixIPs_s 
-    $additionalInfoDictionary["subnetFreeIPs"] = $result.FreeIPs 
-    $additionalInfoDictionary["subnetUsedIPPercentage"] = $result.UsedIPPercentage 
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "OperationalExcellence"
-        ImpactedArea = "Microsoft.Network/virtualNetworks"
-        Impact = "Medium"
-        RecommendationType = "BestPractices"
-        RecommendationSubType = "HighSubnetIPSpaceUsage"
-        RecommendationSubTypeId = "5292525b-5095-4e52-803e-e17192f1d099"
-        RecommendationDescription = "Subnets with a high IP space usage may constrain operations"
-        RecommendationAction = "Move network devices to a subnet with a larger address space"
-        InstanceId = $result.InstanceId_s
-        InstanceName = "$($result.VNetName_s)/$($result.SubnetName_s)"
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "subnetshighspaceusage-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-Write-Output "Looking for subnets with used IP space less than $subnetMinUsedThreshold%..."
-
-$baseQuery = @"
-    $vNetsTableName
-    | where TimeGenerated > ago(1d)
-    | where SubnetName_s !in ($subnetFreeExclusions)
-    | extend FreeIPs = toint(SubnetTotalPrefixIPs_s) - toint(SubnetUsedIPs_s)
-    | extend UsedIPPercentage = (todouble(SubnetUsedIPs_s) / todouble(SubnetTotalPrefixIPs_s)) * 100
-    | where UsedIPPercentage > 0 and UsedIPPercentage <= $subnetMinUsedThreshold
-    | join kind=leftouter ( 
-        $subscriptionsTableName 
-        | where TimeGenerated > ago(1d)
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-"@
-
-try
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    switch ($result.Cloud_s)
-    {
-        "AzureCloud" { $azureTld = "com" }
-        "AzureChinaCloud" { $azureTld = "cn" }
-        "AzureUSGovernment" { $azureTld = "us" }
-        default { $azureTld = "com" }
-    }
-
-    $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/subnets"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["subnetName"] = $result.SubnetName_s
-    $additionalInfoDictionary["subnetPrefix"] = $result.SubnetPrefix_s 
-    $additionalInfoDictionary["subnetTotalIPs"] = $result.SubnetTotalPrefixIPs_s 
-    $additionalInfoDictionary["subnetUsedIPs_s"] = $result.SubnetUsedIPs_s
-    $additionalInfoDictionary["subnetUsedIPPercentage"] = $result.UsedIPPercentage 
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "OperationalExcellence"
-        ImpactedArea = "Microsoft.Network/virtualNetworks"
-        Impact = "Medium"
-        RecommendationType = "BestPractices"
-        RecommendationSubType = "LowSubnetIPSpaceUsage"
-        RecommendationSubTypeId = "0f27b41c-869a-4563-86e9-d1c94232ba81"
-        RecommendationDescription = "Subnets with a low IP space usage are a waste of virtual network address space"
-        RecommendationAction = "Move network devices to a subnet with a smaller address space"
-        InstanceId = $result.InstanceId_s
-        InstanceName = "$($result.VNetName_s)/$($result.SubnetName_s)"
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "subnetslowspaceusage-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-Write-Output "Looking for subnets without any device..."
-
-$baseQuery = @"
-    $vNetsTableName
-    | where TimeGenerated > ago(1d)
-    | where toint(SubnetUsedIPs_s) == 0
-    | join kind=leftouter ( 
-        $subscriptionsTableName 
-        | where TimeGenerated > ago(1d)
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-"@
-
-try
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    switch ($result.Cloud_s)
-    {
-        "AzureCloud" { $azureTld = "com" }
-        "AzureChinaCloud" { $azureTld = "cn" }
-        "AzureUSGovernment" { $azureTld = "us" }
-        default { $azureTld = "com" }
-    }
-
-    $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/subnets"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["subnetName"] = $result.SubnetName_s
-    $additionalInfoDictionary["subnetPrefix"] = $result.SubnetPrefix_s 
-    $additionalInfoDictionary["subnetTotalIPs"] = $result.SubnetTotalPrefixIPs_s 
-    $additionalInfoDictionary["subnetUsedIPs_s"] = $result.SubnetUsedIPs_s
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "OperationalExcellence"
-        ImpactedArea = "Microsoft.Network/virtualNetworks"
-        Impact = "Medium"
-        RecommendationType = "BestPractices"
-        RecommendationSubType = "NoSubnetIPSpaceUsage"
-        RecommendationSubTypeId = "343bbfb7-5bec-4711-8353-398454d42b7b"
-        RecommendationDescription = "Subnets without any IP usage are a waste of virtual network address space"
-        RecommendationAction = "Delete the subnet to reclaim address space"
-        InstanceId = $result.InstanceId_s
-        InstanceName = "$($result.VNetName_s)/$($result.SubnetName_s)"
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "subnetsnospaceusage-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-Write-Output "Looking for orphaned NICs..."
-
-$baseQuery = @"
-    $nicsTableName
-    | where TimeGenerated > ago(1d)
-    | where isempty(OwnerVMId_s) and isempty(OwnerPEId_s)
-    | join kind=leftouter ( 
-        $subscriptionsTableName 
-        | where TimeGenerated > ago(1d)
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-"@
-
-try
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
     }
 }
 catch
@@ -559,7 +172,8 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["privateIpAddress"] = $result.PrivateIPAddress_s
+    $additionalInfoDictionary["FaultDomainCount"] = $result.FaultDomains_s
+    $additionalInfoDictionary["VMCount"] = $result.VmCount_s
 
     $fitScore = 5
 
@@ -583,504 +197,16 @@ foreach ($result in $results)
     $recommendation = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
-        Category = "OperationalExcellence"
-        ImpactedArea = "Microsoft.Network/networkInterfaces"
-        Impact = "Medium"
-        RecommendationType = "BestPractices"
-        RecommendationSubType = "OrphanedNIC"
-        RecommendationSubTypeId = "4c5c2d0c-b6a4-4c59-bc18-6fff6c1f5b23"
-        RecommendationDescription = "Orphaned Network Interfaces (without owner VM or PE) unnecessarily consume IP address space"
-        RecommendationAction = "Delete the NIC to reclaim address space"
-        InstanceId = $result.InstanceId_s
-        InstanceName = $result.Name_s
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "orphanednics-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-Write-Output "Looking for NSG rules referring empty or removed subnets..."
-
-$baseQuery = @"
-    let MinimumSubnetAge = $($subnetMinAge)d;
-    let SubnetsToday = materialize( $vNetsTableName
-    | where TimeGenerated > ago(1d)
-    | extend SubnetId = tolower(strcat(InstanceId_s, '/subnets/', SubnetName_s))
-    | distinct SubnetId, SubnetPrefix_s, SubnetUsedIPs_s );
-    let SubnetsBefore = materialize( $vNetsTableName
-    | where TimeGenerated < ago(1d)
-    | extend SubnetId = tolower(strcat(InstanceId_s, '/subnets/', SubnetName_s))
-    | summarize ExistsSince = min(todatetime(StatusDate_s)) by SubnetId, SubnetPrefix_s );
-    let SubnetsExistingLongEnoughIds = SubnetsBefore | where ExistsSince < ago(MinimumSubnetAge) | distinct SubnetId;
-    let EmptySubnets = SubnetsToday | where SubnetId in (SubnetsExistingLongEnoughIds) and toint(SubnetUsedIPs_s) == 0;
-    let SubnetsTodayIds = SubnetsToday | distinct SubnetId;
-    let SubnetsTodayPrefixes = SubnetsToday | distinct SubnetPrefix_s;
-    let RemovedSubnets = SubnetsBefore | where SubnetId !in (SubnetsTodayIds) and SubnetPrefix_s !in (SubnetsTodayPrefixes);
-    let NSGRules = materialize($nsgRulesTableName
-    | where TimeGenerated > ago(1d)
-    | extend SourceAddresses = split(RuleSourceAddresses_s,',')
-    | mvexpand SourceAddresses
-    | extend SourceAddress = tostring(SourceAddresses)
-    | extend DestinationAddresses = split(RuleDestinationAddresses_s,',')
-    | mvexpand DestinationAddresses
-    | extend DestinationAddress = tostring(DestinationAddresses)
-    | project NSGId = InstanceId_s, RuleName_s, DestinationAddress, SourceAddress, SubscriptionGuid_g, Cloud_s, TenantGuid_g, ResourceGroupName_s, NSGName = NSGName_s, Tags_s);
-    let EmptySubnetsAsSource = EmptySubnets
-    | join kind=inner ( NSGRules ) on `$left.SubnetPrefix_s == `$right.SourceAddress
-    | extend SubnetState = 'empty';
-    let EmptySubnetsAsDestination = EmptySubnets
-    | join kind=inner ( NSGRules ) on `$left.SubnetPrefix_s == `$right.DestinationAddress
-    | extend SubnetState = 'empty';
-    let RemovedSubnetsAsSource = RemovedSubnets
-    | join kind=inner ( NSGRules ) on `$left.SubnetPrefix_s == `$right.SourceAddress
-    | extend SubnetState = 'inexisting';
-    let RemovedSubnetsAsDestination = RemovedSubnets
-    | join kind=inner ( NSGRules ) on `$left.SubnetPrefix_s == `$right.DestinationAddress
-    | extend SubnetState = 'inexisting';
-    EmptySubnetsAsSource
-    | union EmptySubnetsAsDestination
-    | union RemovedSubnetsAsSource
-    | union RemovedSubnetsAsDestination
-    | join kind=leftouter ( 
-        $subscriptionsTableName 
-        | where TimeGenerated > ago(1d)
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-    | where isnotempty(SubnetPrefix_s)
-    | distinct NSGId, NSGName, RuleName_s, SubscriptionGuid_g, SubscriptionName, ResourceGroupName_s, TenantGuid_g, Cloud_s, SubnetId, SubnetPrefix_s, SubnetState, Tags_s
-"@
-
-try
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    switch ($result.Cloud_s)
-    {
-        "AzureCloud" { $azureTld = "com" }
-        "AzureChinaCloud" { $azureTld = "cn" }
-        "AzureUSGovernment" { $azureTld = "us" }
-        default { $azureTld = "com" }
-    }
-
-    $queryInstanceId = $result.NSGId
-    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["subnetId"] = $result.SubnetId
-    $additionalInfoDictionary["subnetPrefix"] = $result.SubnetPrefix_s
-    $additionalInfoDictionary["subnetState"] = $result.SubnetState
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "Security"
-        ImpactedArea = "Microsoft.Network/networkSecurityGroups"
-        Impact = "Medium"
-        RecommendationType = "BestPractices"
-        RecommendationSubType = "NSGRuleForEmptyOrInexistingSubnet"
-        RecommendationSubTypeId = "b5491cde-f76c-4423-8c4c-89e3558ff2f2"
-        RecommendationDescription = "NSG rules referring to empty or inexisting subnets"
-        RecommendationAction = "Update or remove the NSG rule to improve your network security posture"
-        InstanceId = $result.NSGId
-        InstanceName = "$($result.NSGName)/$($result.RuleName_s)"
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "nsgrules-emptyinexistingsubnets-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-Write-Output "Looking for NSG rules referring orphan or removed NICs..."
-
-$baseQuery = @"
-    let NICsToday = materialize( $nicsTableName
-    | where TimeGenerated > ago(1d)
-    | extend NICId = tolower(InstanceId_s)
-    | distinct NICId, PrivateIPAddress_s, PublicIPId_s, OwnerVMId_s, OwnerPEId_s );
-    let NICsBefore = $nicsTableName
-    | where TimeGenerated < ago(1d)
-    | extend NICId = tolower(InstanceId_s)
-    | distinct NICId, PrivateIPAddress_s, PublicIPId_s;
-    let OrphanNICs = NICsToday 
-    | where isempty(OwnerVMId_s) and isempty(OwnerPEId_s)
-    | extend PublicIPId_s = tolower(PublicIPId_s)
-    | join kind=leftouter ( 
-        $publicIpsTableName
-        | where TimeGenerated > ago(1d)
-        | project PublicIPId_s = tolower(InstanceId_s), PublicIPAddress = IPAddress 
-    ) on PublicIPId_s;
-    let NICsTodayIds = NICsToday | distinct NICId;
-    let NICsTodayIPs = NICsToday | distinct PrivateIPAddress_s;
-    let RemovedNICs = NICsBefore 
-    | where NICId  !in (NICsTodayIds) and PrivateIPAddress_s  !in (NICsTodayIPs)
-    | extend PublicIPId_s = tolower(PublicIPId_s)
-    | join kind=leftouter ( 
-        $publicIpsTableName
-        | where TimeGenerated < ago(1d)
-        | project PublicIPId_s = tolower(InstanceId_s), PublicIPAddress = IPAddress 
-    ) on PublicIPId_s;
-    let NSGRules = materialize($nsgRulesTableName
-    | where TimeGenerated > ago(1d)
-    | extend SourceAddresses = split(RuleSourceAddresses_s,',')
-    | mvexpand SourceAddresses
-    | extend SourceAddress = replace('/32','',tostring(SourceAddresses))
-    | extend DestinationAddresses = split(RuleDestinationAddresses_s,',')
-    | mvexpand DestinationAddresses
-    | extend DestinationAddress = replace('/32','',tostring(DestinationAddresses))
-    | project NSGId = InstanceId_s, RuleName_s, DestinationAddress, SourceAddress, SubscriptionGuid_g, Cloud_s, TenantGuid_g, ResourceGroupName_s, NSGName = NSGName_s, Tags_s);
-    let OrphanNICsAsPrivateSource = OrphanNICs
-    | join kind=inner ( NSGRules ) on `$left.PrivateIPAddress_s == `$right.SourceAddress
-    | extend NICState = 'orphan', IPAddress = PrivateIPAddress_s;
-    let OrphanNICsAsPublicSource = OrphanNICs
-    | join kind=inner ( NSGRules ) on `$left.PublicIPAddress == `$right.SourceAddress
-    | extend NICState = 'orphan', IPAddress = PublicIPAddress;
-    let OrphanNICsAsPrivateDestination = OrphanNICs
-    | join kind=inner ( NSGRules ) on `$left.PrivateIPAddress_s == `$right.DestinationAddress
-    | extend NICState = 'orphan', IPAddress = PrivateIPAddress_s;
-    let OrphanNICsAsPublicDestination = OrphanNICs
-    | join kind=inner ( NSGRules ) on `$left.PublicIPAddress == `$right.DestinationAddress
-    | extend NICState = 'orphan', IPAddress = PublicIPAddress;
-    let RemovedNICsAsPrivateSource = RemovedNICs
-    | join kind=inner ( NSGRules ) on `$left.PrivateIPAddress_s == `$right.SourceAddress
-    | extend NICState = 'inexisting', IPAddress = PrivateIPAddress_s;
-    let RemovedNICsAsPublicSource = RemovedNICs
-    | join kind=inner ( NSGRules ) on `$left.PublicIPAddress == `$right.SourceAddress
-    | extend NICState = 'inexisting', IPAddress = PublicIPAddress;
-    let RemovedNICsAsPrivateDestination = RemovedNICs
-    | join kind=inner ( NSGRules ) on `$left.PrivateIPAddress_s == `$right.DestinationAddress
-    | extend NICState = 'inexisting', IPAddress = PrivateIPAddress_s;
-    let RemovedNICsAsPublicDestination = RemovedNICs
-    | join kind=inner ( NSGRules ) on `$left.PublicIPAddress == `$right.DestinationAddress
-    | extend NICState = 'inexisting', IPAddress = PublicIPAddress;
-    OrphanNICsAsPrivateSource
-    | union OrphanNICsAsPublicSource
-    | union OrphanNICsAsPrivateDestination
-    | union OrphanNICsAsPublicDestination
-    | union RemovedNICsAsPrivateSource
-    | union RemovedNICsAsPublicSource
-    | union RemovedNICsAsPrivateDestination
-    | union RemovedNICsAsPublicDestination
-    | where isnotempty(IPAddress)
-    | join kind=leftouter ( 
-        $subscriptionsTableName 
-        | where TimeGenerated > ago(1d)
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-    | distinct NSGId, NSGName, RuleName_s, SubscriptionGuid_g, SubscriptionName, ResourceGroupName_s, TenantGuid_g, Cloud_s, NICId, IPAddress, NICState, Tags_s
-"@
-
-try
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    switch ($result.Cloud_s)
-    {
-        "AzureCloud" { $azureTld = "com" }
-        "AzureChinaCloud" { $azureTld = "cn" }
-        "AzureUSGovernment" { $azureTld = "us" }
-        default { $azureTld = "com" }
-    }
-
-    $queryInstanceId = $result.NSGId
-    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["nicId"] = $result.NICId
-    $additionalInfoDictionary["ipAddress"] = $result.IPAddress
-    $additionalInfoDictionary["nicState"] = $result.NICState
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "Security"
-        ImpactedArea = "Microsoft.Network/networkSecurityGroups"
-        Impact = "Medium"
-        RecommendationType = "BestPractices"
-        RecommendationSubType = "NSGRuleForOrphanOrInexistingNIC"
-        RecommendationSubTypeId = "3dc1d1f8-19ef-4572-9c9d-78d62831f55a"
-        RecommendationDescription = "NSG rules referring to orphan or inexisting NICs"
-        RecommendationAction = "Update or remove the NSG rule to improve your network security posture"
-        InstanceId = $result.NSGId
-        InstanceName = "$($result.NSGName)/$($result.RuleName_s)"
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "nsgrules-orphaninexistingnics-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-Write-Output "Looking for NSG rules referring orphan or removed Public IPs..."
-
-$baseQuery = @"
-    let PIPsToday = materialize( $publicIpsTableName
-    | where TimeGenerated > ago(1d)
-    | extend PublicIPId = tolower(InstanceId_s)
-    | distinct PublicIPId, AssociatedResourceId_s, AllocationMethod_s, IPAddress );
-    let PIPsBefore = materialize( $publicIpsTableName
-    | where TimeGenerated < ago(1d)
-    | extend PublicIPId = tolower(InstanceId_s)
-    | distinct PublicIPId, IPAddress );
-    let OrphanStaticPIPs = PIPsToday
-    | where isempty(AssociatedResourceId_s) and AllocationMethod_s == 'static';
-    let OrphanDynamicPIPIDs = PIPsToday
-    | where isempty(AssociatedResourceId_s) and AllocationMethod_s == 'dynamic'
-    | distinct PublicIPId;
-    let PIPsTodayIds = PIPsToday | distinct PublicIPId;
-    let PIPsTodayIPs = PIPsToday | distinct IPAddress;
-    let OrphanDynamicPIPs = PIPsBefore
-    | where PublicIPId in (OrphanDynamicPIPIDs) and isnotempty(IPAddress) and IPAddress !in (PIPsTodayIPs);
-    let RemovedPIPs = PIPsBefore 
-    | where PublicIPId !in (PIPsTodayIds) and isnotempty(IPAddress) and IPAddress !in (PIPsTodayIPs);
-    let NSGRules = materialize( $nsgRulesTableName
-    | where TimeGenerated > ago(1d)
-    | extend SourceAddresses = split(RuleSourceAddresses_s,',')
-    | mvexpand SourceAddresses
-    | extend SourceAddress = replace('/32','',tostring(SourceAddresses))
-    | extend DestinationAddresses = split(RuleDestinationAddresses_s,',')
-    | mvexpand DestinationAddresses
-    | extend DestinationAddress = replace('/32','',tostring(DestinationAddresses))
-    | project NSGId = InstanceId_s, RuleName_s, DestinationAddress, SourceAddress, SubscriptionGuid_g, Cloud_s, TenantGuid_g, ResourceGroupName_s, NSGName = NSGName_s, Tags_s);
-    let OrphanStaticPIPsAsSource = OrphanStaticPIPs
-    | join kind=inner ( NSGRules ) on `$left.IPAddress == `$right.SourceAddress
-    | extend PIPState = 'orphan';
-    let OrphanStaticPIPsAsDestination = OrphanStaticPIPs
-    | join kind=inner ( NSGRules ) on `$left.IPAddress == `$right.DestinationAddress
-    | extend PIPState = 'orphan';
-    let OrphanDynamicPIPsAsSource = OrphanDynamicPIPs
-    | join kind=inner ( NSGRules ) on `$left.IPAddress == `$right.SourceAddress
-    | extend PIPState = 'orphan';
-    let OrphanDynamicPIPsAsDestination = OrphanDynamicPIPs
-    | join kind=inner ( NSGRules ) on `$left.IPAddress == `$right.DestinationAddress
-    | extend PIPState = 'orphan';
-    let RemovedPIPsAsSource = RemovedPIPs
-    | join kind=inner ( NSGRules ) on `$left.IPAddress == `$right.SourceAddress
-    | extend PIPState = 'inexisting';
-    let RemovedPIPsAsDestination = RemovedPIPs
-    | join kind=inner ( NSGRules ) on `$left.IPAddress == `$right.DestinationAddress
-    | extend PIPState = 'inexisting';
-    OrphanStaticPIPsAsSource
-    | union OrphanDynamicPIPsAsSource
-    | union OrphanStaticPIPsAsDestination
-    | union OrphanDynamicPIPsAsDestination
-    | union RemovedPIPsAsSource
-    | union RemovedPIPsAsDestination
-    | join kind=leftouter ( 
-        $subscriptionsTableName 
-        | where TimeGenerated > ago(1d)
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-    | distinct NSGId, NSGName, RuleName_s, SubscriptionGuid_g, SubscriptionName, ResourceGroupName_s, TenantGuid_g, Cloud_s, PublicIPId, IPAddress, PIPState, AllocationMethod_s, Tags_s
-"@
-
-try
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    switch ($result.Cloud_s)
-    {
-        "AzureCloud" { $azureTld = "com" }
-        "AzureChinaCloud" { $azureTld = "cn" }
-        "AzureUSGovernment" { $azureTld = "us" }
-        default { $azureTld = "com" }
-    }
-
-    $queryInstanceId = $result.NSGId
-    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["publicIPId"] = $result.PublicIPId
-    $additionalInfoDictionary["ipAddress"] = $result.IPAddress
-    $additionalInfoDictionary["publicIPState"] = $result.PIPState
-    $additionalInfoDictionary["allocationMethod"] = $result.AllocationMethod_s
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "Security"
-        ImpactedArea = "Microsoft.Network/networkSecurityGroups"
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
         Impact = "High"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "NSGRuleForOrphanOrInexistingPublicIP"
-        RecommendationSubTypeId = "fe40cbe7-bdee-4cce-b072-cf25e1247b7a"
-        RecommendationDescription = "NSG rules referring to orphan or inexisting Public IPs"
-        RecommendationAction = "Update or remove the NSG rule to improve your network security posture"
-        InstanceId = $result.NSGId
-        InstanceName = "$($result.NSGName)/$($result.RuleName_s)"
+        RecommendationSubType = "AvailSetLowFaultDomainCount"
+        RecommendationSubTypeId = "255de20b-d5e4-4be5-9695-620b4a905774"
+        RecommendationDescription = "Availability Sets should have a fault domain count of 3 or equal or greater than half of the Virtual Machines count"
+        RecommendationAction = "Increase the fault domain count of your Availability Set"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.InstanceName_s
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -1097,28 +223,365 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "nsgrules-orphaninexistingpublicips-$fileDate.json"
+$jsonExportPath = "availsetsfaultdomaincount-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
-Write-Output "Looking for orphaned Public IPs..."
+Write-Output "Looking for Availability Sets with a low update domain count..."
 
 $baseQuery = @"
-    let interval = 30d;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
-    let stime = etime-interval;     
-    $publicIpsTableName
-    | where TimeGenerated > ago(1d) and isempty(AssociatedResourceId_s)
-    | distinct Name_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, AllocationMethod_s, Tags_s, Cloud_s
-    | join kind=leftouter (
-        $consumptionTableName
-        | where UsageDate_t between (stime..etime)
-        | project InstanceId_s, Cost_s, UsageDate_t
-    ) on InstanceId_s
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by Name_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, AllocationMethod_s, Tags_s, Cloud_s    
+    $availSetTableName
+    | where TimeGenerated > ago(1d) and toint(UpdateDomains_s) < toint(VmCount_s)/2
+    | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s, UpdateDomains_s, VmCount_s
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g        
+"@
+
+try 
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["UpdateDomainCount"] = $result.UpdateDomains_s
+    $additionalInfoDictionary["VMCount"] = $result.VmCount_s
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
+        Impact = "High"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "AvailSetLowUpdateDomainCount"
+        RecommendationSubTypeId = "9764e285-2eca-46c5-b49e-649c039cf0cf"
+        RecommendationDescription = "Availability Sets should have an update domain count equal or greater than half of the Virtual Machines count"
+        RecommendationAction = "Increase the update domain count of your Availability Set"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.InstanceName_s
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "availsetsupdatedomaincount-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for Availability Sets with VMs sharing storage accounts..."
+
+$baseQuery = @"
+    $vhdsTableName
+    | where TimeGenerated > ago(1d)
+    | extend StorageAccountName = tostring(split(InstanceId_s, '/')[0])
+    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s
+    | join kind=inner (
+        $vmsTableName
+        | where TimeGenerated > ago(1d) and isnotempty(AvailabilitySetId_s)
+        | distinct VMName_s, InstanceId_s, AvailabilitySetId_s, Cloud_s, Tags_s
+    ) on `$left.OwnerVMId_s == `$right.InstanceId_s
+    | extend AvailabilitySetName = tostring(split(AvailabilitySetId_s,'/')[8])
+    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by AvailabilitySetName, AvailabilitySetId_s, StorageAccountName, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s
+    | where VMCount > 1
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g
+"@
+
+try 
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics -ErrorAction Continue
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.AvailabilitySetId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["SharedStorageAccountName"] = $result.StorageAccountName
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
+        Impact = "High"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "AvailSetSharedStorageAccount"
+        RecommendationSubTypeId = "e530029f-9b6a-413a-99ed-81af54502bb9"
+        RecommendationDescription = "Virtual Machines in unmanaged Availability Sets should not share the same Storage Account"
+        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or keep the disks in a dedicated Storage Account per VM"
+        InstanceId = $result.AvailabilitySetId_s
+        InstanceName = $result.AvailabilitySetName
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "availsetsharedsa-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for Storage Accounts with multiple VMs..."
+
+$baseQuery = @"
+    $vhdsTableName
+    | where TimeGenerated > ago(1d)
+    | extend StorageAccountName = tostring(split(InstanceId_s, '/')[0])
+    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, Cloud_s
+    | join kind=inner ( 
+        $vmsTableName
+        | where TimeGenerated > ago(1d)
+        | distinct InstanceId_s, Tags_s
+    ) on `$left.OwnerVMId_s == `$right.InstanceId_s
+    | summarize TimeGenerated = any(TimeGenerated), Tags_s=any(Tags_s), VMCount = count() by StorageAccountName, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, Cloud_s
+    | where VMCount > 1
+    | extend StorageAccountId = strcat('/subscriptions/', SubscriptionGuid_g, '/resourcegroups/', ResourceGroupName_s, '/providers/microsoft.storage/storageaccounts/', StorageAccountName)
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g
+"@
+
+try 
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics -ErrorAction Continue
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.StorageAccountId
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["VirtualMachineCount"] = $result.VMCount
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "StorageAccountsMultipleVMs"
+        RecommendationSubTypeId = "b70f44fa-5ef9-4180-b2f9-9cc6be07ab3e"
+        RecommendationDescription = "Virtual Machines with unmanaged disks should not share the same Storage Account"
+        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or keep the disks in a dedicated Storage Account per VM"
+        InstanceId = $result.StorageAccountId
+        InstanceName = $result.StorageAccountName
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "storageaccountsmultiplevms-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for VMs with no Availability Set..."
+
+$baseQuery = @"
+    $vmsTableName
+    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s) and isempty(Zones_s)
+    | project TimeGenerated, VMName_s, InstanceId_s, Tags_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d) 
@@ -1127,12 +590,12 @@ $baseQuery = @"
     ) on SubscriptionGuid_g
 "@
 
-try
+try 
 {
     $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
     if ($queryResults)
     {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
     }
 }
 catch
@@ -1152,37 +615,18 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-    $queryInstanceId = $result.InstanceId_s
-    $queryText = @"
-    $publicIpsTableName
-    | where InstanceId_s == '$queryInstanceId' and isempty(AssociatedResourceId_s)
-    | distinct InstanceId_s, Name_s, AllocationMethod_s, SkuName_s, TimeGenerated
-    | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, Name_s, AllocationMethod_s, SkuName_s
-    | join kind=inner (
-        $consumptionTableName
-        | project InstanceId_s, Cost_s, UsageDate_t
-    ) on InstanceId_s
-    | where UsageDate_t > LastAttachedDate
-    | summarize CostsSinceDetached = sum(todouble(Cost_s)) by Name_s, LastAttachedDate, AllocationMethod_s, SkuName_s
-"@
-    $encodedQuery = [System.Uri]::EscapeDataString($queryText)
-    $detailsQueryStart = $deploymentDate
-    $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
-    switch ($cloudEnvironment)
+    switch ($result.Cloud_s)
     {
         "AzureCloud" { $azureTld = "com" }
         "AzureChinaCloud" { $azureTld = "cn" }
         "AzureUSGovernment" { $azureTld = "us" }
         default { $azureTld = "com" }
     }
-    $detailsURL = "https://portal.azure.$azureTld#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
+
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
 
     $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
-    $additionalInfoDictionary["allocationMethod"] = $result.AllocationMethod_s
-    $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
-    $additionalInfoDictionary["savingsAmount"] = [double] $result.Last30DaysCost 
 
     $fitScore = 5
 
@@ -1206,16 +650,16 @@ foreach ($result in $results)
     $recommendation = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
-        Category = "Cost"
-        ImpactedArea = "Microsoft.Network/publicIPAddresses"
-        Impact = "Low"
-        RecommendationType = "Saving"
-        RecommendationSubType = "OrphanedPublicIP"
-        RecommendationSubTypeId = "3125883f-8b9f-4bde-a0ff-6c739858c6e1"
-        RecommendationDescription = "Orphaned Public IP (without owner resource) incur in unnecessary costs"
-        RecommendationAction = "Delete the Public IP or change its configuration to dynamic allocation"
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "VMsNoAvailSet"
+        RecommendationSubTypeId = "998b50d8-e654-417b-ab20-a31cb11629c0"
+        RecommendationDescription = "Virtual Machines should be placed in an Availability Set together with other instances with the same role"
+        RecommendationAction = "Add VM to an Availability Set together with other VMs of the same role"
         InstanceId = $result.InstanceId_s
-        InstanceName = $result.Name_s
+        InstanceName = $result.VMName_s
         AdditionalInfo = $additionalInfoDictionary
         ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
@@ -1232,10 +676,344 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "orphanedpublicips-$fileDate.json"
+$jsonExportPath = "vmsnoavailset-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
+Write-Output "Looking for VMs alone in an Availability Set..."
+
+$baseQuery = @"
+    $vmsTableName
+    | where TimeGenerated > ago(1d) and isnotempty(AvailabilitySetId_s) and isempty(Zones_s)
+    | distinct TimeGenerated, VMName_s, InstanceId_s, AvailabilitySetId_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s, Tags_s
+    | summarize any(TimeGenerated, VMName_s, InstanceId_s, Tags_s), VMCount = count() by AvailabilitySetId_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
+    | where VMCount == 1
+    | project TimeGenerated = any_TimeGenerated, VMName_s = any_VMName_s, InstanceId_s = any_InstanceId_s, Tags_s = any_Tags_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d) 
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g        
+"@
+
+try 
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "VMsSingleInAvailSet"
+        RecommendationSubTypeId = "fe577af5-dfa2-413a-82a9-f183196c1f49"
+        RecommendationDescription = "Virtual Machines should not be the only instance in an Availability Set"
+        RecommendationAction = "Add more VMs of the same role to the Availability Set"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.VMName_s
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "vmssingleinavailset-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for VMs with disks in multiple Storage Accounts..."
+
+$baseQuery = @"
+    $vhdsTableName
+    | where TimeGenerated > ago(1d)
+    | extend StorageAccountName = tostring(split(InstanceId_s, '/')[0])
+    | distinct TimeGenerated, StorageAccountName, OwnerVMId_s
+    | summarize TimeGenerated = any(TimeGenerated), StorageAcccountCount = count() by OwnerVMId_s
+    | where StorageAcccountCount > 1
+    | join kind=inner (
+        $vmsTableName
+        | where TimeGenerated > ago(1d)
+        | distinct VMName_s, InstanceId_s, Cloud_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Tags_s
+    ) on `$left.OwnerVMId_s == `$right.InstanceId_s
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d) 
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g
+"@
+try 
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics -ErrorAction Continue
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["StorageAccountsUsed"] = $result.StorageAcccountCount
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
+        Impact = "Medium"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "DisksMultipleStorageAccounts"
+        RecommendationSubTypeId = "024049e7-f63a-4e1c-b620-f011aafbc576"
+        RecommendationDescription = "Each Virtual Machine should have its unmanaged disks stored in a single Storage Account for higher availability and manageability"
+        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks or move VHDs to the same Storage Account"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.VMName_s
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "disksmultiplesa-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+Write-Output "Looking for VMs using unmanaged disks..."
+
+$baseQuery = @"
+    $vmsTableName 
+    | where TimeGenerated > ago(1d) and UsesManagedDisks_s == 'false'
+    | distinct InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, DeploymentModel_s, Tags_s, Cloud_s
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionGuid_g        
+"@
+
+try 
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["DeploymentModel"] = $result.DeploymentModel_s
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "HighAvailability"
+        ImpactedArea = "Microsoft.Compute/virtualMachines"
+        Impact = "High"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "UnmanagedDisks"
+        RecommendationSubTypeId = "b576a069-b1f2-43a6-9134-5ee75376402a"
+        RecommendationDescription = "Virtual Machines should use Managed Disks for higher availability and manageability"
+        RecommendationAction = "Migrate Virtual Machines disks to Managed Disks"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.VMName_s
+        AdditionalInfo = $additionalInfoDictionary
+        ResourceGroup = $result.ResourceGroupName_s
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "unmanageddisks-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force

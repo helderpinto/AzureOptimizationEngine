@@ -94,6 +94,56 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 }
 
 $tenantId = (Get-AzContext).Tenant.Id
+
+Import-Module AzureADPreview
+
+try
+{
+    if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+    {
+        $apiEndpointUri = "https://graph.windows.net/"  
+        if ($cloudEnvironment -eq "AzureChinaCloud")
+        {
+            $apiEndpointUri = "https://graph.chinacloudapi.cn/"
+        }
+        if ($cloudEnvironment -eq "AzureGermanCloud")
+        {
+            $apiEndpointUri = "https://graph.cloudapi.de/"
+        }
+        $applicationId = $externalCredential.GetNetworkCredential().UserName
+        $secret = $externalCredential.GetNetworkCredential().Password
+        $encodedSecret = [System.Web.HttpUtility]::UrlEncode($secret)
+        $RequestAccessTokenUri = "https://login.microsoftonline.com/$externalTenantId/oauth2/token"  
+        if ($cloudEnvironment -eq "AzureChinaCloud")
+        {
+            $RequestAccessTokenUri = "https://login.partner.microsoftonline.cn/$externalTenantId/oauth2/token"
+        }
+        if ($cloudEnvironment -eq "AzureUSGovernment")
+        {
+            $RequestAccessTokenUri = "https://login.microsoftonline.us/$externalTenantId/oauth2/token"
+        }
+        if ($cloudEnvironment -eq "AzureGermanCloud")
+        {
+            $RequestAccessTokenUri = "https://login.microsoftonline.de/$externalTenantId/oauth2/token"
+        }
+        $body = "grant_type=client_credentials&client_id=$applicationId&client_secret=$encodedSecret&resource=$apiEndpointUri"  
+        $contentType = 'application/x-www-form-urlencoded'  
+        $Token = Invoke-RestMethod -Method Post -Uri $RequestAccessTokenUri -Body $body -ContentType $contentType      
+        $ctx = Get-AzContext
+        Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -AadAccessToken $token.access_token -AccountId $ctx.Account.Id -TenantId $externalTenantId
+    }
+    else
+    {
+        Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -TenantId $tenantId -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    }
+    
+    $tenantDetails = Get-AzureADTenantDetail                
+}
+catch
+{
+    Write-Warning "Failed Azure AD authentication."
+}
+
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
@@ -112,6 +162,11 @@ if ("Application" -in $aadObjectsTypes)
     foreach ($app in $apps)
     {
         $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId -ErrorAction Continue
+        $owners = $null
+        if ($tenantDetails)
+        {
+            $owners = (Get-AzureADApplicationOwner -ObjectId $app.ObjectId -All $true).ObjectId
+        }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
             TenantGuid = $tenantId
@@ -124,6 +179,7 @@ if ("Application" -in $aadObjectsTypes)
             ApplicationId = $app.ApplicationId
             Keys = (Build-CredObjectWithDates -credObjectWithStrings $appCred) | ConvertTo-Json
             PrincipalNames = $app.HomePage
+            Owners = $owners | ConvertTo-Json
         }
         $aadObjects += $aadObject    
     }   
@@ -163,6 +219,11 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
         {
             $principalNames = $spn.PrincipalNames | ConvertTo-Json        
         }
+        $owners = $null
+        if ($tenantDetails)
+        {
+            $owners = (Get-AzureADServicePrincipalOwner -ObjectId $spn.Id -All $true).ObjectId
+        }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
             TenantGuid = $tenantId
@@ -175,6 +236,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
             ApplicationId = $spn.ApplicationId
             Keys = (Build-CredObjectWithDates -credObjectWithStrings $spnCred) | ConvertTo-Json
             PrincipalNames = $principalNames
+            Owners = $owners | ConvertTo-Json
         }
         $aadObjects += $aadObject    
     }
@@ -247,7 +309,11 @@ if ("Group" -in $aadObjectsTypes)
     {
         $groupMembersObject = Get-AzADGroupMember -GroupObjectId $group.Id -ErrorAction Continue
         $groupMembers = $groupMembersObject.Id
-
+        $owners = $null
+        if ($tenantDetails)
+        {
+            $owners = (Get-AzureADGroupOwner -ObjectId $group.Id -All $true).ObjectId
+        }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
             TenantGuid = $tenantId
@@ -258,6 +324,7 @@ if ("Group" -in $aadObjectsTypes)
             DisplayName = $group.DisplayName
             SecurityEnabled = $group.SecurityEnabled
             PrincipalNames = $groupMembers | ConvertTo-Json
+            Owners = $owners | ConvertTo-Json
         }
         $aadObjects += $aadObject    
     }

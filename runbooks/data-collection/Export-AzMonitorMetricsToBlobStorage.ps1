@@ -100,7 +100,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription))) {
 }
 else {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)" }
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 [TimeSpan]::Parse($TimeGrain) | Out-Null
@@ -128,10 +128,14 @@ resources
 
 do {
     if ($resultsSoFar -eq 0) {
-        $resources = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $resources = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else {
-        $resources = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $resources = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($resources -and $resources.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $resources = $resources.Data
     }
     $resultsCount = $resources.Count
     $resultsSoFar += $resultsCount
@@ -144,9 +148,9 @@ Write-Output "[$now] Found $($allResources.Count) resources."
 
 $metrics = $MetricNames.Split(',')
 
-$now = Get-Date
-$utcNow = $now.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-$utcAgo = $now.Add($TimeSpanObj).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+$queryDate = Get-Date
+$utcNow = $queryDate.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+$utcAgo = $queryDate.Add($TimeSpanObj).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 
 $customMetrics = @()
 
@@ -155,6 +159,7 @@ Write-Output "[$now] Analyzing resources for $MetricNames metrics ($AggregationT
 
 foreach ($resource in $allResources) {
     $valuesAggregation = @()
+    $foundResource = $true
     foreach ($metric in $metrics) {
         $metricValues = Get-AzMetric -ResourceId $resource.id -MetricName $metric -TimeGrain $TimeGrain -AggregationType $AggregationType `
             -StartTime $utcAgo -EndTime $utcNow -WarningAction SilentlyContinue -ErrorAction Continue
@@ -164,29 +169,44 @@ foreach ($resource in $allResources) {
             }
             else {
                 for ($i = 0; $i -lt $valuesAggregation.Count; $i++) {
-                    $valuesAggregation[$i] += $metricValues.Data[$i]."$AggregationType"
+                    if ($metricValues.Data.Count -gt 1)
+                    {
+                        $valuesAggregation[$i] += $metricValues.Data[$i]."$AggregationType"
+                    }
+                    else
+                    {
+                        $valuesAggregation += $metricValues.Data."$AggregationType"
+                    }
                 }
             }    
         }
+        
+        if (-not($metricValues.Id))
+        {
+            $foundResource = $false    
+        }
     }
 
-    if ($valuesAggregation.Count -gt 0) {
+    if ($foundResource)
+    {
         $aggregatedValue = $null
-        switch ($AggregationType) {
-            "Maximum" {
-                $aggregatedValue = ($valuesAggregation | Measure-Object -Maximum).Maximum
-            }
-            "Minimum" {
-                $aggregatedValue = ($valuesAggregation | Measure-Object -Minimum).Minimum
-            }
-            "Average" {
-                $aggregatedValue = ($valuesAggregation | Measure-Object -Average).Average
-            }
-            "Total" {
-                $aggregatedValue = ($valuesAggregation | Measure-Object -Sum).Sum
+        if ($valuesAggregation.Count -gt 0) {
+            switch ($AggregationType) {
+                "Maximum" {
+                    $aggregatedValue = ($valuesAggregation | Measure-Object -Maximum).Maximum
+                }
+                "Minimum" {
+                    $aggregatedValue = ($valuesAggregation | Measure-Object -Minimum).Minimum
+                }
+                "Average" {
+                    $aggregatedValue = ($valuesAggregation | Measure-Object -Average).Average
+                }
+                "Total" {
+                    $aggregatedValue = ($valuesAggregation | Measure-Object -Sum).Sum
+                }
             }
         }
-    
+        
         $customMetric = New-Object PSObject -Property @{
             Timestamp         = $utcNow
             Cloud             = $cloudEnvironment
@@ -209,11 +229,11 @@ foreach ($resource in $allResources) {
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Found $($customMetrics.Count) resources to collect metrics from..."
 
-$today = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
+$metricMoment = $queryDate.Add($TimeSpanObj).ToUniversalTime().ToString("yyyyMMddHHmmss")
 $ResourceTypeName = $ResourceType.Split('/')[1].ToLower()
-$MetricName = $MetricNames.Replace(',','').Replace(' ','').ToLower()
+$MetricName = $MetricNames.Replace(',','').Replace(' ','').Replace('/','').ToLower()
 $AggregationTypeName = $AggregationType.ToLower()
-$csvExportPath = "$today-metrics-$ResourceTypeName-$MetricName-$AggregationTypeName-$subscriptionSuffix.csv"
+$csvExportPath = "$metricMoment-metrics-$ResourceTypeName-$MetricName-$AggregationTypeName-$subscriptionSuffix.csv"
 
 $customMetrics | Export-Csv -Path $csvExportPath -NoTypeInformation
 

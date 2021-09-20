@@ -91,11 +91,10 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 $dbsTotal = @()
-#$misTotal = @()
 
 $resultsSoFar = 0
 
@@ -114,11 +113,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $dbs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $dbs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $dbs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $dbs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($dbs.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $dbs = $dbs.Data
     }
     $resultsCount = $dbs.Count
     $resultsSoFar += $resultsCount

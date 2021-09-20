@@ -23,7 +23,7 @@
     },
     "workbookId": {
       "type": "string",
-      "defaultValue": "[newGuid()]",
+      "defaultValue": "4946ffbe-16c1-4a32-81a4-8ed024278ab2",
       "metadata": {
         "description": "The unique guid for this workbook instance"
       }
@@ -52,5 +52,5 @@
       "value": "[resourceId( 'microsoft.insights/workbooks', parameters('workbookId'))]"
     }
   },
-  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#"
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }

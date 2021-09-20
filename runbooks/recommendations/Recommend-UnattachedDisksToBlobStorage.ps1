@@ -138,6 +138,7 @@ $baseQuery = @"
     | join kind=leftouter (
         $consumptionTableName
         | where UsageDate_t between (stime..etime)
+        | project InstanceId_s, Cost_s, UsageDate_t
     ) on InstanceId_s
     | summarize Last30DaysCost=sum(todouble(Cost_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
     | join kind=leftouter ( 
@@ -181,6 +182,7 @@ foreach ($result in $results)
     | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
     | join kind=inner (
         $consumptionTableName
+        | project InstanceId_s, Cost_s, UsageDate_t
     ) on InstanceId_s
     | where UsageDate_t > LastAttachedDate
     | summarize CostsSinceDetached = sum(todouble(Cost_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
@@ -188,7 +190,14 @@ foreach ($result in $results)
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
     $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
-    $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
+    switch ($cloudEnvironment)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+    $detailsURL = "https://portal.azure.$azureTld#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
 
     $additionalInfoDictionary = @{}
 

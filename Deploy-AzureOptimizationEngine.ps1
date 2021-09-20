@@ -417,7 +417,9 @@ if (-not($deploymentOptions["TargetLocation"]))
 {
     if (-not($rg.Location)) {
         Write-Host "Getting Azure locations..." -ForegroundColor Green
-        $locations = Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.Automation" } | Sort-Object -Property Location
+        $locations = Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.Automation" -and $_.Providers -contains "Microsoft.Sql" `
+                                                        -and $_.Providers -contains "Microsoft.OperationalInsights" `
+                                                        -and $_.Providers -contains "Microsoft.Storage"} | Sort-Object -Property Location
         
         for ($i = 0; $i -lt $locations.Count; $i++) {
             Write-Output "[$i] $($locations[$i].location)"    
@@ -514,7 +516,7 @@ else
 $deploymentMessage = "Deploying Azure Optimization Engine to subscription"
 if ($upgrading)
 {
-    Write-Host "Looks like this deployment was already done in the past. We will only upgrade runbooks, storage and the database." -ForegroundColor Yellow
+    Write-Host "Looks like this deployment was already done in the past. We will only upgrade runbooks, modules, schedules, variables, storage and the database." -ForegroundColor Yellow
     $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
 }
 
@@ -591,7 +593,7 @@ if ("Y", "y" -contains $continueInput) {
         }
 
         Write-Host "Importing runbooks..." -ForegroundColor Green
-        $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook
+        $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook + $upgradeManifest.remediations.runbook
         $runbookBaseUri = $TemplateUri.Replace("azuredeploy.json", "")
         $topTemplateJson = "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", " + `
             "`"contentVersion`": `"1.0.0.0`", `"resources`": ["
@@ -715,16 +717,23 @@ if ("Y", "y" -contains $continueInput) {
         }
 
         Write-Host "Updating variables..." -ForegroundColor Green
-        $allVariables = $upgradeManifest.dataCollection.requiredVariables + $upgradeManifest.recommendations.requiredVariables
+        $allVariables = $upgradeManifest.dataCollection.requiredVariables + $upgradeManifest.recommendations.requiredVariables + $upgradeManifest.remediations.requiredVariables
         foreach ($variable in $allVariables)
         {
             $existingVariables = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
             if (-not($existingVariables | Where-Object { $_.Name -eq $variable.name }))
             {
                 New-AzAutomationVariable -Name $variable.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                    -Value $variable.defaultValue | Out-Null
+                    -Value $variable.defaultValue -Encrypted $false | Out-Null
                 Write-Host "$($variable.name) variable created."
             }
+        }
+
+        Write-Host "Removing deprecated runbooks..." -ForegroundColor Green
+        $deprecatedRunbooks = $upgradeManifest.deprecatedRunbooks
+        foreach ($deprecatedRunbook in $deprecatedRunbooks)
+        {
+            Remove-AzAutomationRunbook -AutomationAccountName $automationAccountName -Name $deprecatedRunbook -ResourceGroupName $resourceGroupName -Force -ErrorAction SilentlyContinue
         }
     }
 
@@ -946,8 +955,13 @@ if ("Y", "y" -contains $continueInput) {
     {
         $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
         Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
-        New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
-            -workbookSourceId $la.ResourceId | Out-Null        
+        try {
+            New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
+                -workbookSourceId $la.ResourceId | Out-Null        
+        }
+        catch {
+            Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+        }
     }
 
     try

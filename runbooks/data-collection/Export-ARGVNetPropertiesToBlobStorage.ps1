@@ -91,7 +91,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 $subnetsTotal = @()
@@ -112,7 +112,8 @@ $argQuery = @"
     | extend subnetPrefix = tostring(subnets.properties.addressPrefix)
     | extend subnetUsedIPs = iif(isnotempty(subnets.properties.ipConfigurations), array_length(subnets.properties.ipConfigurations), 0)
     | extend subnetTotalPrefixIPs = pow(2, 32 - toint(split(subnetPrefix,'/')[1])) - 5
-    | project id, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName = tolower(tostring(subnets.name)), subnetPrefix, subnetTotalPrefixIPs, subnetUsedIPs, peeringsCount, enableDdosProtection, tags
+    | extend subnetNsgId = tolower(subnets.properties.networkSecurityGroup.id)
+    | project id, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName = tolower(tostring(subnets.name)), subnetPrefix, subnetTotalPrefixIPs, subnetUsedIPs, subnetNsgId, peeringsCount, enableDdosProtection, tags
     | order by id asc
 "@
 
@@ -120,11 +121,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($subnets -and $subnets.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $subnets = $subnets.Data
     }
     $resultsCount = $subnets.Count
     $resultsSoFar += $resultsCount
@@ -158,6 +163,7 @@ foreach ($subnet in $subnetsTotal)
         SubnetPrefix = $subnet.subnetPrefix
         SubnetTotalPrefixIPs = $subnet.subnetTotalPrefixIPs
         SubnetUsedIPs = $subnet.subnetUsedIPs
+        SubnetNSGId = $subnet.subnetNsgId
         Tags = $subnet.tags
         StatusDate = $statusDate
     }
@@ -202,7 +208,7 @@ $argQuery = @"
     | extend subnetUsedIPs = iif(isnotempty(subnetUsedIPs), subnetUsedIPs, 0)
     | extend subnetTotalPrefixIPs = pow(2, 32 - toint(split(subnetPrefix,'/')[1])) - 5
     | extend enableDdosProtection = 'false'
-    | project vNetId, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName, subnetPrefix, subnetTotalPrefixIPs, subnetUsedIPs, peeringsCount, enableDdosProtection, tags
+    | project vNetId, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName, subnetPrefix, subnetTotalPrefixIPs, subnetUsedIPs, peeringsCount, enableDdosProtection
     | order by vNetId asc
 "@
 
@@ -210,11 +216,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $subnets = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $subnets = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($subnets -and $subnets.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $subnets = $subnets.Data
     }
     $resultsCount = $subnets.Count
     $resultsSoFar += $resultsCount
@@ -248,7 +258,6 @@ foreach ($subnet in $subnetsTotal)
         SubnetPrefix = $subnet.subnetPrefix
         SubnetTotalPrefixIPs = $subnet.subnetTotalPrefixIPs
         SubnetUsedIPs = $subnet.subnetUsedIPs
-        Tags = $subnet.tags
         StatusDate = $statusDate
     }
     

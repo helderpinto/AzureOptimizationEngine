@@ -19,6 +19,11 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
+$referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion" -ErrorAction SilentlyContinue # e.g., westeurope
+if ([string]::IsNullOrEmpty($referenceRegion))
+{
+    $referenceRegion = "westeurope"
+}
 $authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
@@ -29,10 +34,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVhdContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGPublicIpContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argvhdexports"
+    $storageAccountSinkContainer = "argpublicipexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -75,7 +80,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $tenantId = (Get-AzContext).Tenant.Id
 
-$alldisks = @()
+$allpips = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
@@ -89,120 +94,156 @@ else
     $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
-$mdisksTotal = @()
+$pipsTotal = @()
+
 $resultsSoFar = 0
 
-Write-Output "Querying for ARM Unmanaged OS Disks properties"
+Write-Output "Querying for ARM Public IP properties"
 
 $argQuery = @"
 resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| extend diskType = 'OS', diskCaching = tostring(properties.storageProfile.osDisk.caching), diskSize = tostring(properties.storageProfile.osDisk.diskSizeGB)
-| extend vhdUriParts = split(tostring(properties.storageProfile.osDisk.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
+| where type =~ 'microsoft.network/publicipaddresses'
+| extend skuName = tolower(sku.name)
+| extend skuTier = tolower(sku.tier)
+| extend allocationMethod = tolower(properties.publicIPAllocationMethod)
+| extend addressVersion = tolower(properties.publicIPAddressVersion)
+| extend associatedResourceId = tolower(properties.ipConfiguration.id)
+| extend ipAddress = tostring(properties.ipAddress)
+| extend fqdn = tolower(properties.dnsSettings.fqdn)
+| extend publicIpPrefixId = tostring(properties.publicIPPrefix.id)
+| order by id asc
 "@
 
 do
 {
     if ($resultsSoFar -eq 0)
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $pips = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+        $pips = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
     }
-    if ($mdisks -and $mdisks.GetType().Name -eq "PSResourceGraphResponse")
+    if ($pips -and $pips.GetType().Name -eq "PSResourceGraphResponse")
     {
-        $mdisks = $mdisks.Data
+        $pips = $pips.Data
     }
-    $resultsCount = $mdisks.Count
+    $resultsCount = $pips.Count
     $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
+    $pipsTotal += $pips
 
 } while ($resultsCount -eq $ARGPageSize)
 
-$resultsSoFar = 0
-
-Write-Output "Found $($mdisksTotal.Count) Unmanaged OS Disk entries"
-
-Write-Output "Querying for ARM Unmanaged Data Disks properties"
-
-$argQuery = @"
-resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| mvexpand dataDisks = properties.storageProfile.dataDisks
-| extend diskType = 'Data', diskCaching = tostring(dataDisks.caching), diskSize = tostring(dataDisks.diskSizeGB)
-| extend vhdUriParts = split(tostring(dataDisks.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
-"@
-
-do
-{
-    if ($resultsSoFar -eq 0)
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
-    }
-    else
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
-    }
-    if ($mdisks -and $mdisks.GetType().Name -eq "PSResourceGraphResponse")
-    {
-        $mdisks = $mdisks.Data
-    }
-    $resultsCount = $mdisks.Count
-    $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
-
-} while ($resultsCount -eq $ARGPageSize)
-
-Write-Output "Found overall $($mdisksTotal.Count) Unmanaged Disk entries"
-
-<#
-    Building CSV entries 
-#>
-
-$datetime = (get-date).ToUniversalTime()
+$datetime = (Get-Date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-foreach ($disk in $mdisksTotal)
+Write-Output "Building $($pipsTotal.Count) ARM Public IP entries"
+
+foreach ($pip in $pipsTotal)
 {
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $disk.tenantId
-        SubscriptionGuid = $disk.subscriptionId
-        ResourceGroupName = $disk.resourceGroup.ToLower()
-        DiskName = $disk.diskVhdName.ToLower()
-        InstanceId = ($disk.diskStorageAccountName + "/" + $disk.diskContainerName + "/" + $disk.diskVhdName).ToLower()
-        OwnerVMId = $disk.id.ToLower()
-        Location = $disk.location
-        DeploymentModel = "Unmanaged"
-        DiskType = $disk.diskType 
-        Caching = $disk.diskCaching 
-        DiskSizeGB = $disk.diskSize
+        TenantGuid = $pip.tenantId
+        SubscriptionGuid = $pip.subscriptionId
+        ResourceGroupName = $pip.resourceGroup.ToLower()
+        Location = $pip.location
+        Name = $pip.name.ToLower()
+        InstanceId = $pip.id.ToLower()
+        Model = "ARM"
+        SkuName = $pip.skuName
+        SkuTier = $pip.skuTier
+        AllocationMethod = $pip.allocationMethod
+        AddressVersion = $pip.addressVersion
+        AssociatedResourceId = $pip.associatedResourceId
+        PublicIpPrefixId = $pip.publicIpPrefixId
+        IPAddress = $pip.ipAddress
+        FQDN = $pip.fqdn
+        Zones = $pip.zones
+        Tags = $pip.tags
         StatusDate = $statusDate
-        Tags = $disk.tags
     }
     
-    $alldisks += $logentry
+    $allpips += $logentry
 }
 
-<#
-    Actually exporting CSV to Azure Storage
-#>
+$pipsTotal = @()
+
+$resultsSoFar = 0
+
+Write-Output "Querying for Classic Reserved IP properties"
+
+$argQuery = @"
+resources
+| where type =~ 'microsoft.classicnetwork/reservedips'
+| extend ipAddress = tostring(properties.ipAddress)
+| extend allocationMethod = 'static'
+| extend addressVersion = 'ipv4'
+| extend associatedResourceId = tolower(properties.attachedTo.id)
+| extend ipAddress = tostring(properties.ipAddress)
+| order by id asc
+"@
+
+do
+{
+    if ($resultsSoFar -eq 0)
+    {
+        $pips = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+    }
+    else
+    {
+        $pips = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($pips -and $pips.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $pips = $pips.Data
+    }
+    $resultsCount = $pips.Count
+    $resultsSoFar += $resultsCount
+    $pipsTotal += $pips
+
+} while ($resultsCount -eq $ARGPageSize)
+
+$datetime = (Get-Date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+$statusDate = $datetime.ToString("yyyy-MM-dd")
+
+Write-Output "Building $($pipsTotal.Count) Classic Reserved IP entries"
+
+foreach ($pip in $pipsTotal)
+{
+    $logentry = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $cloudEnvironment
+        TenantGuid = $pip.tenantId
+        SubscriptionGuid = $pip.subscriptionId
+        ResourceGroupName = $pip.resourceGroup.ToLower()
+        Location = $pip.location
+        Name = $pip.name.ToLower()
+        InstanceId = $pip.id.ToLower()
+        Model = "Classic"
+        AllocationMethod = $pip.allocationMethod
+        AddressVersion = $pip.addressVersion
+        AssociatedResourceId = $pip.associatedResourceId
+        IPAddress = $pip.ipAddress
+        StatusDate = $statusDate
+    }
+    
+    $allpips += $logentry
+}
+
+Write-Output "Uploading CSV to Storage"
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-vhds-$subscriptionSuffix.csv"
+$csvExportPath = "$today-publicips-$subscriptionSuffix.csv"
 
-$alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allpips | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 
 $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+
+Write-Output "DONE"

@@ -19,6 +19,11 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
+$referenceRegion = Get-AutomationVariable -Name "AzureOptimization_ReferenceRegion" -ErrorAction SilentlyContinue # e.g., westeurope
+if ([string]::IsNullOrEmpty($referenceRegion))
+{
+    $referenceRegion = "westeurope"
+}
 $authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
@@ -29,10 +34,10 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGVhdContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ARGNSGContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "argvhdexports"
+    $storageAccountSinkContainer = "argnsgexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -75,7 +80,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $tenantId = (Get-AzContext).Tenant.Id
 
-$alldisks = @()
+$allnsgRules = @()
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
@@ -89,120 +94,98 @@ else
     $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
-$mdisksTotal = @()
+$nsgRulesTotal = @()
+
 $resultsSoFar = 0
 
-Write-Output "Querying for ARM Unmanaged OS Disks properties"
+Write-Output "Querying for NSG properties"
 
 $argQuery = @"
 resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| extend diskType = 'OS', diskCaching = tostring(properties.storageProfile.osDisk.caching), diskSize = tostring(properties.storageProfile.osDisk.diskSizeGB)
-| extend vhdUriParts = split(tostring(properties.storageProfile.osDisk.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
+| where type =~ 'Microsoft.Network/networkSecurityGroups' 
+| extend nicCount = iif(isnotempty(properties.networkInterfaces),array_length(properties.networkInterfaces),0)
+| extend subnetCount = iif(isnotempty(properties.subnets),array_length(properties.subnets),0)
+| mvexpand securityRules = properties.securityRules
+| extend ruleName = tolower(securityRules.name)
+| extend ruleProtocol = tolower(securityRules.properties.protocol)
+| extend ruleDirection = tolower(securityRules.properties.direction)
+| extend rulePriority = toint(securityRules.properties.priority)
+| extend ruleAccess = tolower(securityRules.properties.access)
+| extend ruleDestinationAddresses = tolower(iif(array_length(securityRules.properties.destinationAddressPrefixes) > 0,strcat_array(securityRules.properties.destinationAddressPrefixes, ','),securityRules.properties.destinationAddressPrefix))
+| extend ruleSourceAddresses = tolower(iif(array_length(securityRules.properties.sourceAddressPrefixes) > 0,strcat_array(securityRules.properties.sourceAddressPrefixes, ','),securityRules.properties.sourceAddressPrefix))
+| extend ruleDestinationPorts = iif(array_length(securityRules.properties.destinationPortRanges) > 0,strcat_array(securityRules.properties.destinationPortRanges, ','),securityRules.properties.destinationPortRange)
+| extend ruleSourcePorts = iif(array_length(securityRules.properties.sourcePortRanges) > 0,strcat_array(securityRules.properties.sourcePortRanges, ','),securityRules.properties.sourcePortRange)
+| extend ruleId = tolower(securityRules.id)
+| project-away securityRules, properties
+| order by ruleId asc
 "@
 
 do
 {
     if ($resultsSoFar -eq 0)
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        $nsgRules = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+        $nsgRules = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
     }
-    if ($mdisks -and $mdisks.GetType().Name -eq "PSResourceGraphResponse")
+    if ($nsgRules -and $nsgRules.GetType().Name -eq "PSResourceGraphResponse")
     {
-        $mdisks = $mdisks.Data
+        $nsgRules = $nsgRules.Data
     }
-    $resultsCount = $mdisks.Count
+    $resultsCount = $nsgRules.Count
     $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
+    $nsgRulesTotal += $nsgRules
 
 } while ($resultsCount -eq $ARGPageSize)
 
-$resultsSoFar = 0
-
-Write-Output "Found $($mdisksTotal.Count) Unmanaged OS Disk entries"
-
-Write-Output "Querying for ARM Unmanaged Data Disks properties"
-
-$argQuery = @"
-resources
-| where type =~ 'Microsoft.Compute/virtualMachines' and isnull(properties.storageProfile.osDisk.managedDisk)
-| mvexpand dataDisks = properties.storageProfile.dataDisks
-| extend diskType = 'Data', diskCaching = tostring(dataDisks.caching), diskSize = tostring(dataDisks.diskSizeGB)
-| extend vhdUriParts = split(tostring(dataDisks.vhd.uri),'/')
-| extend diskStorageAccountName = tostring(split(vhdUriParts[2],'.')[0]), diskContainerName = tostring(vhdUriParts[3]), diskVhdName = tostring(vhdUriParts[4])
-| order by id, diskStorageAccountName, diskContainerName, diskVhdName
-"@
-
-do
-{
-    if ($resultsSoFar -eq 0)
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
-    }
-    else
-    {
-        $mdisks = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
-    }
-    if ($mdisks -and $mdisks.GetType().Name -eq "PSResourceGraphResponse")
-    {
-        $mdisks = $mdisks.Data
-    }
-    $resultsCount = $mdisks.Count
-    $resultsSoFar += $resultsCount
-    $mdisksTotal += $mdisks
-
-} while ($resultsCount -eq $ARGPageSize)
-
-Write-Output "Found overall $($mdisksTotal.Count) Unmanaged Disk entries"
-
-<#
-    Building CSV entries 
-#>
-
-$datetime = (get-date).ToUniversalTime()
+$datetime = (Get-Date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
 
-foreach ($disk in $mdisksTotal)
+Write-Output "Building $($nsgRulesTotal.Count) ARM NSG entries"
+
+foreach ($nsgRule in $nsgRulesTotal)
 {
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
-        TenantGuid = $disk.tenantId
-        SubscriptionGuid = $disk.subscriptionId
-        ResourceGroupName = $disk.resourceGroup.ToLower()
-        DiskName = $disk.diskVhdName.ToLower()
-        InstanceId = ($disk.diskStorageAccountName + "/" + $disk.diskContainerName + "/" + $disk.diskVhdName).ToLower()
-        OwnerVMId = $disk.id.ToLower()
-        Location = $disk.location
-        DeploymentModel = "Unmanaged"
-        DiskType = $disk.diskType 
-        Caching = $disk.diskCaching 
-        DiskSizeGB = $disk.diskSize
+        TenantGuid = $nsgRule.tenantId
+        SubscriptionGuid = $nsgRule.subscriptionId
+        ResourceGroupName = $nsgRule.resourceGroup.ToLower()
+        Location = $nsgRule.location
+        NSGName = $nsgRule.name.ToLower()
+        InstanceId = $nsgRule.id.ToLower()
+        NicCount = $nsgRule.nicCount
+        SubnetCount = $nsgRule.subnetCount
+        RuleName = $nsgRule.ruleName
+        RuleProtocol = $nsgRule.ruleProtocol
+        RuleDirection = $nsgRule.ruleDirection
+        RulePriority = $nsgRule.rulePriority
+        RuleAccess = $nsgRule.ruleAccess
+        RuleDestinationAddresses = $nsgRule.ruleDestinationAddresses
+        RuleSourceAddresses = $nsgRule.ruleSourceAddresses
+        RuleDestinationPorts = $nsgRule.ruleDestinationPorts
+        RuleSourcePorts = $nsgRule.ruleSourcePorts
+        Tags = $nsgRule.tags
         StatusDate = $statusDate
-        Tags = $disk.tags
     }
     
-    $alldisks += $logentry
+    $allnsgRules += $logentry
 }
 
-<#
-    Actually exporting CSV to Azure Storage
-#>
+Write-Output "Uploading CSV to Storage"
 
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-vhds-$subscriptionSuffix.csv"
+$csvExportPath = "$today-nsgrules-$subscriptionSuffix.csv"
 
-$alldisks | Export-Csv -Path $csvExportPath -NoTypeInformation
+$allnsgRules | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
 
 $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+
+Write-Output "DONE"

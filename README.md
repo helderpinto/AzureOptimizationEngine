@@ -28,14 +28,25 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Standard Load Balancers without backend pool
     * Application Gateways without backend pool
     * VMs deallocated since a long time ago (forgotten VMs)
+    * Orphaned Public IPs
 * High Availability
     * Virtual Machine high availability (availability set, managed disks, storage account distribution when using unmanaged disks)
     * Availability Sets structure (fault/update domains count)
 * Security
     * Service Principal credentials/certificates without expiration date
+    * NSG rules referring to empty or inexisting subnets
+    * NSG rules referring to orphan or removed NICs
+    * NSG rules referring to orphan or removed Public IPs
 * Operational Excellence
     * Load Balancers without backend pool
     * Service Principal credentials/certificates expired or about to expire
+    * Subscriptions close to the maximum limit of RBAC assignments
+    * Management Groups close to the maximum limit of RBAC assignments
+    * Subscriptions close to the maximum limit of resource groups
+    * Subnets with low free IP space
+    * Subnets with too much IP space wasted
+    * Empty subnets
+    * Orphaned NICs
 
 ### Recommendations overview
 
@@ -67,6 +78,27 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ## <a id="releases"></a>Releases ##
 
+* 09/2021
+    * Several new recommendations added
+        * **Operational Excellence** - Subscriptions close to the maximum limit of RBAC assignments
+        * **Operational Excellence** - Management Groups close to the maximum limit of RBAC assignments
+        * **Operational Excellence** - Subscriptions close to the maximum limit of resource groups
+        * **Operational Excellence** - Subnets with low free IP space
+        * **Operational Excellence** - Subnets with too much IP space wasted
+        * **Operational Excellence** - Empty subnets
+        * **Operational Excellence** - Orphan NICs
+        * **Cost** - Orphan Public IPs
+        * **Security** - NSG rules referring to empty or inexisting subnets
+        * **Security** - NSG rules referring to orphan or removed NICs
+        * **Security** - NSG rules referring to orphan or removed Public IPs
+    * Two new remediations added
+        * Downgrade long-deallocated VMs disks
+        * Delete/downgrade unattached disks
+    * Added Networking assets and RBAC assignments to the Resources Inventory Workbook
+    * Simplified ARM template deployment
+    * Upgraded PowerShell module dependencies
+    * Merged VMs High Availability recommendations into a single runbook
+    * Several bug fixes
 * 06/2021
     * Introduced Log Analytics Workbooks with additional insights besides Power BI recommendations:
         * Identities and Roles - Azure AD principals (user and service) and roles assigned both in Azure AD and Azure RM, credentials expiration (for service principals)
@@ -122,6 +154,7 @@ read the whole blog series dedicated to this project, starting [here](https://te
 
 ### Requirements
 
+* A supported Azure subscription (see the [FAQs](#faq))
 * Azure Powershell 4.5.0+
 * AzureADPreview PowerShell module
 * A user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)), so that the Automation Run As Account is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
@@ -223,7 +256,7 @@ If some recommendation is not applicable or you want it to be removed from the r
 
 * **Is the AOE supported by Microsoft?** No, the Azure Optimization Engine is not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind. The entire risk arising out of the use or performance of the scripts and documentation remains with you.
 
-* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). It was designed to also operate in the Azure China and US Government clouds, but needs thorough testing to be considered as supported. Azure Internal subscriptions are not supported.
+* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). Although not tested yet, it should also work in MCA and PAYG subscriptions. It was designed to also operate in the Azure China and US Government clouds. Azure Internal (MS-AZR-0015P), Sponsorship (MS-AZR-0036P and MS-AZR-0143P), CSP (MS-AZR-0145P, MS-AZR-0146P, and MS-AZR-159P) and DreamSpark (MS-AZR-0144P) subscriptions are not supported.
 
 * **Why is my report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
 

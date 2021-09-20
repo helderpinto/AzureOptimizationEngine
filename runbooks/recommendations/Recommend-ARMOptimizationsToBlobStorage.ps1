@@ -14,10 +14,7 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 }
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
-$workspaceName = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceName"
-$workspaceRG = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceRG"
 $workspaceSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceSubId"
-$workspaceTenantId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceTenantId"
 
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
@@ -46,8 +43,55 @@ if ([string]::IsNullOrEmpty($sqldatabase))
     $sqldatabase = "azureoptimization"
 }
 
-$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
-$consumptionOffsetDaysStart = $consumptionOffsetDays + 1
+$assignmentsPercentageThresholdVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationRBACAssignmentsPercentageThreshold" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($assignmentsPercentageThresholdVar) -or $assignmentsPercentageThresholdVar -eq 0)
+{
+    $assignmentsPercentageThreshold = 80
+}
+else
+{
+    $assignmentsPercentageThreshold = [int] $assignmentsPercentageThresholdVar
+}
+
+$assignmentsSubscriptionsLimitVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationRBACSubscriptionsAssignmentsLimit" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($assignmentsSubscriptionsLimitVar) -or $assignmentsSubscriptionsLimitVar -eq 0)
+{
+    $assignmentsSubscriptionsLimit = 2000
+}
+else
+{
+    $assignmentsSubscriptionsLimit = [int] $assignmentsSubscriptionsLimitVar
+}
+
+$assignmentsMgmtGroupsLimitVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationRBACMgmtGroupsAssignmentsLimit" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($assignmentsMgmtGroupsLimitVar) -or $assignmentsMgmtGroupsLimitVar -eq 0)
+{
+    $assignmentsMgmtGroupsLimit = 500
+}
+else
+{
+    $assignmentsMgmtGroupsLimit = [int] $assignmentsMgmtGroupsLimitVar
+}
+
+$rgPercentageThresholdVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationResourceGroupsPerSubPercentageThreshold" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($rgPercentageThresholdVar) -or $rgPercentageThresholdVar -eq 0)
+{
+    $rgPercentageThreshold = 80
+}
+else
+{
+    $rgPercentageThreshold = [int] $rgPercentageThresholdVar
+}
+
+$rgLimitVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationResourceGroupsPerSubLimit" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($rgLimitVar) -or $rgLimitVar -eq 0)
+{
+    $rgLimit = 980
+}
+else
+{
+    $rgLimit = [int] $rgLimitVar
+}
 
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
@@ -85,7 +129,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGLoadBalancer','AzureConsumption','ARGResourceContainers')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('RBACAssignments','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -105,11 +149,10 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$lbsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGLoadBalancer' }).LogAnalyticsSuffix + "_CL"
-$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+$rbacTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'RBACAssignments' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $lbsTableName, $subscriptionsTableName and $consumptionTableName"
+Write-Output "Will run query against tables $rbacTableName and $subscriptionsTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -126,30 +169,22 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
-# Execute the Cost recommendation query against Log Analytics
+$assignmentsThreshold = $assignmentsSubscriptionsLimit * ($assignmentsPercentageThreshold / 100)
+
+Write-Output "Looking for subscriptions with more than $assignmentsPercentageThreshold% of the $assignmentsSubscriptionsLimit RBAC assignments limit..."
 
 $baseQuery = @"
-    let interval = 30d;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
-    let stime = etime-interval; 
-    $lbsTableName
-    | where TimeGenerated > ago(1d)
-    | where SkuName_s == 'Standard'
-    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
-    | where toint(LbRulesCount_s) != 0 or toint(InboundNatRulesCount_s) != 0 or toint(OutboundRulesCount_s) != 0
-    | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
-    | join kind=leftouter (
-        $consumptionTableName
-        | where UsageDate_t between (stime..etime)
-        | project InstanceId_s, Cost_s, UsageDate_t
-    ) on InstanceId_s
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s    
+    $rbacTableName
+    | where TimeGenerated > ago(1d) and Model_s == 'AzureRM' and Scope_s startswith '/subscriptions/'
+    | extend SubscriptionGuid_g = tostring(split(Scope_s, '/')[2])
+    | summarize AssignmentsCount=count() by SubscriptionGuid_g, TenantGuid_g, Cloud_s
     | join kind=leftouter ( 
-        $subscriptionsTableName 
+       $subscriptionsTableName
         | where TimeGenerated > ago(1d)
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s, Tags_s, InstanceId_s 
     ) on SubscriptionGuid_g
+    | where AssignmentsCount >= $assignmentsThreshold    
 "@
 
 try
@@ -165,137 +200,7 @@ catch
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
 }
 
-Write-Output "Costs query finished with $($results.Count) results."
-
-Write-Output "Query statistics: $($queryResults.Statistics.query)"
-
-# Build the recommendations objects
-
-$recommendations = @()
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-foreach ($result in $results)
-{
-    $queryInstanceId = $result.InstanceId_s
-    $queryText = @"
-    $lbsTableName
-    | where InstanceId_s == '$queryInstanceId'
-    | where SkuName_s == 'Standard'
-    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
-    | where toint(LbRulesCount_s) != 0 or toint(InboundNatRulesCount_s) != 0 or toint(OutboundRulesCount_s) != 0
-    | distinct InstanceId_s, InstanceName_s, SkuName_s, TimeGenerated
-    | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s, SkuName_s
-    | join kind=inner (
-        $consumptionTableName
-        | project InstanceId_s, Cost_s, UsageDate_t
-    ) on InstanceId_s
-    | where UsageDate_t > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(Cost_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
-"@
-    $encodedQuery = [System.Uri]::EscapeDataString($queryText)
-    $detailsQueryStart = $deploymentDate
-    $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
-    switch ($cloudEnvironment)
-    {
-        "AzureCloud" { $azureTld = "com" }
-        "AzureChinaCloud" { $azureTld = "cn" }
-        "AzureUSGovernment" { $azureTld = "us" }
-        default { $azureTld = "com" }
-    }
-    $detailsURL = "https://portal.azure.$azureTld#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
-
-    $additionalInfoDictionary = @{}
-
-    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
-    $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
-    $additionalInfoDictionary["savingsAmount"] = [double] $result.Last30DaysCost 
-
-    $fitScore = 5
-
-    $tags = @{}
-
-    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
-    {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
-        {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
-        }
-    }
-
-    $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "Cost"
-        ImpactedArea = "Microsoft.Network/loadBalancers"
-        Impact = "Medium"
-        RecommendationType = "Saving"
-        RecommendationSubType = "UnusedStandardLoadBalancers"
-        RecommendationSubTypeId = "f1ed3bb2-3cb5-41e6-ba38-7001d5ff87f5"
-        RecommendationDescription = "Standard Load Balancers with rules defined and without a backend pool incur in unnecessary costs"
-        RecommendationAction = "Delete the Load Balancer"
-        InstanceId = $result.InstanceId_s
-        InstanceName = $result.InstanceName_s
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
-    }
-
-    $recommendations += $recommendation
-}
-
-# Export the recommendations as JSON to blob storage
-
-$fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unusedstdloadbalancers-$fileDate.json"
-$recommendations | ConvertTo-Json | Out-File $jsonExportPath
-
-$jsonBlobName = $jsonExportPath
-$jsonProperties = @{"ContentType" = "application/json"};
-Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
-
-
-# Execute the Operational Excellence recommendation query against Log Analytics
-
-$baseQuery = @"
-    $lbsTableName
-    | where TimeGenerated > ago(1d)
-    | where (toint(BackendPoolsCount_s) == 0 or BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and toint(InboundNatPoolsCount_s) == 0
-    | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
-    | join kind=leftouter ( 
-        $subscriptionsTableName
-        | where TimeGenerated > ago(1d) 
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
-"@
-
-try 
-{
-    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days 2) -Wait 600 -IncludeStatistics
-    if ($queryResults)
-    {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
-    }
-}
-catch
-{
-    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
-}
-
-Write-Output "Operational Excellence query finished with $($results.Count) results."
+Write-Output "Query finished with $($results.Count) results."
 
 Write-Output "Query statistics: $($queryResults.Statistics.query)"
 
@@ -316,11 +221,11 @@ foreach ($result in $results)
     }
 
     $queryInstanceId = $result.InstanceId_s
-    $detailsURL = "https://portal.azure.$azureTld/#@$workspaceTenantId/resource/$queryInstanceId/overview"
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/users"
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
+    $additionalInfoDictionary["assignmentsCount"] = $result.AssignmentsCount
 
     $fitScore = 5
 
@@ -345,17 +250,16 @@ foreach ($result in $results)
         Timestamp = $timestamp
         Cloud = $result.Cloud_s
         Category = "OperationalExcellence"
-        ImpactedArea = "Microsoft.Network/loadBalancers"
-        Impact = "Medium"
+        ImpactedArea = "Microsoft.Resources/subscriptions"
+        Impact = "High"
         RecommendationType = "BestPractices"
-        RecommendationSubType = "UnusedLoadBalancers"
-        RecommendationSubTypeId = "48619512-f4e6-4241-9c85-16f7c987950c"
-        RecommendationDescription = "Load Balancers without a backend pool are useless"
-        RecommendationAction = "Delete the Load Balancer"
+        RecommendationSubType = "HighRBACAssignmentsSubscriptions"
+        RecommendationSubTypeId = "c6a88d8c-3242-44b0-9793-c91897ef68bc"
+        RecommendationDescription = "Subscriptions close to the maximum limit of RBAC assignments"
+        RecommendationAction = "Remove unneeded RBAC assignments or use group-based (or nested group-based) assignments"
         InstanceId = $result.InstanceId_s
-        InstanceName = $result.InstanceName_s
+        InstanceName = $result.SubscriptionName
         AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
         SubscriptionGuid = $result.SubscriptionGuid_g
         SubscriptionName = $result.SubscriptionName
         TenantGuid = $result.TenantGuid_g
@@ -370,9 +274,208 @@ foreach ($result in $results)
 # Export the recommendations as JSON to blob storage
 
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "unusedloadbalancers-$fileDate.json"
+$jsonExportPath = "subscriptionsrbaclimits-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$assignmentsThreshold = $assignmentsMgmtGroupsLimit * ($assignmentsPercentageThreshold / 100)
+
+Write-Output "Looking for management groups with more than $assignmentsPercentageThreshold% of the $assignmentsMgmtGroupsLimit RBAC assignments limit..."
+
+$baseQuery = @"
+    $rbacTableName
+    | where TimeGenerated > ago(1d) and Model_s == 'AzureRM' and Scope_s has 'managementGroups'
+    | extend ManagementGroupId = tostring(split(Scope_s, '/')[4])
+    | summarize AssignmentsCount=count() by ManagementGroupId, TenantGuid_g, Scope_s, Cloud_s
+    | where AssignmentsCount >= $assignmentsThreshold        
+"@
+
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/blade/Microsoft_Azure_ManagementGroups/ManagementGroupBrowseBlade/MGBrowse_overview"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["assignmentsCount"] = $result.AssignmentsCount
+
+    $fitScore = 5
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "OperationalExcellence"
+        ImpactedArea = "Microsoft.Management/managementGroups"
+        Impact = "High"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "HighRBACAssignmentsManagementGroups"
+        RecommendationSubTypeId = "b36dea3e-ef21-45a9-a704-6f629fab236d"
+        RecommendationDescription = "Management Groups close to the maximum limit of RBAC assignments"
+        RecommendationAction = "Remove unneeded RBAC assignments or use group-based (or nested group-based) assignments"
+        InstanceId = $result.Scope_s
+        InstanceName = $result.ManagementGroupId
+        AdditionalInfo = $additionalInfoDictionary
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "mgmtgroupsrbaclimits-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$rgThreshold = $rgLimit * ($rgPercentageThreshold / 100)
+
+Write-Output "Looking for subscriptions with more than $rgPercentageThreshold% of the $rgLimit Resource Groups limit..."
+
+$baseQuery = @"
+    $subscriptionsTableName
+    | where TimeGenerated > ago(1d)
+    | where ContainerType_s =~ 'microsoft.resources/subscriptions/resourceGroups' 
+    | summarize RGCount=count() by SubscriptionGuid_g, TenantGuid_g, Cloud_s
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s, Tags_s, InstanceId_s 
+    ) on SubscriptionGuid_g
+    | where RGCount >= $rgThreshold    
+"@
+
+try
+{
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
+    if ($queryResults)
+    {
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
+    }
+}
+catch
+{
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+}
+
+Write-Output "Query finished with $($results.Count) results."
+
+Write-Output "Query statistics: $($queryResults.Statistics.query)"
+
+# Build the recommendations objects
+
+$recommendations = @()
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
+
+foreach ($result in $results)
+{
+    switch ($result.Cloud_s)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+
+    $queryInstanceId = $result.InstanceId_s
+    $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/resourceGroups"
+
+    $additionalInfoDictionary = @{}
+
+    $additionalInfoDictionary["resourceGroupsCount"] = $result.RGCount
+
+    $fitScore = 5
+
+    $tags = @{}
+
+    if (-not([string]::IsNullOrEmpty($result.Tags_s)))
+    {
+        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
+        foreach ($tagPairString in $tagPairs)
+        {
+            $tagPair = $tagPairString.Split('=')
+            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
+            {
+                $tagName = $tagPair[0].Trim()
+                $tagValue = $tagPair[1].Trim()
+                $tags[$tagName] = $tagValue    
+            }
+        }
+    }
+
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $result.Cloud_s
+        Category = "OperationalExcellence"
+        ImpactedArea = "Microsoft.Resources/subscriptions"
+        Impact = "High"
+        RecommendationType = "BestPractices"
+        RecommendationSubType = "HighResourceGroupCountSubscriptions"
+        RecommendationSubTypeId = "4468da8d-1e72-4998-b6d2-3bc38ddd9330"
+        RecommendationDescription = "Subscriptions close to the maximum limit of resource groups"
+        RecommendationAction = "Remove unneeded resource groups or split your resource groups across multiple subscriptions"
+        InstanceId = $result.InstanceId_s
+        InstanceName = $result.SubscriptionName
+        AdditionalInfo = $additionalInfoDictionary
+        SubscriptionGuid = $result.SubscriptionGuid_g
+        SubscriptionName = $result.SubscriptionName
+        TenantGuid = $result.TenantGuid_g
+        FitScore = $fitScore
+        Tags = $tags
+        DetailsURL = $detailsURL
+    }
+
+    $recommendations += $recommendation
+}
+
+# Export the recommendations as JSON to blob storage
+
+$fileDate = $datetime.ToString("yyyy-MM-dd")
+$jsonExportPath = "subscriptionsrglimits-$fileDate.json"
+$recommendations | ConvertTo-Json | Out-File $jsonExportPath
+
+$jsonBlobName = $jsonExportPath
+$jsonProperties = @{"ContentType" = "application/json"};
+Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+

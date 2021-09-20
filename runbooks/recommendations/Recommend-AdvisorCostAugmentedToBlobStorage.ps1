@@ -428,6 +428,7 @@ let DiskPerf = Perf
             MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId$diskPerfAdditionalWorkspaces;
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
+| extend InstanceName_s = iif(isnotempty(InstanceName_s),InstanceName_s,InstanceName_g)
 | distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g
 | join kind=leftouter (
     $consumptionTableName
@@ -730,7 +731,15 @@ foreach ($result in $results) {
     $queryInstanceId = $result.InstanceId_s
     if (-not($hasCpuRamPerfMetrics))
     {
-        $detailsURL = "https://portal.azure.com/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
+        switch ($result.Cloud_s)
+        {
+            "AzureCloud" { $azureTld = "com" }
+            "AzureChinaCloud" { $azureTld = "cn" }
+            "AzureUSGovernment" { $azureTld = "us" }
+            default { $azureTld = "com" }
+        }
+        
+        $detailsURL = "https://portal.azure.$azureTld/#@$($result.TenantGuid_g)/resource/$queryInstanceId/overview"
     }
     else
     {
@@ -766,11 +775,19 @@ foreach ($result in $results) {
         | join kind=inner (ProcessorPerf) on TimeGenerated
         | render timechart
 "@
-    
+
+        switch ($cloudEnvironment)
+        {
+            "AzureCloud" { $azureTld = "com" }
+            "AzureChinaCloud" { $azureTld = "cn" }
+            "AzureUSGovernment" { $azureTld = "us" }
+            default { $azureTld = "com" }
+        }
+
         $encodedQuery = [System.Uri]::EscapeDataString($queryText)
         $detailsQueryStart = $datetime.AddDays(-30).ToString("yyyy-MM-dd")
         $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
-        $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"            
+        $detailsURL = "https://portal.azure.$azureTld#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"            
     }
 
     $recommendation = New-Object PSObject -Property @{

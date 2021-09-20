@@ -91,7 +91,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 $nicsTotal = @()
@@ -111,19 +111,20 @@ $argQuery = @"
     | extend internalDomainNameSuffix = properties.dnsSettings.internalDomainNameSuffix
     | extend appliedDnsServers = properties.dnsSettings.appliedDnsServers
     | extend dnsServers = properties.dnsSettings.dnsServers
-    | extend ownerVMId = properties.virtualMachine.id
-    | extend ownerPEId = properties.privateEndpoint.id
+    | extend ownerVMId = tolower(properties.virtualMachine.id)
+    | extend ownerPEId = tolower(properties.privateEndpoint.id)
     | extend macAddress = properties.macAddress
     | extend nicType = properties.nicType
-    | mv-expand ipconfigs = properties.ipConfigurations
+    | extend nicNsgId = tolower(properties.networkSecurityGroup.id)
+	| mv-expand ipconfigs = properties.ipConfigurations
     | project-away properties
     | extend privateIPAddressVersion = tostring(ipconfigs.properties.privateIPAddressVersion)
     | extend privateIPAllocationMethod = tostring(ipconfigs.properties.privateIPAllocationMethod)
     | extend isIPConfigPrimary = tostring(ipconfigs.properties.primary)
     | extend privateIPAddress = tostring(ipconfigs.properties.privateIPAddress)
-    | extend publicIPId = tostring(ipconfigs.properties.publicIPAddress.id)
+    | extend publicIPId = tolower(ipconfigs.properties.publicIPAddress.id)
     | extend IPConfigName = tostring(ipconfigs.name)
-    | extend subnetId = tostring(ipconfigs.properties.subnet.id)
+    | extend subnetId = tolower(ipconfigs.properties.subnet.id)
     | project-away ipconfigs
     | order by id asc
 "@
@@ -132,11 +133,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $nics = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $nics = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $nics = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $nics = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($nics -and $nics.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $nics = $nics.Data
     }
     $resultsCount = $nics.Count
     $resultsSoFar += $resultsCount
@@ -173,6 +178,7 @@ foreach ($nic in $nicsTotal)
         OwnerPEId = $nic.ownerPEId
         MacAddress = $nic.macAddress
         NicType = $nic.nicType
+        NicNSGId = $nic.nicNsgId
         PrivateIPAddressVersion = $nic.privateIPAddressVersion
         PrivateIPAllocationMethod = $nic.privateIPAllocationMethod
         IsIPConfigPrimary = $nic.isIPConfigPrimary

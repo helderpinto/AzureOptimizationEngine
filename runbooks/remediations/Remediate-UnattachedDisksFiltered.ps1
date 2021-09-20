@@ -33,26 +33,31 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "remediationlogs"
 }
 
-$minFitScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinFitScore" -ErrorAction SilentlyContinue)
+$minFitScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksMinFitScore" -ErrorAction SilentlyContinue)
 if (-not($minFitScore -gt 0.0)) {
     $minFitScore = 5.0
 }
 
-$minWeeksInARow = [int] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinWeeksInARow" -ErrorAction SilentlyContinue)
+$minWeeksInARow = [int] (Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksMinWeeksInARow" -ErrorAction SilentlyContinue)
 if (-not($minWeeksInARow -gt 0)) {
     $minWeeksInARow = 4
 }
 
-$tagsFilter = Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeTagsFilter" -ErrorAction SilentlyContinue
+$tagsFilter = Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksTagsFilter" -ErrorAction SilentlyContinue
 # example: '[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]'
 if (-not($tagsFilter)) {
     $tagsFilter = '{}'
 }
 $tagsFilter = $tagsFilter | ConvertFrom-Json
 
-$rightSizeRecommendationId = Get-AutomationVariable -Name  "AzureOptimization_RecommendationAdvisorCostRightSizeId" -ErrorAction SilentlyContinue
-if (-not($rightSizeRecommendationId)) {
-    $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
+$remediationAction = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksAction" -ErrorAction SilentlyContinue) # Delete / Downsize
+if (-not($remediationAction)) {
+    $remediationAction = "Delete"
+}
+
+$recommendationId = Get-AutomationVariable -Name  "AzureOptimization_RecommendationUnattachedDisksId" -ErrorAction SilentlyContinue
+if (-not($recommendationId)) {
+    $recommendationId = 'c84d5e86-e2d6-4d62-be7c-cecfbd73b0db'
 }
 
 $SqlTimeout = 0
@@ -81,7 +86,7 @@ switch ($authenticationOption) {
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
-Write-Output "Querying for right-size recommendations with fit score >= $minFitScore made consecutively for the last $minWeeksInARow weeks."
+Write-Output "Querying for unattached disks recommendations with fit score >= $minFitScore made consecutively for the last $minWeeksInARow weeks."
 
 $tries = 0
 $connectionSuccess = $false
@@ -94,16 +99,16 @@ do {
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
         $Cmd.CommandText = @"
-        SELECT InstanceId, Cloud, TenantGuid, JSON_VALUE(AdditionalInfo, '`$.currentSku') AS CurrentSKU, JSON_VALUE(AdditionalInfo, '`$.targetSku') AS TargetSKU, COUNT(InstanceId)
+        SELECT InstanceId, Cloud, TenantGuid, COUNT(InstanceId)
         FROM [dbo].[$recommendationsTable] 
-        WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
-        GROUP BY InstanceId, Cloud, TenantGuid, JSON_VALUE(AdditionalInfo, '`$.currentSku'), JSON_VALUE(AdditionalInfo, '`$.targetSku')
+        WHERE RecommendationSubTypeId = '$recommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
+        GROUP BY InstanceId, Cloud, TenantGuid
         HAVING COUNT(InstanceId) >= $minWeeksInARow
 "@    
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
-        $vmsToRightSize = New-Object System.Data.DataTable
-        $sqlAdapter.Fill($vmsToRightSize) | Out-Null            
+        $unattachedDisks = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($unattachedDisks) | Out-Null            
         $connectionSuccess = $true
     }
     catch {
@@ -118,7 +123,7 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-Write-Output "Found $($vmsToRightSize.Rows.Count) remediation opportunities."
+Write-Output "Found $($unattachedDisks.Rows.Count) remediation opportunities."
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -132,7 +137,7 @@ $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
 
 $ctx = Get-AzContext
 
-foreach ($vm in $vmsToRightSize.Rows)
+foreach ($disk in $unattachedDisks.Rows)
 {
     $isEligible = $false
     $logDetails = $null
@@ -142,12 +147,12 @@ foreach ($vm in $vmsToRightSize.Rows)
     }
     else
     {
-        $vmTags = Get-AzTag -ResourceId $vm.InstanceId -ErrorAction SilentlyContinue
-        if ($vmTags)
+        $diskTags = Get-AzTag -ResourceId $disk.InstanceId -ErrorAction SilentlyContinue
+        if ($diskTags)
         {
             foreach ($tagFilter in $tagsFilter)
             {
-                if ($vmTags.Properties.TagsProperty.($tagFilter.tagName) -eq $tagFilter.tagValue)
+                if ($diskTags.Properties.TagsProperty.($tagFilter.tagName) -eq $tagFilter.tagValue)
                 {
                     $isEligible = $true
                 }
@@ -160,54 +165,97 @@ foreach ($vm in $vmsToRightSize.Rows)
         }
     }
 
-    $subscriptionId = $vm.InstanceId.Split("/")[2]
-    $resourceGroup = $vm.InstanceId.Split("/")[4]
-    $instanceName = $vm.InstanceId.Split("/")[8]
+    $subscriptionId = $disk.InstanceId.Split("/")[2]
+    $resourceGroup = $disk.InstanceId.Split("/")[4]
+    $instanceName = $disk.InstanceId.Split("/")[8]
     
     if ($isEligible)
     {
-        Write-Output "Downsizing (SIMULATE=$Simulate) $($vm.InstanceId) to $($vm.TargetSKU)..."
-        if (-not($Simulate) -and $ctx.Environment.Name -eq $vm.Cloud -and $ctx.Tenant.Id -eq $vm.TenantGuid)
+        $diskState = "Unknown"
+        $currentSku = "Unknown"
+
+        Write-Output "Performing $remediationAction action (SIMULATE=$Simulate) on $($disk.InstanceId) disk..."
+        if ($ctx.Environment.Name -eq $disk.Cloud -and $ctx.Tenant.Id -eq $disk.TenantGuid)
         {
             if ($ctx.Subscription.Id -ne $subscriptionId)
             {
                 Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
                 $ctx = Get-AzContext
             }
-            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName
-            $vmObj.HardwareProfile.VmSize = $vm.TargetSKU
-            Update-AzVM -VM $vmObj -ResourceGroupName $resourceGroup
+            $diskObj = Get-AzDisk -ResourceGroupName $resourceGroup -DiskName $instanceName -ErrorAction SilentlyContinue
+            if (-not($diskObj.ManagedBy))
+            {
+                $diskState = "Unattached"
+                $currentSku = $diskObj.Sku.Name
+                if ($remediationAction -eq "Downsize")
+                {
+                    if (-not($Simulate) -and $diskObj.Sku.Name -ne 'Standard_LRS')
+                    {
+                        $diskObj.Sku = [Microsoft.Azure.Management.Compute.Models.DiskSku]::new('Standard_LRS')
+                        $diskObj | Update-AzDisk | Out-Null
+                    }
+                    else
+                    {
+                        Write-Output "Skipping as disk is already HDD."                        
+                    }
+                }
+                elseif ($remediationAction -eq "Delete")
+                {
+                    if (-not($Simulate))
+                    {
+                        Remove-AzDisk -ResourceGroupName $resourceGroup -DiskName $instanceName -Force | Out-Null
+                    }
+                }
+                else
+                {
+                    Write-Output "Skipping as action is not supported."
+                }
+            }
+            else
+            {
+                if ($diskObj)
+                {
+                    Write-Output "Skipping as disk is not unattached."    
+                    $diskState = "Attached"    
+                }
+                else
+                {
+                    Write-Output "Skipping as disk was already removed."    
+                    $diskState = "Removed"                        
+                }
+            }
         }
         else
         {
-            Write-Output "Did not apply remediation."    
+            Write-Output "Could not apply remediation as disk is in another cloud/tenant."    
         }
     }
 
     $logDetails = @{
         IsEligible = $isEligible
-        CurrentSku = $vm.CurrentSKU
-        TargetSku = $vm.TargetSKU
+        RemediationAction = $remediationAction
+        DiskState = $diskState
+        CurrentSku = $currentSku
     }
 
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
-        Cloud = $vm.Cloud
-        TenantGuid = $vm.TenantGuid
+        Cloud = $disk.Cloud
+        TenantGuid = $disk.TenantGuid
         SubscriptionGuid = $subscriptionId
         ResourceGroupName = $resourceGroup.ToLower()
         InstanceName = $instanceName.ToLower()
-        InstanceId = $vm.InstanceId.ToLower()
+        InstanceId = $disk.InstanceId.ToLower()
         Simulate = $Simulate
         LogDetails = $logDetails | ConvertTo-Json
-        RecommendationSubTypeId = $rightSizeRecommendationId
+        RecommendationSubTypeId = $recommendationId
     }
     
     $logEntries += $logentry
 }
     
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-rightsizefiltered.csv"
+$csvExportPath = "$today-unattacheddisksfiltered.csv"
 
 $logEntries | Export-Csv -Path $csvExportPath -NoTypeInformation
 

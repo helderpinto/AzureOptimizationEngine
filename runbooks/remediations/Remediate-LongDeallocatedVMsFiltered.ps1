@@ -33,26 +33,26 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "remediationlogs"
 }
 
-$minFitScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinFitScore" -ErrorAction SilentlyContinue)
+$minFitScore = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateLongDeallocatedVMsMinFitScore" -ErrorAction SilentlyContinue)
 if (-not($minFitScore -gt 0.0)) {
     $minFitScore = 5.0
 }
 
-$minWeeksInARow = [int] (Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeMinWeeksInARow" -ErrorAction SilentlyContinue)
+$minWeeksInARow = [int] (Get-AutomationVariable -Name  "AzureOptimization_RemediateLongDeallocatedVMsMinWeeksInARow" -ErrorAction SilentlyContinue)
 if (-not($minWeeksInARow -gt 0)) {
     $minWeeksInARow = 4
 }
 
-$tagsFilter = Get-AutomationVariable -Name  "AzureOptimization_RemediateRightSizeTagsFilter" -ErrorAction SilentlyContinue
+$tagsFilter = Get-AutomationVariable -Name  "AzureOptimization_RemediateLongDeallocatedVMsTagsFilter" -ErrorAction SilentlyContinue
 # example: '[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]'
 if (-not($tagsFilter)) {
     $tagsFilter = '{}'
 }
 $tagsFilter = $tagsFilter | ConvertFrom-Json
 
-$rightSizeRecommendationId = Get-AutomationVariable -Name  "AzureOptimization_RecommendationAdvisorCostRightSizeId" -ErrorAction SilentlyContinue
-if (-not($rightSizeRecommendationId)) {
-    $rightSizeRecommendationId = 'e10b1381-5f0a-47ff-8c7b-37bd13d7c974'
+$recommendationId = Get-AutomationVariable -Name  "AzureOptimization_RecommendationLongDeallocatedVMsId" -ErrorAction SilentlyContinue
+if (-not($recommendationId)) {
+    $recommendationId = 'c320b790-2e58-452a-aa63-7b62c383ad8a'
 }
 
 $SqlTimeout = 0
@@ -81,7 +81,7 @@ switch ($authenticationOption) {
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
-Write-Output "Querying for right-size recommendations with fit score >= $minFitScore made consecutively for the last $minWeeksInARow weeks."
+Write-Output "Querying for long-deallocated recommendations with fit score >= $minFitScore made consecutively for the last $minWeeksInARow weeks."
 
 $tries = 0
 $connectionSuccess = $false
@@ -94,16 +94,16 @@ do {
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
         $Cmd.CommandText = @"
-        SELECT InstanceId, Cloud, TenantGuid, JSON_VALUE(AdditionalInfo, '`$.currentSku') AS CurrentSKU, JSON_VALUE(AdditionalInfo, '`$.targetSku') AS TargetSKU, COUNT(InstanceId)
+        SELECT InstanceId, Cloud, TenantGuid, COUNT(InstanceId)
         FROM [dbo].[$recommendationsTable] 
-        WHERE RecommendationSubTypeId = '$rightSizeRecommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
-        GROUP BY InstanceId, Cloud, TenantGuid, JSON_VALUE(AdditionalInfo, '`$.currentSku'), JSON_VALUE(AdditionalInfo, '`$.targetSku')
+        WHERE RecommendationSubTypeId = '$recommendationId' AND FitScore >= $minFitScore AND GeneratedDate >= GETDATE()-(7*$minWeeksInARow)
+        GROUP BY InstanceId, Cloud, TenantGuid
         HAVING COUNT(InstanceId) >= $minWeeksInARow
 "@    
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
-        $vmsToRightSize = New-Object System.Data.DataTable
-        $sqlAdapter.Fill($vmsToRightSize) | Out-Null            
+        $deallocatedVMs = New-Object System.Data.DataTable
+        $sqlAdapter.Fill($deallocatedVMs) | Out-Null            
         $connectionSuccess = $true
     }
     catch {
@@ -118,7 +118,7 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-Write-Output "Found $($vmsToRightSize.Rows.Count) remediation opportunities."
+Write-Output "Found $($deallocatedVMs.Rows.Count) remediation opportunities."
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -132,7 +132,7 @@ $timestamp = $datetime.ToString("yyyy-MM-ddT$($hour):$($min):00.000Z")
 
 $ctx = Get-AzContext
 
-foreach ($vm in $vmsToRightSize.Rows)
+foreach ($vm in $deallocatedVMs.Rows)
 {
     $isEligible = $false
     $logDetails = $null
@@ -166,28 +166,89 @@ foreach ($vm in $vmsToRightSize.Rows)
     
     if ($isEligible)
     {
-        Write-Output "Downsizing (SIMULATE=$Simulate) $($vm.InstanceId) to $($vm.TargetSKU)..."
-        if (-not($Simulate) -and $ctx.Environment.Name -eq $vm.Cloud -and $ctx.Tenant.Id -eq $vm.TenantGuid)
+        $vmState = "Unknown"
+        $hasManagedDisks = $false
+        $osDiskSkuName = "Unknown"
+        $dataDisksSkuNames = "Unknown"
+
+        Write-Output "Downsizing (SIMULATE=$Simulate) $($vm.InstanceId) disks to Standard_LRS..."
+        if ($ctx.Environment.Name -eq $vm.Cloud -and $ctx.Tenant.Id -eq $vm.TenantGuid)
         {
             if ($ctx.Subscription.Id -ne $subscriptionId)
             {
                 Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
                 $ctx = Get-AzContext
             }
-            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName
-            $vmObj.HardwareProfile.VmSize = $vm.TargetSKU
-            Update-AzVM -VM $vmObj -ResourceGroupName $resourceGroup
+            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName -Status
+            if ($vmObj.PowerState -eq 'VM deallocated')
+            {
+                $vmState = "Deallocated"
+                $osDiskId = $vmObj.StorageProfile.OsDisk.ManagedDisk.Id
+                $dataDiskIds = $vmObj.StorageProfile.DataDisks.ManagedDisk.Id
+                if ($osDiskId)
+                {
+                    $hasManagedDisks = $true
+                    $disk = Get-AzDisk -ResourceGroupName $osDiskId.Split("/")[4] -DiskName $osDiskId.Split("/")[8]
+                    $osDiskSkuName = $disk.Sku.Name
+                    if (-not($Simulate) -and $disk.Sku.Name -ne 'Standard_LRS')
+                    {
+                        $disk.Sku = [Microsoft.Azure.Management.Compute.Models.DiskSku]::new('Standard_LRS')
+                        $disk | Update-AzDisk | Out-Null
+                    }
+                    else
+                    {
+                        Write-Output "Skipping as OS disk is already HDD."                        
+                    }
+                    foreach ($dataDiskId in $dataDiskIds)
+                    {
+                        $disk = Get-AzDisk -ResourceGroupName $dataDiskId.Split("/")[4] -DiskName $dataDiskId.Split("/")[8]
+                        if ($dataDisksSkuNames -eq 'Unknown')
+                        {
+                            $dataDisksSkuNames = $disk.Sku.Name
+                        }
+                        else
+                        {
+                            if ($dataDisksSkuNames -notlike "*$($disk.Sku.Name)*")
+                            {
+                                $dataDisksSkuNames += ",$($disk.Sku.Name)"
+                            }
+                        }
+                        
+                        if (-not($Simulate) -and $disk.Sku.Name -ne 'Standard_LRS')
+                        {
+                            $disk.Sku = [Microsoft.Azure.Management.Compute.Models.DiskSku]::new('Standard_LRS')
+                            $disk | Update-AzDisk | Out-Null
+                        }
+                        else
+                        {
+                            Write-Output "Skipping as Data disk is already HDD."                        
+                        }                            
+                    }
+                }
+                else
+                {
+                    Write-Output "Skipping as disks are not Managed Disks."    
+                    $hasManagedDisks = $false
+                }
+            }
+            else
+            {
+                Write-Output "Skipping as VM is not deallocated."    
+                $vmState = "Running"
+            }
         }
         else
         {
-            Write-Output "Did not apply remediation."    
+            Write-Output "Could not apply remediation as VM is in another cloud/tenant."    
         }
     }
 
     $logDetails = @{
         IsEligible = $isEligible
-        CurrentSku = $vm.CurrentSKU
-        TargetSku = $vm.TargetSKU
+        VMState = $vmState
+        HasManagedDisks = $hasManagedDisks
+        OsDiskSkuName = $osDiskSkuName
+        DataDisksSkuName = $dataDisksSkuNames
     }
 
     $logentry = New-Object PSObject -Property @{
@@ -200,14 +261,14 @@ foreach ($vm in $vmsToRightSize.Rows)
         InstanceId = $vm.InstanceId.ToLower()
         Simulate = $Simulate
         LogDetails = $logDetails | ConvertTo-Json
-        RecommendationSubTypeId = $rightSizeRecommendationId
+        RecommendationSubTypeId = $recommendationId
     }
     
     $logEntries += $logentry
 }
     
 $today = $datetime.ToString("yyyyMMdd")
-$csvExportPath = "$today-rightsizefiltered.csv"
+$csvExportPath = "$today-longdeallocatedvmsfiltered.csv"
 
 $logEntries | Export-Csv -Path $csvExportPath -NoTypeInformation
 

@@ -164,6 +164,7 @@ $baseQuery = @"
         $consumptionTableName
         | where UsageDate_t between (stime..etime)
         | extend ResourceId = InstanceId_s
+        | project ResourceId, Cost_s, UsageDate_t
     ) on ResourceId
     | summarize Last30DaysCost=sum(todouble(Cost_s)) by DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s, P99DTUPercentage
     | join kind=leftouter ( 
@@ -210,7 +211,14 @@ foreach ($result in $results)
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $datetime.AddDays(-30).ToString("yyyy-MM-dd")
     $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
-    $detailsURL = "https://portal.azure.com#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
+    switch ($cloudEnvironment)
+    {
+        "AzureCloud" { $azureTld = "com" }
+        "AzureChinaCloud" { $azureTld = "cn" }
+        "AzureUSGovernment" { $azureTld = "us" }
+        default { $azureTld = "com" }
+    }
+    $detailsURL = "https://portal.azure.$azureTld#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
 
     $additionalInfoDictionary = @{}
 

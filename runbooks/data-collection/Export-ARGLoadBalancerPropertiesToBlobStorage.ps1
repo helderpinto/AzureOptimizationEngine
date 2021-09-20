@@ -86,7 +86,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 $LBsTotal = @()
@@ -97,6 +97,7 @@ Write-Output "Querying for Load Balancer properties"
 $argQuery = @"
 resources
 | where type =~ 'Microsoft.Network/loadBalancers'
+| extend lbType = iif(properties.frontendIPConfigurations contains 'publicIPAddress', 'Public', iif(properties.frontendIPConfigurations contains 'privateIPAddress', 'Internal', 'Unknown'))
 | extend lbRulesCount = array_length(properties.loadBalancingRules)
 | extend frontendIPsCount = array_length(properties.frontendIPConfigurations)
 | extend inboundNatRulesCount = array_length(properties.inboundNatRules)
@@ -104,7 +105,7 @@ resources
 | extend inboundNatPoolsCount = array_length(properties.inboundNatPools)
 | extend backendPoolsCount = array_length(properties.backendAddressPools)
 | extend probesCount = array_length(properties.probes)
-| project id, name, resourceGroup, subscriptionId, tenantId, location, skuName = sku.name, skuTier = sku.tier, lbRulesCount, frontendIPsCount, inboundNatRulesCount, outboundRulesCount, inboundNatPoolsCount, backendPoolsCount, probesCount, tags
+| project id, name, resourceGroup, subscriptionId, tenantId, location, skuName = sku.name, skuTier = sku.tier, lbType, lbRulesCount, frontendIPsCount, inboundNatRulesCount, outboundRulesCount, inboundNatPoolsCount, backendPoolsCount, probesCount, tags
 | join kind=leftouter (
 	resources
 	| where type =~ 'Microsoft.Network/loadBalancers'
@@ -120,11 +121,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $LBs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $LBs = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $LBs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($LBs -and $LBs.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $LBs = $LBs.Data
     }
     $resultsCount = $LBs.Count
     $resultsSoFar += $resultsCount
@@ -155,6 +160,7 @@ foreach ($lb in $LBsTotal)
         SkuName = $lb.skuName
         SkuTier = $lb.skuTier
         Location = $lb.location
+        LbType = $lb.lbType
         LbRulesCount = $lb.lbRulesCount
         InboundNatRulesCount = $lb.inboundNatRulesCount
         OutboundRulesCount = $lb.outboundRulesCount

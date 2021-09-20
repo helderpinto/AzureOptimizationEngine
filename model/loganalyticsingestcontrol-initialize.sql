@@ -69,3 +69,27 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('rbacexports', '1901-01-01T00:00:00Z', -1, 'RBACAssignmentsV1', 'RBACAssignments')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argvnetexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argvnetexports', '1901-01-01T00:00:00Z', -1, 'VNetsV1', 'ARGVirtualNetwork')
+END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argnicexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argnicexports', '1901-01-01T00:00:00Z', -1, 'NICsV1', 'ARGNetworkInterface')
+END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argnsgexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argnsgexports', '1901-01-01T00:00:00Z', -1, 'NSGsV1', 'ARGNSGRule')
+END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argpublicipexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argpublicipexports', '1901-01-01T00:00:00Z', -1, 'PublicIPsV1', 'ARGPublicIP')
+END

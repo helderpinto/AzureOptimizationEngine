@@ -91,7 +91,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 else
 {
     $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
-    $subscriptionSuffix = $cloudSuffix + "-all-" + $tenantId
+    $subscriptionSuffix = $cloudSuffix + "all-" + $tenantId
 }
 
 Write-Output "Building Policy display names..."
@@ -170,11 +170,15 @@ do
 {
     if ($resultsSoFar -eq 0)
     {
-        $policyStates = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions).data
+        $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        $policyStates = (Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions).data
+        $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+    }
+    if ($policyStates -and $policyStates.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $policyStates = $policyStates.Data
     }
     $resultsCount = $policyStates.Count
     $resultsSoFar += $resultsCount
