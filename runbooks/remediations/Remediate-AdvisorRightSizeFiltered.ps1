@@ -174,9 +174,16 @@ foreach ($vm in $vmsToRightSize.Rows)
                 Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
                 $ctx = Get-AzContext
             }
-            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName
-            $vmObj.HardwareProfile.VmSize = $vm.TargetSKU
-            Update-AzVM -VM $vmObj -ResourceGroupName $resourceGroup
+            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName -ErrorAction SilentlyContinue
+            if ($vmObj)
+            {
+                $vmObj.HardwareProfile.VmSize = $vm.TargetSKU
+                Update-AzVM -VM $vmObj -ResourceGroupName $resourceGroup    
+            }
+            else
+            {
+                Write-Output "Skipping as VM was already removed."                
+            }
         }
         else
         {

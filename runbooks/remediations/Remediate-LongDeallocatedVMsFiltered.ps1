@@ -179,7 +179,7 @@ foreach ($vm in $deallocatedVMs.Rows)
                 Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
                 $ctx = Get-AzContext
             }
-            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName -Status
+            $vmObj = Get-AzVM -ResourceGroupName $resourceGroup -VMName $instanceName -Status -ErrorAction SilentlyContinue
             if ($vmObj.PowerState -eq 'VM deallocated')
             {
                 $vmState = "Deallocated"
@@ -233,8 +233,16 @@ foreach ($vm in $deallocatedVMs.Rows)
             }
             else
             {
-                Write-Output "Skipping as VM is not deallocated."    
-                $vmState = "Running"
+                if ($vmObj)
+                {
+                    Write-Output "Skipping as VM is not deallocated."    
+                    $vmState = "Running"
+                }
+                else
+                {
+                    Write-Output "Skipping as VM was already removed."    
+                    $vmState = "Removed"                        
+                }
             }
         }
         else
