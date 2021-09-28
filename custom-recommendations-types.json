@@ -85,6 +85,24 @@
             "description": "Virtual Machines should use Managed Disks for higher availability and manageability"
         },
         {
+            "category": "HighAvailability",
+            "typeId": "1bf03c4a-c402-4e6c-bf20-051b18af30e2",
+            "impact": "High",
+            "description": "Virtual Machine Scale Sets should use Managed Disks for higher availability and manageability"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "1a77887c-7375-434e-af19-c2543171e0b8",
+            "impact": "High",
+            "description": "Virtual Machines should be placed in multiple Availability Zones"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "47e5457c-b345-4372-b536-8887fa8f0298",
+            "impact": "High",
+            "description": "Virtual Machine Scale Sets should be placed in multiple Availability Zones"
+        },
+        {
             "category": "Security",
             "typeId": "ecd969c8-3f16-481a-9577-5ed32e5e1a1d",
             "impact": "Medium",
