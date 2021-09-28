@@ -682,7 +682,7 @@
         "recommendationsIngestScheduleName": "AzureOptimization_IngestRecommendationsWeekly",
         "apiVersions": {
             "operationalInsights": "2020-08-01",
-            "automation": "2018-06-30",
+            "automation": "2020-01-13-preview",
             "storage": "2019-06-01",
             "sql": "2019-06-01-preview"
         },
@@ -1366,6 +1366,9 @@
             "apiVersion": "[variables('apiVersions').automation]",
             "name": "[parameters('automationAccountName')]",
             "location": "[parameters('projectLocation')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
             "properties": {
                 "sku": {
                     "name": "Basic"
@@ -1374,7 +1377,7 @@
         },
         // Automation Modules (Az.Account)
         {
-            "comments": "provision the Az.Accounts module first since others are depenedent on it",
+            "comments": "provision the Az.Accounts module first since others are dependent on it",
             "name": "[concat(parameters('automationAccountName'), '/', variables('Az.Accounts').name)]",
             "type": "Microsoft.Automation/automationAccounts/modules",
             "apiVersion": "[variables('apiVersions').automation]",
