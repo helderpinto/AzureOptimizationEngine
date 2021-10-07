@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 function Find-SkuHourlyPrice {
     param (
-        [object] $SKUPriceSheet,
+        [object[]] $SKUPriceSheet,
         [string] $SKUName
     )
 
@@ -16,7 +16,7 @@ function Find-SkuHourlyPrice {
         {
             $skuNameFilter = "*" + $skuNameParts[1] + "*"
             $skuVersionFilter = "*" + $skuNameParts[2]
-            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
+            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
              -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
              -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
@@ -41,7 +41,7 @@ function Find-SkuHourlyPrice {
         {
             $skuNameFilter = "*" + $skuNameParts[1] + "*"
     
-            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
+            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
              -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
              -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
@@ -317,7 +317,37 @@ Write-Output "Getting the current Pricesheet..."
 
 try 
 {
-    $pricesheet = Get-AzConsumptionPriceSheet -ExpandMeterDetail
+    $pricesheet = $null
+    $pricesheetEntries = @()
+    $subscription = $workspaceSubscriptionId
+    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
+
+    do
+    {
+        if (-not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
+        {
+            $PriceSheetApiPath = $pricesheet.properties.nextLink.Substring($pricesheet.properties.nextLink.IndexOf("/subscriptions/"))
+        }
+        $tries = 0
+        $requestSuccess = $false
+        do 
+        {        
+            try {
+                $tries++
+                $pricesheet = (Invoke-AzRestMethod -Path $PriceSheetApiPath -Method GET).Content | ConvertFrom-Json
+                $requestSuccess = $true
+            }
+            catch {
+                $ErrorMessage = $_.Exception.Message
+                Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 60 seconds..."
+                Start-Sleep -s 60   
+            }
+        } while ( -not($requestSuccess) -and $tries -lt 3 )
+
+        $pricesheetEntries += $pricesheet.properties.pricesheets
+
+    }
+    while ($requestSuccess -and -not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
 }
 catch
 {
@@ -637,7 +667,7 @@ foreach ($result in $results) {
 
             if ($targetSku -and $null -eq $skuPricesFound[$targetSku.Name])
             {
-                $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheet
+                $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheetEntries
             }
 
             $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
@@ -648,7 +678,7 @@ foreach ($result in $results) {
 
                 if ($null -eq $skuPricesFound[$currentSku.Name])
                 {
-                    $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheet
+                    $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheetEntries
                 }
 
                 if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
