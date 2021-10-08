@@ -103,6 +103,7 @@ $argQuery = @"
 resources
 | where type =~ 'microsoft.compute/virtualmachinescalesets'
 | project id, tenantId, name, location, resourceGroup, subscriptionId, skUName = tostring(sku.name),
+    computerNamePrefix = tostring(properties.virtualMachineProfile.osProfile.computerNamePrefix),
     usesManagedDisks = iif(isnull(properties.virtualMachineProfile.storageProfile.osDisk.managedDisk), 'false', 'true'),
 	capacity = tostring(sku.capacity), priority = tostring(properties.virtualMachineProfile.priority), tags, zones,
 	osType = iif(isnotnull(properties.virtualMachineProfile.osProfile.linuxConfiguration), "Linux", "Windows"),
@@ -111,6 +112,11 @@ resources
 	osDiskSKU = tostring(properties.virtualMachineProfile.storageProfile.osDisk.managedDisk.storageAccountType),
 	dataDiskCount = iif(isnotnull(properties.virtualMachineProfile.storageProfile.dataDisks), array_length(properties.virtualMachineProfile.storageProfile.dataDisks), 0),
 	nicCount = array_length(properties.virtualMachineProfile.networkProfile.networkInterfaceConfigurations),
+    imagePublisher = iif(isnotempty(properties.virtualMachineProfile.storageProfile.imageReference.publisher),tostring(properties.virtualMachineProfile.storageProfile.imageReference.publisher),'Custom'),
+    imageOffer = iif(isnotempty(properties.virtualMachineProfile.storageProfile.imageReference.offer),tostring(properties.virtualMachineProfile.storageProfile.imageReference.offer),tostring(properties.virtualMachineProfile.storageProfile.imageReference.id)),
+    imageSku = tostring(properties.virtualMachineProfile.storageProfile.imageReference.sku),
+    imageVersion = tostring(properties.virtualMachineProfile.storageProfile.imageReference.version),
+    imageExactVersion = tostring(properties.virtualMachineProfile.storageProfile.imageReference.exactVersion),
 	singlePlacementGroup = tostring(properties.singlePlacementGroup),
 	upgradePolicy = tostring(properties.upgradePolicy.mode),
 	overProvision = tostring(properties.overprovision),
@@ -158,6 +164,7 @@ foreach ($vmss in $armVmssTotal)
         ResourceGroupName = $vmss.resourceGroup.ToLower()
         Zones = $vmss.zones
         VMSSName = $vmss.name.ToLower()
+        ComputerNamePrefix = $vmss.computerNamePrefix.ToLower()
         InstanceId = $vmss.id.ToLower()
         VMSSSize = $vmSize.name.ToLower()
         CoresCount = $vmSize.NumberOfCores
@@ -178,6 +185,11 @@ foreach ($vmss in $armVmssTotal)
         PlatformFaultDomainCount = $vmss.platformFaultDomainCount
         ZoneBalance = $vmss.zoneBalance
         UsesManagedDisks = $vmss.usesManagedDisks
+        ImagePublisher = $vmss.imagePublisher
+        ImageOffer = $vmss.imageOffer
+        ImageSku = $vmss.imageSku
+        ImageVersion = $vmss.imageVersion
+        ImageExactVersion = $vmss.imageExactVersion
     }
     
     $allvmss += $logentry

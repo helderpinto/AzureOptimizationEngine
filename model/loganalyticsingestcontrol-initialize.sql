@@ -93,3 +93,9 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('argpublicipexports', '1901-01-01T00:00:00Z', -1, 'PublicIPsV1', 'ARGPublicIP')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argvmssexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argvmssexports', '1901-01-01T00:00:00Z', -1, 'VMSSV1', 'ARGVMSS')
+END

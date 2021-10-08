@@ -91,6 +91,13 @@
                 "description": "GUID for the ARG VM Export job schedule creation - create a unique before deploy"
             }
         },
+        "argVmssExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VMSS Export job schedule creation - create a unique before deploy"
+            }
+        },
         "argAvailSetExportJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -194,6 +201,13 @@
             "defaultValue": "[newGuid()]",
             "metadata": {
                 "description": "GUID for the ARG VM Ingest job schedule creation - create a unique before deploy"
+            }
+        },
+        "argVmssIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the ARG VMSS Ingest job schedule creation - create a unique before deploy"
             }
         },
         "argAvailSetIngestJobId": {
@@ -369,6 +383,7 @@
         // CSV exports runbooks
         "advisorExportsRunbookName": "Export-AdvisorRecommendationsToBlobStorage",
         "argVmExportsRunbookName": "Export-ARGVirtualMachinesPropertiesToBlobStorage",
+        "argVmssExportsRunbookName": "Export-ARGVMSSPropertiesToBlobStorage",
         "argDisksExportsRunbookName": "Export-ARGManagedDisksPropertiesToBlobStorage",
         "argVhdExportsRunbookName": "Export-ARGUnmanagedDisksPropertiesToBlobStorage",
         "argAvailSetExportsRunbookName": "Export-ARGAvailabilitySetPropertiesToBlobStorage",
@@ -446,6 +461,19 @@
                 "ingestJobId": "[parameters('argVmIngestJobId')]",
                 "exportSchedule": "[variables('argExportsScheduleName')]",
                 "exportJobId": "[parameters('argVmExportJobId')]"
+            },
+            {
+                "runbookName": "[variables('argVmssExportsRunbookName')]",
+                "containerName": "argvmssexports",
+                "variableName": "AzureOptimization_ARGVMSSContainer",
+                "variableDescription": "The Storage Account container where Azure Resource Graph VMSS exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestARGVMSSDaily",
+                "ingestDescription": "Daily Azure Resource Graph VMSS ingests",
+                "ingestTimeOffset": "PT1H30M",
+                "ingestFrequency": "Day",
+                "ingestJobId": "[parameters('argVmssIngestJobId')]",
+                "exportSchedule": "[variables('argExportsScheduleName')]",
+                "exportJobId": "[parameters('argVmssExportJobId')]"
             },
             {
                 "runbookName": "[variables('argDisksExportsRunbookName')]",
@@ -696,10 +724,6 @@
                 "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
             },
             {
-                "name": "Az.Billing",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Billing/2.0.0"
-            },
-            {
                 "name": "Az.Compute",
                 "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0"
             },
@@ -756,6 +780,13 @@
                 "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('argVmssExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports VMSS properties to Blob Storage using Azure Resource Graph",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmssExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('argAvailSetExportsRunbookName')]",

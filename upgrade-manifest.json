@@ -9,10 +9,6 @@
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
         },
         {
-            "name": "Az.Billing",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Billing/2.0.0"
-        },
-        {
             "name": "Az.Compute",
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0"
         },
@@ -114,6 +110,11 @@
         },
         {
             "name": "AzureOptimization_IngestARGVMsDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestARGVMSSDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
         },
@@ -254,6 +255,14 @@
             ],
             "exportSchedule": "AzureOptimization_ExportARGDaily",
             "ingestSchedule": "AzureOptimization_IngestARGVMsDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-ARGVMSSPropertiesToBlobStorage.ps1",
+            "container": "argvmssexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGVMSSDaily"
         },
         {
             "runbook": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
