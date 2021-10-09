@@ -163,6 +163,7 @@ foreach ($vmss in $armVmssTotal)
         SubscriptionGuid = $vmss.subscriptionId
         ResourceGroupName = $vmss.resourceGroup.ToLower()
         Zones = $vmss.zones
+        Location = $vmss.location
         VMSSName = $vmss.name.ToLower()
         ComputerNamePrefix = $vmss.computerNamePrefix.ToLower()
         InstanceId = $vmss.id.ToLower()
