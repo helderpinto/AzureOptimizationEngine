@@ -693,6 +693,34 @@ if ("Y", "y" -contains $continueInput) {
                 }
             }
 
+            $dataExportsToMultiSchedule = $upgradeManifest.dataCollection | Where-Object { $_.exportSchedules.Count -gt 0 }
+
+            foreach ($dataExport in $dataExportsToMultiSchedule)
+            {
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName -and $_.ScheduleName -eq $schedule.name}))
+                {   
+                    $scheduleParameters = ($dataExport.exportSchedules | Where-Object { $_.schedule -eq $schedule.name }).parameters
+
+                    $params = @{}
+                    $scheduleParameters.PSObject.Properties | ForEach-Object {
+                        $params[$_.Name] = $_.Value
+                    }
+
+                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
+                    }
+                    else
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
+                    }
+                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                }
+            }
+
             $dataIngestToSchedule = $upgradeManifest.dataCollection | Where-Object { $_.ingestSchedule -eq $schedule.name }
             foreach ($dataIngest in $dataIngestToSchedule)
             {

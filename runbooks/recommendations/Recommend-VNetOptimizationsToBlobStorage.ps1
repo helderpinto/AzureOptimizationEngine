@@ -83,6 +83,9 @@ else
     $subnetMinAge = [int] $subnetMinAgeVar
 }
 
+$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
+$consumptionOffsetDaysStart = $consumptionOffsetDays + 1
+
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 

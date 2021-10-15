@@ -182,6 +182,27 @@
                 "description": "GUID for the VNet Export job schedule creation - create a unique before deploy"
             }
         },
+        "monitorVmssCpuMaxExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+            }
+        },
+        "monitorVmssCpuAvgExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+            }
+        },
+        "monitorVmssMemoryMinExportJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+            }
+        },
         "argDiskIngestJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -301,6 +322,13 @@
                 "description": "GUID for the VNet Ingest job schedule creation - create a unique before deploy"
             }
         },
+        "monitorIngestJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the Azure Monitor Metrics Ingest job schedule creation - create a unique before deploy"
+            }
+        },
         "unattachedDisksRecommendationJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -397,12 +425,16 @@
         "argNSGExportsRunbookName": "Export-ARGNSGPropertiesToBlobStorage",
         "argVNetExportsRunbookName": "Export-ARGVNetPropertiesToBlobStorage",
         "argPublicIpExportsRunbookName": "Export-ARGPublicIpPropertiesToBlobStorage",
+        "monitorExportsRunbookName": "Export-AzMonitorMetricsToBlobStorage",
         // CSV exports schedules
         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
         "consumptionExportsScheduleName": "AzureOptimization_ExportConsumptionDaily",
         "aadObjectsExportsScheduleName": "AzureOptimization_ExportAADObjectsDaily",
         "rbacExportsScheduleName": "AzureOptimization_ExportRBACDaily",
+        "monitorVmssCpuMaxExportsScheduleName": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
+        "monitorVmssCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
+        "monitorVmssMemoryMinExportsScheduleName": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
         "csvExportsSchedules": [
             {
                 "exportSchedule": "[variables('argExportsScheduleName')]",
@@ -433,11 +465,30 @@
                 "exportDescription": "Daily Azure RBAC exports",
                 "exportTimeOffset": "PT1H",
                 "exportFrequency": "Day"
+            },
+            {
+                "exportSchedule": "[variables('monitorVmssCpuAvgExportsScheduleName')]",
+                "exportDescription": "Hourly Azure Monitor metrics exports for VMSS CPU Percentage (Avg.)",
+                "exportTimeOffset": "PT1H15M",
+                "exportFrequency": "Hour"
+            },
+            {
+                "exportSchedule": "[variables('monitorVmssCpuMaxExportsScheduleName')]",
+                "exportDescription": "Hourly Azure Monitor metrics exports for VMSS CPU Percentage (Max.)",
+                "exportTimeOffset": "PT1H15M",
+                "exportFrequency": "Hour"
+            },
+            {
+                "exportSchedule": "[variables('monitorVmssMemoryMinExportsScheduleName')]",
+                "exportDescription": "Hourly Azure Monitor metrics exports for VMSS Available Memory (Min.)",
+                "exportTimeOffset": "PT1H15M",
+                "exportFrequency": "Hour"
             }
         ],
         "csvExports": [
             {
                 "runbookName": "[variables('advisorExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "advisorexports",
                 "variableName": "AzureOptimization_AdvisorContainer",
                 "variableDescription": "The Storage Account container where Azure Advisor exports are dumped to",
@@ -451,6 +502,7 @@
             },
             {
                 "runbookName": "[variables('argVmExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argvmexports",
                 "variableName": "AzureOptimization_ARGVMContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Virtual Machine exports are dumped to",
@@ -464,6 +516,7 @@
             },
             {
                 "runbookName": "[variables('argVmssExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argvmssexports",
                 "variableName": "AzureOptimization_ARGVMSSContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph VMSS exports are dumped to",
@@ -477,6 +530,7 @@
             },
             {
                 "runbookName": "[variables('argDisksExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argdiskexports",
                 "variableName": "AzureOptimization_ARGDiskContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Managed Disks exports are dumped to",
@@ -490,6 +544,7 @@
             },
             {
                 "runbookName": "[variables('argVhdExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argvhdexports",
                 "variableName": "AzureOptimization_ARGVhdContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Unmanaged Disks exports are dumped to",
@@ -503,6 +558,7 @@
             },
             {
                 "runbookName": "[variables('argAvailSetExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argavailsetexports",
                 "variableName": "AzureOptimization_ARGAvailabilitySetContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Availability Set exports are dumped to",
@@ -516,6 +572,7 @@
             },
             {
                 "runbookName": "[variables('consumptionExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "consumptionexports",
                 "variableName": "AzureOptimization_ConsumptionContainer",
                 "variableDescription": "The Storage Account container where Azure Consumption exports are dumped to",
@@ -529,6 +586,7 @@
             },
             {
                 "runbookName": "[variables('aadObjectsExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "aadobjectsexports",
                 "variableName": "AzureOptimization_AADObjectsContainer",
                 "variableDescription": "The Storage Account container where Azure AD Objects exports are dumped to",
@@ -542,6 +600,7 @@
             },
             {
                 "runbookName": "[variables('argLoadBalancersExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "arglbexports",
                 "variableName": "AzureOptimization_ARGLoadBalancerContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Load Balancer exports are dumped to",
@@ -555,6 +614,7 @@
             },
             {
                 "runbookName": "[variables('argAppGWsExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argappgwexports",
                 "variableName": "AzureOptimization_ARGAppGatewayContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Application Gateway exports are dumped to",
@@ -568,6 +628,7 @@
             },
             {
                 "runbookName": "[variables('argResContainersExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argrescontainersexports",
                 "variableName": "AzureOptimization_ARGResourceContainersContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Resource Containers exports are dumped to",
@@ -581,6 +642,7 @@
             },
             {
                 "runbookName": "[variables('rbacExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "rbacexports",
                 "variableName": "AzureOptimization_RBACAssignmentsContainer",
                 "variableDescription": "The Storage Account container where RBAC Assignments exports are dumped to",
@@ -594,6 +656,7 @@
             },
             {
                 "runbookName": "[variables('argNICExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argnicexports",
                 "variableName": "AzureOptimization_ARGNICContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph NIC exports are dumped to",
@@ -607,6 +670,7 @@
             },
             {
                 "runbookName": "[variables('argNSGExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argnsgexports",
                 "variableName": "AzureOptimization_ARGNSGContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph NSG exports are dumped to",
@@ -620,6 +684,7 @@
             },
             {
                 "runbookName": "[variables('argVNetExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argvnetexports",
                 "variableName": "AzureOptimization_ARGVNetContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph VNet exports are dumped to",
@@ -633,6 +698,7 @@
             },
             {
                 "runbookName": "[variables('argPublicIpExportsRunbookName')]",
+                "isOneToMany": false,
                 "containerName": "argpublicipexports",
                 "variableName": "AzureOptimization_ARGPublicIpContainer",
                 "variableDescription": "The Storage Account container where Azure Resource Graph Public IP exports are dumped to",
@@ -643,6 +709,56 @@
                 "ingestJobId": "[parameters('argPublicIPIngestJobId')]",
                 "exportSchedule": "[variables('argExportsScheduleName')]",
                 "exportJobId": "[parameters('argPublicIPExportJobId')]"
+            },
+            {
+                "runbookName": "[variables('monitorExportsRunbookName')]",
+                "isOneToMany": true,
+                "containerName": "azmonitorexports",
+                "variableName": "AzureOptimization_AzMonitorContainer",
+                "variableDescription": "The Storage Account container where Azure Monitor metrics exports are dumped to",
+                "ingestSchedule": "AzureOptimization_IngestAzMonitorMetricsHourly",
+                "ingestDescription": "Hourly Azure Monitor metrics ingests",
+                "ingestTimeOffset": "PT2H",
+                "ingestFrequency": "Hour",
+                "ingestJobId": "[parameters('monitorIngestJobId')]"
+            }
+        ],
+        "csvParameterizedExports": [
+            {
+                "runbookName": "[variables('monitorExportsRunbookName')]",
+                "exportSchedule": "[variables('monitorVmssCpuMaxExportsScheduleName')]",
+                "exportJobId": "[parameters('monitorVmssCpuMaxExportJobId')]",
+                "parameters": {
+                    "ResourceType": "microsoft.compute/virtualmachinescalesets",
+					"TimeSpan": "01:00:00",
+					"aggregationType": "Maximum",
+					"MetricNames": "CPU Percentage",
+					"TimeGrain": "01:00:00"
+                }
+            },
+            {
+                "runbookName": "[variables('monitorExportsRunbookName')]",
+                "exportSchedule": "[variables('monitorVmssCpuAvgExportsScheduleName')]",
+                "exportJobId": "[parameters('monitorVmssCpuAvgExportJobId')]",
+                "parameters": {
+                    "ResourceType": "microsoft.compute/virtualmachinescalesets",
+					"TimeSpan": "01:00:00",
+					"aggregationType": "Average",
+					"MetricNames": "CPU Percentage",
+					"TimeGrain": "01:00:00"
+                }
+            },
+            {
+                "runbookName": "[variables('monitorExportsRunbookName')]",
+                "exportSchedule": "[variables('monitorVmssMemoryMinExportsScheduleName')]",
+                "exportJobId": "[parameters('monitorVmssMemoryMinExportJobId')]",
+                "parameters": {
+                    "ResourceType": "microsoft.compute/virtualmachinescalesets",
+					"TimeSpan": "01:00:00",
+					"aggregationType": "Minimum",
+					"MetricNames": "Available Memory Bytes",
+					"TimeGrain": "01:00:00"
+                }
             }
         ],
         // recommendations runbooks
@@ -864,6 +980,13 @@
                 "description": "Exports VNet properties to Blob Storage using Azure Resource Graph",
                 "type": "PowerShell",
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVNetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
+                "name": "[variables('monitorExportsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Exports Azure Monitor metrics to Blob Storage",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('monitorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
                 "name": "[variables('csvIngestRunbookName')]",
@@ -1652,6 +1775,7 @@
         },
         // Automation Storage Exports Job Schedules
         {
+            "condition": "[not(variables('csvExports')[copyIndex()].isOneToMany)]",
             "name": "[concat(parameters('automationAccountName'), '/', variables('csvExports')[copyIndex()].exportJobId)]",
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "[variables('apiVersions').automation]",
@@ -1673,6 +1797,32 @@
                 "runbook": {
                     "name": "[variables('csvExports')[copyIndex()].runbookName]"
                 }
+            }
+        },
+        // Automation Storage Parameterized Exports Job Schedules
+        {
+            "name": "[concat(parameters('automationAccountName'), '/', variables('csvParameterizedExports')[copyIndex()].exportJobId)]",
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "location": "[parameters('projectLocation')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
+                "exportSchedulesLoop",
+                "modulesLoop",
+                "runbooksLoop"
+            ],
+            "copy": {
+                "name": "parameterizedExportJobSchedulesLoop",
+                "count": "[length(variables('csvParameterizedExports'))]"
+            },
+            "properties": {
+                "schedule": {
+                    "name": "[variables('csvParameterizedExports')[copyIndex()].exportSchedule]"
+                },
+                "runbook": {
+                    "name": "[variables('csvParameterizedExports')[copyIndex()].runbookName]"
+                },
+                "parameters": "[variables('csvParameterizedExports')[copyIndex()].parameters]"
             }
         },
         // Automation Log Analytics Ingest Job Schedules for generic CSV Storage Exports

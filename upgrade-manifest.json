@@ -147,6 +147,26 @@
             "name": "AzureOptimization_RecommendationsWeekly",
             "offset": "PT2H30M",
             "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_IngestAzMonitorMetricsHourly",
+            "offset": "PT2H",
+            "frequency": "Hour"
         }
     ],
     "baseIngest": [
@@ -287,6 +307,45 @@
             ],
             "exportSchedule": "AzureOptimization_ExportRBACDaily",
             "ingestSchedule": "AzureOptimization_IngestRBACDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-AzMonitorMetricsToBlobStorage.ps1",
+            "container": "azmonitorexports",
+            "requiredVariables": [
+            ],
+            "exportSchedules": [
+                {
+                    "schedule": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/virtualmachinescalesets",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Maximum",
+                        "MetricNames": "CPU Percentage",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/virtualmachinescalesets",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Average",
+                        "MetricNames": "CPU Percentage",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/virtualmachinescalesets",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Minimum",
+                        "MetricNames": "Available Memory Bytes",
+                        "TimeGrain": "01:00:00"
+                    }
+                }
+            ],
+            "ingestSchedule": "AzureOptimization_IngestAzMonitorMetricsHourly"
         }
     ],
     "recommendations": [

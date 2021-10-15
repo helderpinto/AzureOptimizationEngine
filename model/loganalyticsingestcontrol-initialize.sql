@@ -99,3 +99,9 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('argvmssexports', '1901-01-01T00:00:00Z', -1, 'VMSSV1', 'ARGVMSS')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'azmonitorexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('azmonitorexports', '1901-01-01T00:00:00Z', -1, 'MonitorMetricsV1', 'MonitorMetrics')
+END
