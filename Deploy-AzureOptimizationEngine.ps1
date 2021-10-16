@@ -657,6 +657,11 @@ if ("Y", "y" -contains $continueInput) {
         {
             if (-not($schedules | Where-Object { $_.Name -eq $schedule.name }))
             {
+                if ($schedule.frequency -eq "Hour")
+                {
+                    New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -HourInterval 1 | Out-Null
+                }
                 if ($schedule.frequency -eq "Day")
                 {
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
@@ -697,27 +702,29 @@ if ("Y", "y" -contains $continueInput) {
 
             foreach ($dataExport in $dataExportsToMultiSchedule)
             {
-                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
-                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName -and $_.ScheduleName -eq $schedule.name}))
-                {   
-                    $scheduleParameters = ($dataExport.exportSchedules | Where-Object { $_.schedule -eq $schedule.name }).parameters
-
-                    $params = @{}
-                    $scheduleParameters.PSObject.Properties | ForEach-Object {
-                        $params[$_.Name] = $_.Value
-                    }
-
-                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
-                    {
-                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
-                    }
-                    else
-                    {
-                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
-                    }
-                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                $exportSchedule = $dataExport.exportSchedules | Where-Object { $_.schedule -eq $schedule.name }
+                if ($exportSchedule)
+                {
+                    $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                    if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName -and $_.ScheduleName -eq $schedule.name}))
+                    {   
+                        $params = @{}
+                        $exportSchedule.parameters.PSObject.Properties | ForEach-Object {
+                            $params[$_.Name] = $_.Value
+                        }                                
+    
+                        if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                        {
+                            Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                                -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
+                        }
+                        else
+                        {
+                            Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                                -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
+                        }
+                        Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                    }    
                 }
             }
 
