@@ -69,12 +69,12 @@ function CreateSelfSignedCertificate([string] $certificateName, [string] $selfSi
 
 function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X509Certificate2] $PfxCert, [string] $applicationDisplayName) {
     $keyValue = [System.Convert]::ToBase64String($PfxCert.GetRawCertData())
-    $keyId = (New-Guid).Guid
+    $identifierUri = "api://$((Get-AzContext).Tenant.Id)/$ApplicationDisplayName"
 
     # Create an Azure AD application, AD App Credential, AD ServicePrincipal
 
     # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
-    $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris ("http://" + $keyId)
+    $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris $identifierUri
     # Requires Application administrator or GLOBAL ADMIN
     $AppId = $Application.ApplicationId
     $tries = 0
