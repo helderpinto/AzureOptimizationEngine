@@ -720,7 +720,8 @@
                 "ingestDescription": "Hourly Azure Monitor metrics ingests",
                 "ingestTimeOffset": "PT2H",
                 "ingestFrequency": "Hour",
-                "ingestJobId": "[parameters('monitorIngestJobId')]"
+                "ingestJobId": "[parameters('monitorIngestJobId')]",
+                "exportJobId": "dummy"
             }
         ],
         "csvParameterizedExports": [
