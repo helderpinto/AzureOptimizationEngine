@@ -74,7 +74,7 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Create an Azure AD application, AD App Credential, AD ServicePrincipal
 
     # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
-    $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris ("http://" + $keyId)
+    $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris ("api://" + $keyId)
     # Requires Application administrator or GLOBAL ADMIN
     $AppId = $Application.ApplicationId
     $tries = 0
