@@ -858,7 +858,7 @@ if ("Y", "y" -contains $continueInput) {
 
         CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
         
-        Write-Output "Removing auto-assigned Contributor role from subscription scope"
+        Write-Host "Removing auto-assigned Contributor role from subscription scope" -ForegroundColor Green
         $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
         Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
     }
