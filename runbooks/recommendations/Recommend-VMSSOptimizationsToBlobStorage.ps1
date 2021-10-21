@@ -455,7 +455,7 @@ foreach ($result in $results)
         | render timechart
 "@
 
-        switch ($result.Cloud_s)
+        switch ($cloudEnvironment)
         {
             "AzureCloud" { $azureTld = "com" }
             "AzureChinaCloud" { $azureTld = "cn" }
@@ -581,7 +581,6 @@ Write-Output "Looking for performance constrained Scale Sets, with more than $cp
 $baseQuery = @"
     let perfInterval = $($perfDaysBackwards)d; 
     let cpuPercentileValue = $cpuPercentile;
-    let memoryPercentileValue = $memoryPercentile;
 
     let MemoryPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
@@ -594,7 +593,7 @@ $baseQuery = @"
         | distinct InstanceId_s, MemoryMB_s
     ) on InstanceId_s
     | extend MemoryPercentage = todouble(toint(MemoryMB_s) - toint(MemoryAvailableMBs)) / todouble(MemoryMB_s) * 100 
-    | summarize PMemoryPercentage = percentile(MemoryPercentage, memoryPercentileValue) by InstanceId_s;
+    | summarize PMemoryPercentage = avg(MemoryPercentage) by InstanceId_s;
 
     let ProcessorMaxPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
@@ -621,7 +620,7 @@ $baseQuery = @"
         | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
         | project SubscriptionId = SubscriptionGuid_g, SubscriptionName = ContainerName_s 
     ) on SubscriptionId
-    | where isnotempty(PMemoryPercentage) and isnotempty(PCPUAvgPercentage) and isnotempty(PCPUMaxPercentage) and PMemoryPercentage > $memoryDegradedPercentageThreshold or (PCPUMaxPercentage > $cpuDegradedMaxPercentageThreshold and PCPUAvgPercentage > $cpuDegradedAvgPercentageThreshold)
+    | where isnotempty(PMemoryPercentage) and isnotempty(PCPUAvgPercentage) and isnotempty(PCPUMaxPercentage) and (PMemoryPercentage > $memoryDegradedPercentageThreshold or (PCPUMaxPercentage > $cpuDegradedMaxPercentageThreshold and PCPUAvgPercentage > $cpuDegradedAvgPercentageThreshold))
 "@
 
 try
@@ -667,7 +666,7 @@ foreach ($result in $results)
         | distinct InstanceId_s, MemoryMB_s
     ) on InstanceId_s
     | extend MemoryPercentage = todouble(toint(MemoryMB_s) - toint(MemoryAvailableMBs)) / todouble(MemoryMB_s) * 100 
-    | summarize percentile(MemoryPercentage, $memoryPercentile) by bin(CollectedDate, gInt);
+    | summarize avg(MemoryPercentage) by bin(CollectedDate, gInt);
     let ProcessorMaxPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
     | extend CollectedDate = todatetime(strcat(format_datetime(TimeGenerated, 'yyyy-MM-dd'),'T',format_datetime(TimeGenerated, 'HH'),':00:00Z'))
@@ -688,7 +687,7 @@ foreach ($result in $results)
     | render timechart
 "@
 
-    switch ($result.Cloud_s)
+    switch ($cloudEnvironment)
     {
         "AzureCloud" { $azureTld = "com" }
         "AzureChinaCloud" { $azureTld = "cn" }
