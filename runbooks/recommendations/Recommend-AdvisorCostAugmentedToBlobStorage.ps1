@@ -313,6 +313,11 @@ $skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMa
 
 Write-Output "Getting the current Pricesheet..."
 
+if ($cloudEnvironment -eq "AzureCloud")
+{
+    $pricesheetRegion = "EU West"
+}
+
 try 
 {
     $pricesheet = $null
@@ -333,16 +338,27 @@ try
             try {
                 $tries++
                 $pricesheet = (Invoke-AzRestMethod -Path $PriceSheetApiPath -Method GET).Content | ConvertFrom-Json
+
+                if ($pricesheet.error)
+                {
+                    throw "Cost Management not available ($($pricesheet.error.message))"
+                }    
+
                 $requestSuccess = $true
             }
             catch {
                 $ErrorMessage = $_.Exception.Message
-                Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 60 seconds..."
-                Start-Sleep -s 60   
+                Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 30 seconds..."
+                Start-Sleep -s 30   
             }
         } while ( -not($requestSuccess) -and $tries -lt 3 )
 
-        $pricesheetEntries += $pricesheet.properties.pricesheets
+        if ($pricesheet.error)
+        {
+            throw "Cost Management not available"
+        }
+
+        $pricesheetEntries += $pricesheet.properties.pricesheets | Where-Object { $_.meterDetails.meterLocation -eq $pricesheetRegion -and $_.meterDetails.meterCategory -eq "Virtual Machines" }
 
     }
     while ($requestSuccess -and -not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
@@ -352,13 +368,6 @@ catch
     Write-Output "Consumption pricesheet not available, will estimate savings based in cores count..."
     $pricesheet = $null
 }
-
-if ($cloudEnvironment -eq "AzureCloud")
-{
-    $pricesheetRegion = "EU West"
-}
-
-$pricesheetEntries = $pricesheetEntries | Where-Object { $_.meterDetails.meterLocation -eq $pricesheetRegion -and $_.meterDetails.meterCategory -eq "Virtual Machines" }
 
 $linuxMemoryPerfAdditionalWorkspaces = ""
 $windowsMemoryPerfAdditionalWorkspaces = ""
