@@ -149,6 +149,16 @@
             "frequency": "Week"
         },
         {
+            "name": "AzureOptimization_IngestRecommendationsWeekly",
+            "offset": "PT3H30M",
+            "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_IngestRemediationLogsDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
             "offset": "PT1H15M",
             "frequency": "Hour"

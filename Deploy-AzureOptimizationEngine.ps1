@@ -183,7 +183,7 @@ else {
     }
 }
 
-Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
+Write-Host "Getting Azure subscriptions (filtering out unsupported ones)..." -ForegroundColor Green
 
 $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "Internal*" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
 
