@@ -20,7 +20,7 @@ function Find-SkuHourlyPrice {
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
              -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
             
-            if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+            if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
                 $skuPriceObject = $skuPrices[0]
             }
@@ -29,7 +29,7 @@ function Find-SkuHourlyPrice {
                 $skuFilter = "*" + $skuNameParts[1] + " " + $skuNameParts[2] + "*"
                 $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilter }
     
-                if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+                if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
                     $skuPriceObject = $skuPrices[0]
                 }
@@ -44,7 +44,7 @@ function Find-SkuHourlyPrice {
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
              -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
             
-            if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+            if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
                 $skuPriceObject = $skuPrices[0]
             }
@@ -54,7 +54,7 @@ function Find-SkuHourlyPrice {
                 $skuFilterRight = "*/" + $skuNameParts[1] + "*"
                 $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilterLeft -or $_.MeterDetails.MeterName -like $skuFilterRight }
                 
-                if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+                if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
                     $skuPriceObject = $skuPrices[0]
                 }
@@ -677,16 +677,23 @@ foreach ($result in $results) {
                 $additionalInfoDictionary["SupportsMiBps"] = "unknown:needs$($result.MaxPMiBps)"
             }
 
-            $savingCoefficient = [double]$currentSkuvCPUs / [double]$targetSkuvCPUs
+            $savingCoefficient = [double] $currentSkuvCPUs / $targetSkuvCPUs
+
+            if ($savingCoefficient -gt 1)
+            {
+                $targetSkuSavingsMonthly = [double]$result.Last30DaysCost - ([double]$result.Last30DaysCost / $savingCoefficient)
+            }
+            else
+            {
+                $targetSkuSavingsMonthly = [double]$result.Last30DaysCost / 2
+            }    
 
             if ($targetSku -and $null -eq $skuPricesFound[$targetSku.Name])
             {
                 $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheetEntries
             }
 
-            $targetSkuSavingsMonthly = [double]$result.Last30DaysCost - ([double]$result.Last30DaysCost / $savingCoefficient)
-
-            if ($targetSku -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
+            if ($targetSku -and $skuPricesFound[$targetSku.Name] -gt 0 -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
             {
                 $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
 
@@ -695,7 +702,7 @@ foreach ($result in $results) {
                     $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheetEntries
                 }
 
-                if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
+                if ($skuPricesFound[$currentSku.Name] -gt 0)
                 {
                     $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
                     $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
@@ -706,6 +713,11 @@ foreach ($result in $results) {
                 }
             }
 
+            if ($targetSkuSavingsMonthly -eq [double]::PositiveInfinity)
+            {
+                $targetSkuSavingsMonthly = [double] $result.Last30DaysCost / 2
+            }
+    
             $savingsMonthly = $targetSkuSavingsMonthly
 
         }
