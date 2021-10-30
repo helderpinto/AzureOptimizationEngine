@@ -89,6 +89,10 @@ if ($newBaseTimeStr -ne $baseTimeStr) {
                     $now = (Get-Date).ToUniversalTime()
                     $newStartTime = [System.DateTimeOffset]::Parse($now.ToString("yyyy-MM-ddT00:00:00Z"))
                     $newStartTime = $newStartTime.AddHours($baseTimeUtc.Hour).AddMinutes($baseTimeUtc.Minute).AddSeconds($baseTimeUtc.Second)
+                    if ($newStartTime -lt $now.AddMinutes(15))
+                    {
+                        $newStartTime = $newStartTime.AddDays(1)
+                    }
                     $newStartTime = $newStartTime.Add([System.Xml.XmlConvert]::ToTimeSpan($manifestSchedule.offset))                
                 }
                 $expiryTime = $schedule.ExpiryTime.ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -106,6 +110,7 @@ if ($newBaseTimeStr -ne $baseTimeStr) {
                 }
               }"
                 Invoke-AzRestMethod -Path $automationPath -Method PUT -Payload $body | Out-Null    
+                Write-Host "Re-scheduled $($schedule.Name)." -ForegroundColor Blue
             }
             else {
                 Write-Host "$($schedule.Name) not found in schedules manifest." -ForegroundColor Yellow
@@ -140,20 +145,31 @@ $newHybridWorker = Read-Host "If you want all schedules to use the same Hybrid W
 
 if ($newHybridWorker)
 {
-    Write-Host "Updating Hybrid Worker Group in every runbook schedule to every $newHybridWorker..."    
+    $hybridWorker = Get-AzAutomationHybridWorkerGroup -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $newHybridWorker -ErrorAction SilentlyContinue
+    if (-not($hybridWorker))
+    {
+        throw "Hybrid Worker $newHybridWorker was not found in Automation Account $automationAccountName."   
+    }
+
+    Write-Host "Updating Hybrid Worker Group in every runbook schedule to $newHybridWorker..."    
     $continueInput = Read-Host "Continue (Y/N)?"
 
     if ("Y", "y" -contains $continueInput)
     {
-        Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
+        Write-Host "Re-registering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
         foreach ($jobSchedule in $scheduledRunbooks) {
             if ($jobSchedule.ScheduleName.StartsWith("AzureOptimization")) {
-                $jobSchedule = Get-AzAutomationScheduledRunbook -JobScheduleId $jobSchedule.JobScheduleId -ResourceGroupName $resourceGroupName `
-                    -AutomationAccountName $automationAccountName
+                $automationPath = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroupName/providers/Microsoft.Automation/automationAccounts/$automationAccountName/jobSchedules/$($jobSchedule.JobScheduleId)?api-version=2015-10-31"
+                $jobSchedule = (Invoke-AzRestMethod -Path $automationPath -Method GET).Content | ConvertFrom-Json
                 Unregister-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                    -JobScheduleId $jobSchedule.JobScheduleId -Force
+                    -JobScheduleId $jobSchedule.id.Split('/')[10] -Force
+                $params = @{}
+                $jobSchedule.properties.parameters.PSObject.Properties | ForEach-Object {
+                    $params[$_.Name] = $_.Value
+                }                                                
                 Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                    -RunbookName $jobSchedule.RunbookName -ScheduleName $jobSchedule.ScheduleName -RunOn $newHybridWorker -Parameters $jobSchedule.Parameters | Out-Null
+                    -RunbookName $jobSchedule.properties.runbook.name -ScheduleName $jobSchedule.properties.schedule.name -RunOn $newHybridWorker -Parameters $params | Out-Null
+                Write-Host "Re-registered $($jobSchedule.properties.runbook.name) for schedule $($jobSchedule.properties.schedule.name)." -ForegroundColor Blue
             }
         }        
     }
