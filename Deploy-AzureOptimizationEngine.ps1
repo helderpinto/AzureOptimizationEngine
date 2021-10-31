@@ -653,6 +653,22 @@ if ("Y", "y" -contains $continueInput) {
 
         Write-Host "Updating schedules..." -ForegroundColor Green
         $allSchedules = $upgradeManifest.schedules
+
+        $allScheduledRunbooks = Get-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName
+        $exportHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Export") })[0].HybridWorker
+        $ingestHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Ingest") })[0].HybridWorker
+        $recommendHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Recommend") })[0].HybridWorker
+        if ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })
+        {
+            $remediateHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })[0].HybridWorker
+        }
+        
+        $hybridWorkerOption = "None"
+        if ($exportHybridWorkerOption -or $ingestHybridWorkerOption -or $recommendHybridWorkerOption -or $remediateHybridWorkerOption) {
+            $hybridWorkerOption = "Export: $exportHybridWorkerOption; Ingest: $ingestHybridWorkerOption; Recommend: $recommendHybridWorkerOption; Remediate: $remediateHybridWorkerOption"
+        }      
+        Write-Host "Current Hybrid Worker option: $hybridWorkerOption" -ForegroundColor Green            
+
         foreach ($schedule in $allSchedules)
         {
             if (-not($schedules | Where-Object { $_.Name -eq $schedule.name }))
@@ -674,22 +690,6 @@ if ("Y", "y" -contains $continueInput) {
                 }
                 Write-Host "$($schedule.name) schedule created."
             }
-
-            $allScheduledRunbooks = Get-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName
-            $exportHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Export") })[0].HybridWorker
-            $ingestHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Ingest") })[0].HybridWorker
-            $recommendHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Recommend") })[0].HybridWorker
-            if ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })
-            {
-                $remediateHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })[0].HybridWorker
-            }
-            
-            $hybridWorkerOption = "None"
-            if ($exportHybridWorkerOption -or $ingestHybridWorkerOption -or $recommendHybridWorkerOption -or $remediateHybridWorkerOption) {
-                $hybridWorkerOption = "Export: $exportHybridWorkerOption; Ingest: $ingestHybridWorkerOption; Recommend: $recommendHybridWorkerOption; Remediate: $remediateHybridWorkerOption"
-            }
-           
-            Write-Host "Current Hybrid Worker option: $hybridWorkerOption" -ForegroundColor Green            
 
             $scheduledRunbooks = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                 -ScheduleName $schedule.name
@@ -730,7 +730,7 @@ if ("Y", "y" -contains $continueInput) {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                             -RunbookName $runbookName -ScheduleName $schedule.name | Out-Null                        
                     }
-                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                    Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $runbookName runbook"
                 }
             }
 
@@ -779,7 +779,7 @@ if ("Y", "y" -contains $continueInput) {
                             Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                                 -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
                         }
-                        Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                        Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $runbookName runbook."
                     }    
                 }
             }
@@ -822,7 +822,7 @@ if ("Y", "y" -contains $continueInput) {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                             -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
                     }
-                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                    Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $runbookName runbook."
                 }
             }
         }
