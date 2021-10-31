@@ -675,6 +675,22 @@ if ("Y", "y" -contains $continueInput) {
                 Write-Host "$($schedule.name) schedule created."
             }
 
+            $allScheduledRunbooks = Get-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName
+            $exportHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Export") })[0].HybridWorker
+            $ingestHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Ingest") })[0].HybridWorker
+            $recommendHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Recommend") })[0].HybridWorker
+            if ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })
+            {
+                $remediateHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })[0].HybridWorker
+            }
+            
+            $hybridWorkerOption = "None"
+            if ($exportHybridWorkerOption -or $ingestHybridWorkerOption -or $recommendHybridWorkerOption -or $remediateHybridWorkerOption) {
+                $hybridWorkerOption = "Export: $exportHybridWorkerOption; Ingest: $ingestHybridWorkerOption; Recommend: $recommendHybridWorkerOption; Remediate: $remediateHybridWorkerOption"
+            }
+           
+            Write-Host "Current Hybrid Worker option: $hybridWorkerOption" -ForegroundColor Green            
+
             $scheduledRunbooks = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                 -ScheduleName $schedule.name
 
@@ -682,12 +698,32 @@ if ("Y", "y" -contains $continueInput) {
             foreach ($dataExport in $dataExportsToSchedule)
             {
                 $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                $runbookType = $runbookName.Split("-")[0]
+                switch ($runbookType)
+                {
+                    "Export" {
+                        $hybridWorkerName = $exportHybridWorkerOption
+                    }
+                    "Recommmend" {
+                        $hybridWorkerName = $recommendHybridWorkerOption
+                    }
+                    "Ingest" {
+                        $hybridWorkerName = $ingestHybridWorkerOption
+                    }
+                    "Remediate" {
+                        $hybridWorkerName = $remediateHybridWorkerOption
+                    }
+                    Default {
+                        $hybridWorkerName = $null
+                    }
+                }
+
                 if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
                 {
-                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    if ($hybridWorkerName)
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker | Out-Null
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName | Out-Null
                     }
                     else
                     {
@@ -706,6 +742,26 @@ if ("Y", "y" -contains $continueInput) {
                 if ($exportSchedule)
                 {
                     $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                    $runbookType = $runbookName.Split("-")[0]
+                    switch ($runbookType)
+                    {
+                        "Export" {
+                            $hybridWorkerName = $exportHybridWorkerOption
+                        }
+                        "Recommmend" {
+                            $hybridWorkerName = $recommendHybridWorkerOption
+                        }
+                        "Ingest" {
+                            $hybridWorkerName = $ingestHybridWorkerOption
+                        }
+                        "Remediate" {
+                            $hybridWorkerName = $remediateHybridWorkerOption
+                        }
+                        Default {
+                            $hybridWorkerName = $null
+                        }
+                    }
+                    
                     if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName -and $_.ScheduleName -eq $schedule.name}))
                     {   
                         $params = @{}
@@ -713,10 +769,10 @@ if ("Y", "y" -contains $continueInput) {
                             $params[$_.Name] = $_.Value
                         }                                
     
-                        if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                        if ($hybridWorkerName)
                         {
                             Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                                -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
+                                -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName -Parameters $params | Out-Null
                         }
                         else
                         {
@@ -732,14 +788,34 @@ if ("Y", "y" -contains $continueInput) {
             foreach ($dataIngest in $dataIngestToSchedule)
             {
                 $runbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook)
+                $runbookType = $runbookName.Split("-")[0]
+                switch ($runbookType)
+                {
+                    "Export" {
+                        $hybridWorkerName = $exportHybridWorkerOption
+                    }
+                    "Recommmend" {
+                        $hybridWorkerName = $recommendHybridWorkerOption
+                    }
+                    "Ingest" {
+                        $hybridWorkerName = $ingestHybridWorkerOption
+                    }
+                    "Remediate" {
+                        $hybridWorkerName = $remediateHybridWorkerOption
+                    }
+                    Default {
+                        $hybridWorkerName = $null
+                    }
+                }
+    
                 if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
                 {
                     $params = @{"StorageSinkContainer"=$dataIngest.container}
 
-                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    if ($hybridWorkerName)
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName -Parameters $params | Out-Null
                     }
                     else
                     {

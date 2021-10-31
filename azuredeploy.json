@@ -1103,7 +1103,7 @@
             },
             {
                 "name": "AzureOptimization_AuthenticationOption",
-                "description": "Runbook authentication type (Run As Account or Managed Identity)",
+                "description": "Runbook authentication type (RunAsAccount or ManagedIdentity)",
                 "value": "[concat('\"',parameters('authenticationOption'),'\"')]"
             },
             {
