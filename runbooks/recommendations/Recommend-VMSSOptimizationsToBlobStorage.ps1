@@ -20,7 +20,7 @@ function Find-SkuHourlyPrice {
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
              -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
             
-            if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+            if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
                 $skuPriceObject = $skuPrices[0]
             }
@@ -29,7 +29,7 @@ function Find-SkuHourlyPrice {
                 $skuFilter = "*" + $skuNameParts[1] + " " + $skuNameParts[2] + "*"
                 $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilter }
     
-                if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+                if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
                     $skuPriceObject = $skuPrices[0]
                 }
@@ -44,7 +44,7 @@ function Find-SkuHourlyPrice {
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
              -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
             
-            if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+            if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
                 $skuPriceObject = $skuPrices[0]
             }
@@ -54,7 +54,7 @@ function Find-SkuHourlyPrice {
                 $skuFilterRight = "*/" + $skuNameParts[1] + "*"
                 $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilterLeft -or $_.MeterDetails.MeterName -like $skuFilterRight }
                 
-                if ($skuPrices.Count -ge 1 -and $skuPrices.Count -le 2)
+                if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
                     $skuPriceObject = $skuPrices[0]
                 }
@@ -250,46 +250,63 @@ Write-Output "Getting Virtual Machine SKUs for the $referenceRegion region..."
 
 $skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
 
-Write-Output "Getting the pricesheet..."
-
-$pricesheet = $null
-$pricesheetEntries = @()
-$subscription = $workspaceSubscriptionId
-$PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
-
-do
-{
-    if (-not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
-    {
-        $PriceSheetApiPath = $pricesheet.properties.nextLink.Substring($pricesheet.properties.nextLink.IndexOf("/subscriptions/"))
-    }
-    $tries = 0
-    $requestSuccess = $false
-    do 
-    {        
-        try {
-            $tries++
-            $pricesheet = (Invoke-AzRestMethod -Path $PriceSheetApiPath -Method GET).Content | ConvertFrom-Json
-            $requestSuccess = $true
-        }
-        catch {
-            $ErrorMessage = $_.Exception.Message
-            Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 60 seconds..."
-            Start-Sleep -s 60   
-        }
-    } while ( -not($requestSuccess) -and $tries -lt 3 )
-
-    $pricesheetEntries += $pricesheet.properties.pricesheets
-
-}
-while ($requestSuccess -and -not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
+Write-Output "Getting the current Pricesheet..."
 
 if ($cloudEnvironment -eq "AzureCloud")
 {
     $pricesheetRegion = "EU West"
 }
 
-$pricesheetEntries = $pricesheetEntries | Where-Object { $_.meterDetails.meterLocation -eq $pricesheetRegion -and $_.meterDetails.meterCategory -eq "Virtual Machines" }
+try 
+{
+    $pricesheet = $null
+    $pricesheetEntries = @()
+    $subscription = $workspaceSubscriptionId
+    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
+
+    do
+    {
+        if (-not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
+        {
+            $PriceSheetApiPath = $pricesheet.properties.nextLink.Substring($pricesheet.properties.nextLink.IndexOf("/subscriptions/"))
+        }
+        $tries = 0
+        $requestSuccess = $false
+        do 
+        {        
+            try {
+                $tries++
+                $pricesheet = (Invoke-AzRestMethod -Path $PriceSheetApiPath -Method GET).Content | ConvertFrom-Json
+
+                if ($pricesheet.error)
+                {
+                    throw "Cost Management not available ($($pricesheet.error.message))"
+                }    
+
+                $requestSuccess = $true
+            }
+            catch {
+                $ErrorMessage = $_.Exception.Message
+                Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 30 seconds..."
+                Start-Sleep -s 30   
+            }
+        } while ( -not($requestSuccess) -and $tries -lt 3 )
+
+        if ($pricesheet.error)
+        {
+            throw "Cost Management not available"
+        }
+
+        $pricesheetEntries += $pricesheet.properties.pricesheets | Where-Object { $_.meterDetails.meterLocation -eq $pricesheetRegion -and $_.meterDetails.meterCategory -eq "Virtual Machines" }
+
+    }
+    while ($requestSuccess -and -not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
+}
+catch
+{
+    Write-Output "Consumption pricesheet not available, will estimate savings based in cores count..."
+    $pricesheet = $null
+}
 
 $skuPricesFound = @{}
 
