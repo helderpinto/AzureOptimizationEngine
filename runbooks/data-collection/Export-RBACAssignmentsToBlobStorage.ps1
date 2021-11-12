@@ -136,6 +136,13 @@ $roleAssignments = @()
 
 Write-Output "Getting Azure AD roles..."
 
+#workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
+$localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+if (-not(get-item "$localPath\.graph\" -ErrorAction SilentlyContinue))
+{
+    New-Item -Type Directory "$localPath\.graph"
+}
+
 Import-Module Microsoft.Graph.Identity.DirectoryManagement
 
 $graphEnvironment = "Global"

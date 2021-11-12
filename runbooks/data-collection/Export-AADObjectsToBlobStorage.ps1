@@ -138,6 +138,13 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $tenantId = (Get-AzContext).Tenant.Id
 
+#workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
+$localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+if (-not(get-item "$localPath\.graph\" -ErrorAction SilentlyContinue))
+{
+    New-Item -Type Directory "$localPath\.graph"
+}
+
 Import-Module Microsoft.Graph.Authentication
 Import-Module Microsoft.Graph.Users
 Import-Module Microsoft.Graph.Applications
