@@ -3,7 +3,7 @@ let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeG
 let RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d));
 let AppsAndKeys = materialize (AADObjectsTable
 | where ObjectType_s in ('Application','ServicePrincipal')
-| where PrincipalNames_s !has 'https://identity.azure.net'
+| where ObjectSubType_s != 'ManagedIdentity'
 | where Keys_s startswith '['
 | extend Keys = parse_json(Keys_s)
 | project-away Keys_s
@@ -12,7 +12,7 @@ let AppsAndKeys = materialize (AADObjectsTable
 | union ( 
     AADObjectsTable
     | where ObjectType_s in ('Application','ServicePrincipal')
-    | where PrincipalNames_s !has 'https://identity.azure.net'
+    | where ObjectSubType_s != 'ManagedIdentity'
     | where isnotempty(Keys_s) and Keys_s !startswith '['
     | extend Keys = parse_json(Keys_s)
     | project-away Keys_s
