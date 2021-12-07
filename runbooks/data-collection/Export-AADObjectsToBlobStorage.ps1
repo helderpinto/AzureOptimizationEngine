@@ -331,11 +331,7 @@ if ("User" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-users.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-users.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
-    $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
-    $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    $aadObjects | Export-Csv -NoTypeInformation -Path $csvExportPath
     Write-Output "Export to $csvExportPath"
     
     $csvBlobName = $csvExportPath
