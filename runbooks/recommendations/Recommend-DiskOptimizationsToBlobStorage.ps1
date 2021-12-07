@@ -270,6 +270,12 @@ $baseQuery = @"
         | where MBsPercentage < $mbsPercentageThreshold
     ) on ResourceId
     | join kind=inner ( BilledDisks ) on ResourceId
+    | join kind=leftouter ( 
+        $subscriptionsTableName
+        | where TimeGenerated > ago(1d)
+        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+        | project SubscriptionId = SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+    ) on SubscriptionId
 "@
 
 try
@@ -297,26 +303,46 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-<#
-
-$diskSkus = Get-AzComputeResourceSku -Location "westeurope" | Where-Object { $_.ResourceType -eq "disks" -and $_.Name -eq 'Standard_LRS' } // O name tem de ser igual ao SKU_s!
-
-$diskSkus[0].Capabilities.MaxSizeGiB (4)
-$diskSkus[0].Capabilities.MaxIOps (120)
-$diskSkus[0].Capabilities.MaxBandwidthMBps (25)
-$diskSkus[0].Capabilities.MaxBurstIops (3500)
-$diskSkus[0].Capabilities.MaxBurstBandwidthMBps (170)
-
-($diskSkus[0].Capabilities | Where-Object { $_.Name -eq 'MaxIOps' }).Value
-
-$diskSkus[0].Size (P1)
-#>
-
     $targetSku = $null
+    $currentDiskTier = $null
 
-    if ($null -eq $skuPricesFound[$result.DiskTier_s])
+    if ([string]::IsNullOrEmpty($result.DiskTier_s)) # older disks do not have Tier info in their properties
     {
-        $skuPricesFound[$result.DiskTier_s] = Find-DiskMonthlyPrice -DiskSizeTier $result.DiskTier_s -SKUPriceSheet $pricesheetEntries
+        $currentSkuCandidates = @()
+        foreach ($sku in $skus)
+        {
+            $currentSkuCandidate = $null
+            $skuMinSizeGB = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MinSizeGiB' }).Value
+            $skuMaxSizeGB = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxSizeGiB' }).Value
+            $skuMaxIOps = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxIOps' }).Value
+            $skuMaxBandwidthMBps = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxBandwidthMBps' }).Value
+
+            if ($sku.Name -eq $result.SKU_s -and $skuMinSizeGB -lt [int]$result.DiskSizeGB_s -and $skuMaxSizeGB -ge [int]$result.DiskSizeGB_s `
+            -and [int]$skuMaxIOps -eq [int]$result.MaxIOPSDisk -and [int]$skuMaxBandwidthMBps -eq [int]$result.MaxMBsDisk)
+            {
+                if ($null -eq $skuPricesFound[$sku.Size])
+                {
+                    $skuPricesFound[$sku.Size] = Find-DiskMonthlyPrice -DiskSizeTier $sku.Size -SKUPriceSheet $pricesheetEntries
+                }
+    
+                $currentSkuCandidate = New-Object PSObject -Property @{
+                    Name = $sku.Size
+                    MaxSizeGB = $skuMaxSizeGB
+                }    
+
+                $currentSkuCandidates += $currentSkuCandidate    
+            }
+        }
+        $currentDiskTier = ($currentSkuCandidates | Sort-Object -Property MaxSizeGB | Select-Object -First 1).Name
+    }
+    else
+    {
+        $currentDiskTier = $result.DiskTier_s
+    }
+
+    if ($null -eq $skuPricesFound[$currentDiskTier])
+    {
+        $skuPricesFound[$currentDiskTier] = Find-DiskMonthlyPrice -DiskSizeTier $currentDiskTier -SKUPriceSheet $pricesheetEntries
     }
 
     $targetSkuPerfTier = $result.SKU_s.Replace("Premium", "StandardSSD")
@@ -331,7 +357,7 @@ $diskSkus[0].Size (P1)
         $skuMaxIOps = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxIOps' }).Value
         $skuMaxBandwidthMBps = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxBandwidthMBps' }).Value
 
-        if ($sku.Name -eq $targetSkuPerfTier -and $skuMinSizeGB -le [int]$result.DiskSizeGB_s -and $skuMaxSizeGB -ge [int]$result.DiskSizeGB_s `
+        if ($sku.Name -eq $targetSkuPerfTier -and $skuMinSizeGB -lt [int]$result.DiskSizeGB_s -and $skuMaxSizeGB -ge [int]$result.DiskSizeGB_s `
                 -and [double]$skuMaxIOps -ge [double]$result.MaxIOPSMetric -and [double]$skuMaxBandwidthMBps -ge [double]$result.MaxMBsMetric)
         {
             if ($null -eq $skuPricesFound[$sku.Size])
@@ -339,7 +365,7 @@ $diskSkus[0].Size (P1)
                 $skuPricesFound[$sku.Size] = Find-DiskMonthlyPrice -DiskSizeTier $sku.Size -SKUPriceSheet $pricesheetEntries
             }
 
-            if ($skuPricesFound[$sku.Size] -lt [double]::MaxValue -and $skuPricesFound[$sku.Size] -lt $skuPricesFound[$result.DiskTier_s])
+            if ($skuPricesFound[$sku.Size] -lt [double]::MaxValue -and $skuPricesFound[$sku.Size] -lt $skuPricesFound[$currentDiskTier])
             {
                 $targetSkuCandidate = New-Object PSObject -Property @{
                     Name = $sku.Size
@@ -358,34 +384,41 @@ $diskSkus[0].Size (P1)
 
     if ($null -ne $targetSku)
     {
-        $queryInstanceId = $result.InstanceId_s
+        $queryInstanceId = $result.ResourceId
         $queryText = @"
         let billingInterval = 30d; 
         let armId = `'$queryInstanceId`';
         let gInt = $perfTimeGrain;
-        let MemoryPerf = $metricsTableName 
+        let ThroughputMBsPerf = $metricsTableName 
         | where TimeGenerated > ago(billingInterval)
         | extend CollectedDate = todatetime(strcat(format_datetime(TimeGenerated, 'yyyy-MM-dd'),'T',format_datetime(TimeGenerated, 'HH'),':00:00Z'))
         | where ResourceId == armId
-        | where MetricNames_s == 'Available Memory Bytes' and AggregationType_s == 'Minimum'
-        | extend MemoryAvailableMBs = todouble(MetricValue_s)/1024/1024
-        | project CollectedDate, MemoryAvailableMBs, InstanceId_s=ResourceId
+        | where MetricNames_s == 'Composite Disk Read Bytes/sec,Composite Disk Write Bytes/sec' and AggregationType_s == 'Average' and AggregationOfType_s == 'Maximum'
+        | extend ThroughputMBs = todouble(MetricValue_s)/1024/1024
+        | project CollectedDate, ThroughputMBs, InstanceId_s=ResourceId
         | join kind=inner (
-            $vmssTableName 
+            $disksTableName 
             | where TimeGenerated > ago(1d)
-            | distinct InstanceId_s, MemoryMB_s
+            | distinct InstanceId_s, DiskThroughput_s
         ) on InstanceId_s
-        | extend MemoryPercentage = todouble(toint(MemoryMB_s) - toint(MemoryAvailableMBs)) / todouble(MemoryMB_s) * 100 
-        | summarize percentile(MemoryPercentage, $memoryPercentile) by bin(CollectedDate, gInt);
-        let ProcessorPerf = $metricsTableName 
+        | extend MBsPercentage = ThroughputMBs / todouble(DiskThroughput_s) * 100 
+        | summarize max(MBsPercentage) by bin(CollectedDate, gInt);
+        let IOPSPerf = $metricsTableName  
         | where TimeGenerated > ago(billingInterval) 
         | extend CollectedDate = todatetime(strcat(format_datetime(TimeGenerated, 'yyyy-MM-dd'),'T',format_datetime(TimeGenerated, 'HH'),':00:00Z'))
         | where ResourceId == armId
-        | where MetricNames_s == 'Percentage CPU' and AggregationType_s == 'Maximum'
-        | extend ProcessorPercentage = todouble(MetricValue_s)
-        | summarize percentile(ProcessorPercentage, $cpuPercentile) by bin(CollectedDate, gInt);
-        MemoryPerf
-        | join kind=inner (ProcessorPerf) on CollectedDate
+        | where MetricNames_s == 'Composite Disk Read Operations/sec,Composite Disk Write Operations/sec' and AggregationType_s == 'Average' and AggregationOfType_s == 'Maximum'
+        | extend IOPS = todouble(MetricValue_s)
+        | project CollectedDate, IOPS, InstanceId_s=ResourceId
+        | join kind=inner (
+            $disksTableName  
+            | where TimeGenerated > ago(1d)
+            | distinct InstanceId_s, DiskIOPS_s
+        ) on InstanceId_s
+        | extend IOPSPercentage = IOPS / todouble(DiskIOPS_s) * 100 
+        | summarize max(IOPSPercentage) by bin(CollectedDate, gInt);
+        ThroughputMBsPerf
+        | join kind=inner (IOPSPerf) on CollectedDate
         | render timechart
 "@
 
@@ -404,27 +437,25 @@ $diskSkus[0].Size (P1)
     
         $additionalInfoDictionary = @{}
     
-        $additionalInfoDictionary["SupportsDataDisksCount"] = "true"
-        $additionalInfoDictionary["SupportsNICCount"] = "true"
-        $additionalInfoDictionary["BelowCPUThreshold"] = "true"
-        $additionalInfoDictionary["BelowMemoryThreshold"] = "true"
-        $additionalInfoDictionary["currentSku"] = "$($result.VMSSSize_s)"
-        $additionalInfoDictionary["targetSku"] = "$($targetSku.Name)"
-        $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
-        $additionalInfoDictionary["NicCount"] = "$($result.NicCount_s)"
-        $additionalInfoDictionary["MetricCPUPercentage"] = "$($result.PCPUPercentage)"
-        $additionalInfoDictionary["MetricMemoryPercentage"] = "$($result.PMemoryPercentage)"
+        $additionalInfoDictionary["DiskType"] = "Managed"
+        $additionalInfoDictionary["currentSku"] = $result.SKU_s
+        $additionalInfoDictionary["targetSku"] = $targetSkuPerfTier
+        $additionalInfoDictionary["DiskSizeGB"] = [int] $result.DiskSizeGB_s 
+        $additionalInfoDictionary["currentTier"] = $currentDiskTier 
+        $additionalInfoDictionary["targetTier"] = $targetSku.Name 
+        $additionalInfoDictionary["MaxIOPSMetric"] = [double] $($result.MaxIOPSMetric)
+        $additionalInfoDictionary["MaxMBpsMetric"] = [double] $($result.MaxMBsMetric)
+        $additionalInfoDictionary["MetricIOPSPercentage"] = [double] $($result.IOPSPercentage)
+        $additionalInfoDictionary["MetricMBpsPercentage"] = [double] $($result.MBsPercentage)
+        $additionalInfoDictionary["targetMaxSizeGB"] = [int] $targetSku.MaxSizeGB 
+        $additionalInfoDictionary["targetMaxIOPS"] = [int] $targetSku.MaxIOPS 
+        $additionalInfoDictionary["targetMaxMBps"] =[int] $targetSku.MaxMBps 
     
-        $fitScore = 4 # needs disk IOPS and throughput analysis to improve score
+        $fitScore = 4 # needs Maximum of Maximum for metrics to have higher fit score
         
         $fitScore = [Math]::max(0.0, $fitScore)
 
-        $savingCoefficient = [double] $currentSkuvCPUs / [double] $targetSku.vCPUsAvailable
-
-        if ($targetSku -and $null -eq $skuPricesFound[$targetSku.Name])
-        {
-            $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheetEntries
-        }
+        $savingCoefficient = 2 # Standard SSD is generally close to half the price of Premium SSD
 
         $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
 
@@ -432,14 +463,9 @@ $diskSkus[0].Size (P1)
         {
             $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
 
-            if ($null -eq $skuPricesFound[$currentSku.Name])
+            if ($skuPricesFound[$currentDiskTier] -lt [double]::MaxValue)
             {
-                $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheetEntries
-            }
-
-            if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
-            {
-                $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
+                $currentSkuPrice = $skuPricesFound[$currentDiskTier]    
                 $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
             }
             else
@@ -477,15 +503,15 @@ $diskSkus[0].Size (P1)
             Timestamp                   = $timestamp
             Cloud                       = $result.Cloud_s
             Category                    = "Cost"
-            ImpactedArea                = "Microsoft.Compute/virtualMachineScaleSets"
+            ImpactedArea                = "Microsoft.Compute/disks"
             Impact                      = "High"
             RecommendationType          = "Saving"
-            RecommendationSubType       = "UnderusedVMSS"
-            RecommendationSubTypeId     = "a4955cc9-533d-46a2-8625-5c4ebd1c30d5"
-            RecommendationDescription   = "VM Scale Set has been underutilized"
-            RecommendationAction        = "Resize VM Scale Set to lower SKU or scale it in"
-            InstanceId                  = $result.InstanceId_s
-            InstanceName                = $result.VMSSName
+            RecommendationSubType       = "UnderusedPremiumSSDDisks"
+            RecommendationSubTypeId     = "4854b5dc-4124-4ade-879e-6a7bb65350ab"
+            RecommendationDescription   = "Premium SSD disk has been underutilized"
+            RecommendationAction        = "Change disk tier at least to the equivalent for Standard SSD"
+            InstanceId                  = $result.ResourceId
+            InstanceName                = $result.DiskName_s
             AdditionalInfo              = $additionalInfoDictionary
             ResourceGroup               = $result.ResourceGroup
             SubscriptionGuid            = $result.SubscriptionId

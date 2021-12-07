@@ -43,6 +43,12 @@
             "description": "VM Scale Set has been underutilized"
         },
         {
+            "category": "Cost",
+            "typeId": "4854b5dc-4124-4ade-879e-6a7bb65350ab",
+            "impact": "High",
+            "description": "Premium SSD disk has been underutilized"
+        },
+        {
             "category": "HighAvailability",
             "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
             "impact": "High",
