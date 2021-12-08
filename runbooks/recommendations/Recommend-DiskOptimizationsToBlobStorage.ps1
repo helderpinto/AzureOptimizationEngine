@@ -528,6 +528,8 @@ foreach ($result in $results)
 
 # Export the recommendations as JSON to blob storage
 
+Write-Output "Exporting final $($recommendations.Count) results as a JSON file..."
+
 $fileDate = $datetime.ToString("yyyy-MM-dd")
 $jsonExportPath = "disks-underutilized-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath

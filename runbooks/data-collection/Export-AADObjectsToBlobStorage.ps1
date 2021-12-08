@@ -346,6 +346,7 @@ if ("Group" -in $aadObjectsTypes)
 
     Write-Output "Getting AAD groups..."
     $groups = Get-MgGroup -All -ExpandProperty Owners -Property Id,SecurityEnabled,DisplayName,Owners,CreatedDateTime,DeletedDateTime,GroupTypes
+    Write-Output "Getting AAD groups (now with members)..."
     $groupWithMembers = Get-MgGroup -All -ExpandProperty Members -Property Id,Members
     Write-Output "Found $($groups.Count) AAD groups"
     
