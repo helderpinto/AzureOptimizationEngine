@@ -345,23 +345,15 @@ if ("Group" -in $aadObjectsTypes)
     $aadObjects = @()
 
     Write-Output "Getting AAD groups..."
-    $groups = Get-MgGroup -All -ExpandProperty Owners -Property Id,SecurityEnabled,DisplayName,Owners,CreatedDateTime,DeletedDateTime,GroupTypes
-    Write-Output "Getting AAD groups (now with members)..."
-    $groupWithMembers = Get-MgGroup -All -ExpandProperty Members -Property Id,Members
+    $groups = Get-MgGroup -All -ExpandProperty Members -Property Id,SecurityEnabled,DisplayName,Members,CreatedDateTime,DeletedDateTime,GroupTypes
     Write-Output "Found $($groups.Count) AAD groups"
     
     foreach ($group in $groups)
     {
         $groupMembers = $null
-        $groupMembersObject = ($groupWithMembers | Where-Object { $_.Id -eq $group.Id }).Members
-        if ($groupMembersObject.Count -gt 0)
+        if ($group.Members.Count -gt 0)
         {
-            $groupMembers = $groupMembersObject.Id | ConvertTo-Json
-        }
-        $owners = $null
-        if ($group.Owners.Count -gt 0)
-        {
-            $owners = ($group.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json
+            $groupMembers = $group.Members.Id | ConvertTo-Json
         }
         $createdDate = $null
         if ($group.CreatedDateTime)
@@ -383,7 +375,6 @@ if ("Group" -in $aadObjectsTypes)
             DisplayName = $group.DisplayName
             SecurityEnabled = $group.SecurityEnabled
             PrincipalNames = $groupMembers
-            Owners = $owners
             CreatedDate = $createdDate
             DeletedDate = $deletedDate
         }
