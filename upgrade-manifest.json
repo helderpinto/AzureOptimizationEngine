@@ -5,6 +5,10 @@
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.7.0"
         },
         {
+            "name": "Microsoft.Graph.Authentication",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
+        },
+        {
             "name": "Az.Advisor",
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.2"
         },
@@ -31,10 +35,6 @@
         {
             "name": "Az.Monitor",
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.0"
-        },
-        {
-            "name": "Microsoft.Graph.Authentication",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
         },
         {
             "name": "Microsoft.Graph.Users",

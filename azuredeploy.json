@@ -847,6 +847,10 @@
             "name": "Az.Accounts",
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.7.0"
         },
+        "Microsoft.Graph.Authentication": {
+            "name": "Microsoft.Graph.Authentication",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
+        },
         "psModules": [
             {
                 "name": "Az.Advisor",
@@ -875,10 +879,6 @@
             {
                 "name": "Az.Monitor",
                 "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.0"
-            },
-            {
-                "name": "Microsoft.Graph.Authentication",
-                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
             },
             {
                 "name": "Microsoft.Graph.Users",
@@ -1592,6 +1592,21 @@
             "properties": {
                 "contentLink": {
                     "uri": "[variables('Az.Accounts').url]"
+                }
+            }
+        },
+        // Automation Modules (Microsoft.Graph.Authentication)
+        {
+            "comments": "provision the Microsoft.Graph.Authentication module first since others are dependent on it",
+            "name": "[concat(parameters('automationAccountName'), '/', variables('Microsoft.Graph.Authentication').name)]",
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "apiVersion": "[variables('apiVersions').automation]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {
+                    "uri": "[variables('Microsoft.Graph.Authentication').url]"
                 }
             }
         },
