@@ -2,19 +2,19 @@
     "modules": [
         {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.2"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.7.0"
         },
         {
             "name": "Az.Advisor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.2"
         },
         {
             "name": "Az.Compute",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.21.0"
         },
         {
             "name": "Az.OperationalInsights",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/2.3.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/3.0.0"
         },
         {
             "name": "Az.ResourceGraph",
@@ -22,19 +22,35 @@
         },
         {
             "name": "Az.Storage",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.10.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/4.1.0"
         },
         {
             "name": "Az.Resources",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.3.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/5.1.0"
         },
         {
             "name": "Az.Monitor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.7.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.0"
         },
         {
-            "name": "AzureADPreview",
-            "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.138"
+            "name": "Microsoft.Graph.Authentication",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
+        },
+        {
+            "name": "Microsoft.Graph.Users",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.9.0"
+        },
+        {
+            "name": "Microsoft.Graph.Groups",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.9.0"
+        },
+        {
+            "name": "Microsoft.Graph.Applications",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.9.0"
+        },
+        {
+            "name": "Microsoft.Graph.Identity.DirectoryManagement",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.9.0"
         }
     ],
     "schedules": [
@@ -467,6 +483,24 @@
                 {
                     "name": "AzureOptimization_RecommendationVNetSubnetEmptyMinAgeInDays",
                     "defaultValue": 30
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-VMSSOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_PerfThresholdCpuDegradedMaxPercentage",
+                    "defaultValue": 95
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage",
+                    "defaultValue": 70
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
+                    "defaultValue": 80
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

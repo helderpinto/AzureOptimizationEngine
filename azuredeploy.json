@@ -399,6 +399,13 @@
                 "description": "GUID for the VNet Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
             }
         },
+        "vmssOptimizationsRecommendationJobId": {
+            "type": "string",
+            "defaultValue": "[newGuid()]",
+            "metadata": {
+                "description": "GUID for the VMSS Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
+            }
+        },
         "recommendationsIngestJobId": {
             "type": "string",
             "defaultValue": "[newGuid()]",
@@ -773,6 +780,7 @@
         "unusedAppGWsRecommendationsRunbookName": "Recommend-UnusedAppGWsToBlobStorage",
         "armOptimizationsRecommendationsRunbookName": "Recommend-ARMOptimizationsToBlobStorage",
         "vnetOptimizationsRecommendationsRunbookName": "Recommend-VNetOptimizationsToBlobStorage",
+        "vmssOptimizationsRecommendationsRunbookName": "Recommend-VMSSOptimizationsToBlobStorage",
         "recommendations": [
             {
                 "recommendationJobId": "[parameters('unattachedDisksRecommendationJobId')]",
@@ -813,6 +821,10 @@
             {
                 "recommendationJobId": "[parameters('vnetOptimizationsRecommendationJobId')]",
                 "runbookName": "[variables('vnetOptimizationsRecommendationsRunbookName')]"
+            },
+            {
+                "recommendationJobId": "[parameters('vmssOptimizationsRecommendationJobId')]",
+                "runbookName": "[variables('vmssOptimizationsRecommendationsRunbookName')]"
             }
         ],
         "remediationLogsContainerName": "remediationlogs",
@@ -833,20 +845,20 @@
         },
         "Az.Accounts": {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.2"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.7.0"
         },
         "psModules": [
             {
                 "name": "Az.Advisor",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.2"
             },
             {
                 "name": "Az.Compute",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.21.0"
             },
             {
                 "name": "Az.OperationalInsights",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/2.3.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/3.0.0"
             },
             {
                 "name": "Az.ResourceGraph",
@@ -854,19 +866,35 @@
             },
             {
                 "name": "Az.Storage",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.10.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/4.1.0"
             },
             {
                 "name": "Az.Resources",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.3.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/5.1.0"
             },
             {
                 "name": "Az.Monitor",
-                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.7.0"
+                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.0"
             },
             {
-                "name": "AzureADPreview",
-                "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.138"
+                "name": "Microsoft.Graph.Authentication",
+                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
+            },
+            {
+                "name": "Microsoft.Graph.Users",
+                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.9.0"
+            },
+            {
+                "name": "Microsoft.Graph.Groups",
+                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.9.0"
+            },
+            {
+                "name": "Microsoft.Graph.Applications",
+                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.9.0"
+            },
+            {
+                "name": "Microsoft.Graph.Identity.DirectoryManagement",
+                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.9.0"
             }
         ],
         "runbooks": [
@@ -1067,6 +1095,13 @@
                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vnetOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
             },
             {
+                "name": "[variables('vmssOptimizationsRecommendationsRunbookName')]",
+                "version": "1.0.0.0",
+                "description": "Generates VM Scale Set optimizations recommendations",
+                "type": "PowerShell",
+                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmssOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+            },
+            {
                 "name": "[variables('recommendationsIngestRunbookName')]",
                 "version": "1.6.1.0",
                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
@@ -1213,13 +1248,28 @@
             },
             {
                 "name": "AzureOptimization_PerfThresholdCpuPercentage",
-                "description": "The processor usage percentage threshold above which the fit score is decreased",
+                "description": "The processor usage percentage threshold above which the fit score is decreased or below which the instance is considered underutilized",
                 "value": 30
             },
             {
                 "name": "AzureOptimization_PerfThresholdMemoryPercentage",
-                "description": "The memory usage percentage threshold above which the fit score is decreased",
+                "description": "The memory usage percentage threshold above which the fit score is decreased or below which the instance is considered underutilized",
                 "value": 50
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdCpuDegradedMaxPercentage",
+                "description": "The maximum processor usage percentage threshold above which the instance is considered degraded",
+                "value": 95
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage",
+                "description": "The average processor usage percentage threshold above which the instance is considered degraded",
+                "value": 70
+            },
+            {
+                "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
+                "description": "The memory usage percentage threshold above which the instance is considered degraded",
+                "value": 80
             },
             {
                 "name": "AzureOptimization_PerfThresholdNetworkMbps",
