@@ -1074,25 +1074,52 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
         }
     }
-
+    
     try
     {
-        Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account (look for the login window that may have popped up)..." -ForegroundColor Green
-        $spnName = "$automationAccountName-runasaccount"
-        try
-        { 
-            Get-AzureADTenantDetail | Out-Null
-        }
-        catch 
-        { 
-            Connect-AzureAD -TenantId $ctx.Subscription.TenantId -AzureEnvironmentName $AzureEnvironment
-        }
-        $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
-        $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId
-        $spn = Get-AzureADServicePrincipal -SearchString $spnName
-        if (-not($globalReaders | Where-Object { $_.ObjectId -eq $spn.ObjectId }))
+        Import-Module Microsoft.Graph.Authentication
+        Import-Module Microsoft.Graph.Identity.DirectoryManagement
+        Import-Module Microsoft.Graph.Applications
+
+        Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account..." -ForegroundColor Green
+
+        #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
+        $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+        if (-not(get-item "$localPath\.graph\" -ErrorAction SilentlyContinue))
         {
-            Add-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId -RefObjectId $spn.ObjectId
+            New-Item -Type Directory "$localPath\.graph"
+        }
+        
+        $graphEnvironment = "Global"
+        $graphEndpointUri = "https://graph.microsoft.com"  
+        if ($AzureEnvironment -eq "AzureUSGovernment")
+        {
+            $graphEnvironment = "USGov"
+            $graphEndpointUri = "https://graph.microsoft.us"
+        }
+        if ($AzureEnvironment -eq "AzureChinaCloud")
+        {
+            $graphEnvironment = "China"
+            $graphEndpointUri = "https://microsoftgraph.chinacloudapi.cn"
+        }
+        if ($AzureEnvironment -eq "AzureGermanCloud")
+        {
+            $graphEnvironment = "Germany"
+            $graphEndpointUri = "https://graph.microsoft.de"
+        }
+        
+        $token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
+        Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
+
+        $spnName = "$automationAccountName-runasaccount"
+        
+        $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
+            | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
+        $globalReaders = $globalReaderRole.Members.Id
+        $spn = Get-MgServicePrincipal -Search "DisplayName:$spnName" -ConsistencyLevel Eventual
+        if (-not($globalReaders -contains $spn.Id))
+        {
+            New-MgDirectoryRoleMemberByRef -DirectoryRoleId $globalReaderRole.Id -BodyParameter @{"@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($spn.Id)"}
             Write-Host "Role granted." -ForegroundColor Green
         }
         else

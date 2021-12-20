@@ -156,7 +156,7 @@ read the whole blog series dedicated to this project, starting [here](https://te
 
 * A supported Azure subscription (see the [FAQs](#faq))
 * Azure Powershell 4.5.0+
-* AzureADPreview PowerShell module
+* Microsoft.Graph.Authentication, Microsoft.Graph.Identity.DirectoryManagement and Microsoft.Graph.Applications PowerShell modules
 * A user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)), so that the Automation Run As Account is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
 * (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Run As Account is granted the required privileges over Azure AD (Global Reader)
 
@@ -174,13 +174,13 @@ The simplest, quickest and recommended method for installing AOE is by using the
 1. Open Azure Cloud Shell (PowerShell)
 2. Run `git clone https://github.com/helderpinto/AzureOptimizationEngine.git azureoptimizationengine`
 3. Run `cd azureoptimizationengine`
-4. (optional) Run `Connect-AzureAD` - this is required to grant the Global Reader role to the Automation Run As Account in Azure AD
+4. (optional) Run `Install-Module Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement,Microsoft.Graph.Applications` - this is required to grant the Global Reader role to the Automation Run As Account in Azure AD
 5. Run `.\Deploy-AzureOptimizationEngine.ps1`
 6. Input your deployment options and let the deployment finish (it will take less than 5 minutes)
 
 If the deployment fails for some reason, you can simply repeat it, as it is idempotent. The same if you want to upgrade a previous deployment with the latest version of the repo. You just have to keep the same deployment options. _Cool feature_: the deployment script persists your previous deployment options and lets you reuse it! 
 
-If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)) and also the AzureADPreview module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/active-directory/install-adv2?view=azureadps-2.0)). **IMPORTANT**: don't forget to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell always runs elevated).
+If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)) and also the Microsoft.Graph modules (instructions [here](https://docs.microsoft.com/en-us/graph/powershell/installation)). **IMPORTANT**: don't forget to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell always runs elevated).
 
 If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token (see syntax and example below)
 
