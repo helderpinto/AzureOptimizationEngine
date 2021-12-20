@@ -309,7 +309,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 
 Write-Output "Getting Virtual Machine SKUs for the $referenceRegion region..."
 # Get all the VM SKUs information for the reference Azure region
-$skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
+$skus = Get-AzComputeResourceSku -Location $referenceRegion | Where-Object { $_.ResourceType -eq "virtualMachines" }
 
 Write-Output "Getting the current Pricesheet..."
 
