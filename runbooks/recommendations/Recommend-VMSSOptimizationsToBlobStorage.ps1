@@ -229,7 +229,7 @@ $metricsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.Collected
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmssTableName, $subscriptionsTableName and $consumptionTableName"
+Write-Output "Will run query against tables $vmssTableName, $metricsTableName, $subscriptionsTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
