@@ -673,20 +673,39 @@ if ("Y", "y" -contains $continueInput) {
         {
             if (-not($schedules | Where-Object { $_.Name -eq $schedule.name }))
             {
+                $scheduleStartTime = (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset))
+                $scheduleNow = (Get-Date).ToUniversalTime()
+
                 if ($schedule.frequency -eq "Hour")
                 {
+                    if ($scheduleNow.AddMinutes(5) -gt $scheduleStartTime)
+                    {
+                        $hoursDiff = ($scheduleNow - $scheduleStartTime).Hours + 1
+                        $scheduleStartTime = $scheduleStartTime.AddHours($hoursDiff)
+                    }
+
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -HourInterval 1 | Out-Null
+                        -StartTime $scheduleStartTime -HourInterval 1 | Out-Null
                 }
                 if ($schedule.frequency -eq "Day")
                 {
+                    if ($scheduleNow.AddMinutes(5) -gt $scheduleStartTime)
+                    {
+                        $scheduleStartTime = $scheduleStartTime.AddDays(1)
+                    }
+
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -DayInterval 1 | Out-Null
+                        -StartTime $scheduleStartTime -DayInterval 1 | Out-Null
                 }
                 if ($schedule.frequency -eq "Week")
                 {
+                    if ($scheduleNow.AddMinutes(5) -gt $scheduleStartTime)
+                    {
+                        $scheduleStartTime = $scheduleStartTime.AddDays(7)
+                    }
+
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -WeekInterval 1 | Out-Null
+                        -StartTime $scheduleStartTime -WeekInterval 1 | Out-Null
                 }
                 Write-Host "$($schedule.name) schedule created."
             }
