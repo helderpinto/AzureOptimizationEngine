@@ -633,9 +633,9 @@ if ("Y", "y" -contains $continueInput) {
             $moduleJson = "{ `"name`": `"$automationAccountName/$($allModules[$i].name)`", `"type`": `"Microsoft.Automation/automationAccounts/modules`", " + `
                 "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
                 "`"contentLink`": { `"uri`": `"$($allModules[$i].url)`" } } "
-            if ($allModules[$i].name -ne "Az.Accounts")
+            if ($allModules[$i].name -ne "Az.Accounts" -or $allModules[$i].name -ne "Microsoft.Graph.Authentication")
             {
-                $moduleJson += ", `"dependsOn`": [ `"Az.Accounts`" ]"
+                $moduleJson += ", `"dependsOn`": [ `"Az.Accounts`", `"Microsoft.Graph.Authentication`" ]"
             }
             $moduleJson += "}"
             $modulesDeploymentTemplateJson += $moduleJson
