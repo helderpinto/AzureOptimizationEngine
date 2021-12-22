@@ -93,11 +93,11 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Sleep here for a few seconds to allow the service principal application to become active (ordinarily takes a few seconds)
     Start-Sleep -Seconds 15
     # Requires User Access Administrator or Owner.
-    $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.AppId -ErrorAction SilentlyContinue
+    $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ObjectId $ServicePrincipal.Id -ErrorAction SilentlyContinue
     $Retries = 0;
     While ($null -eq $NewRole -and $Retries -le 6) {
         Start-Sleep -Seconds 10
-        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.AppId -ErrorAction SilentlyContinue
+        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ObjectId $ServicePrincipal.Id -ErrorAction SilentlyContinue
         $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.AppId -ErrorAction SilentlyContinue
         $Retries++;
     }
