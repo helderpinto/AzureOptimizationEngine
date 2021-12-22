@@ -949,15 +949,19 @@ if ("Y", "y" -contains $continueInput) {
         $resourceGroupScope = $subscriptionScope + "/resourceGroups/" + $resourceGroupName
         $aadServicePrincipal = Get-AzADServicePrincipal -ApplicationId $ApplicationId
 
-        $NewRole = New-AzRoleAssignment -RoleDefinitionName Contributor -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id -ErrorAction SilentlyContinue
-        $Retries = 0;
-        While ($null -eq $NewRole -and $Retries -le 6) {
-            Start-Sleep -Seconds 10
-            $NewRole = New-AzRoleAssignment -RoleDefinitionName Contributor -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id -ErrorAction SilentlyContinue
-            $NewRole = Get-AzRoleAssignment -ObjectId $aadServicePrincipal.Id -Scope $resourceGroupScope -RoleDefinitionName Contributor -ErrorAction SilentlyContinue
-            $Retries++;
+        $roleAssignmentBody = @"
+        {
+            "properties": {
+                "roleDefinitionId": "$subscriptionScope/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+                "principalId": "$($aadServicePrincipal.Id)",
+                "principalType": "ServicePrincipal"
+            }
         }
-        
+"@
+        $roleAssignmentId = (New-Guid).Guid
+        $roleAssignmentPath = "$resourceGroupScope/providers/Microsoft.Authorization/roleAssignments/$($roleAssignmentId)?api-version=2017-05-01"
+        Invoke-AzRestMethod -Method PUT -Path $roleAssignmentPath -Payload $roleAssignmentBody
+
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
         $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id }
@@ -1145,7 +1149,7 @@ if ("Y", "y" -contains $continueInput) {
         $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
             | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = $globalReaderRole.Members.Id
-        $spn = Get-MgServicePrincipal -Search "DisplayName:$spnName" -ConsistencyLevel Eventual
+        $spn = Get-MgServicePrincipal -Filter "DisplayName eq '$spnName'"
         if (-not($globalReaders -contains $spn.Id))
         {
             New-MgDirectoryRoleMemberByRef -DirectoryRoleId $globalReaderRole.Id -BodyParameter @{"@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($spn.Id)"}
