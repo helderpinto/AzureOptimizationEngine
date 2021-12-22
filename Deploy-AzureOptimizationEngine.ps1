@@ -242,7 +242,7 @@ if (-not($deploymentOptions["SubscriptionId"]))
 }
 
 if ($ctx.Subscription.Id -ne $subscriptionId) {
-    Select-AzSubscription -SubscriptionId $subscriptionId
+    $ctx = Select-AzSubscription -SubscriptionId $subscriptionId
 }
 
 $workspaceReuse = $null
@@ -948,7 +948,15 @@ if ("Y", "y" -contains $continueInput) {
         $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
         $resourceGroupScope = $subscriptionScope + "/resourceGroups/" + $resourceGroupName
         $aadServicePrincipal = Get-AzADServicePrincipal -ApplicationId $ApplicationId
-        New-AzRoleAssignment -RoleDefinitionName Contributor -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id | Out-Null
+
+        $NewRole = New-AzRoleAssignment -RoleDefinitionName Contributor -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id -ErrorAction SilentlyContinue
+        $Retries = 0;
+        While ($null -eq $NewRole -and $Retries -le 6) {
+            Start-Sleep -Seconds 10
+            $NewRole = New-AzRoleAssignment -RoleDefinitionName Contributor -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id -ErrorAction SilentlyContinue
+            $NewRole = Get-AzRoleAssignment -ObjectId $aadServicePrincipal.Id -Scope $resourceGroupScope -RoleDefinitionName Contributor -ErrorAction SilentlyContinue
+            $Retries++;
+        }
         
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
