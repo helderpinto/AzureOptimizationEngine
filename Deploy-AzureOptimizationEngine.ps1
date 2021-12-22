@@ -76,7 +76,7 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
     # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
     $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris $identifierUri
     # Requires Application administrator or GLOBAL ADMIN
-    $AppId = $Application.ApplicationId
+    $AppId = $Application.AppId
     $tries = 0
     do
     {
@@ -85,23 +85,23 @@ function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X
         $tries++
 
     } while ($null -eq $Application -and $tries -lt 5)
-    $AppCredential = New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
+    $AppCredential = New-AzADAppCredential -ApplicationId $Application.AppId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
     # Requires Application administrator or GLOBAL ADMIN
-    $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.ApplicationId
+    $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.AppId
     $ServicePrincipal = Get-AzADServicePrincipal -ObjectId $ServicePrincipal.Id
 
     # Sleep here for a few seconds to allow the service principal application to become active (ordinarily takes a few seconds)
     Start-Sleep -Seconds 15
     # Requires User Access Administrator or Owner.
-    $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
+    $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.AppId -ErrorAction SilentlyContinue
     $Retries = 0;
     While ($null -eq $NewRole -and $Retries -le 6) {
         Start-Sleep -Seconds 10
-        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
-        $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.ApplicationId -ErrorAction SilentlyContinue
+        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.AppId -ErrorAction SilentlyContinue
+        $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.AppId -ErrorAction SilentlyContinue
         $Retries++;
     }
-    return $Application.ApplicationId.ToString()
+    return $Application.AppId.ToString()
 }
 
 function CreateAutomationCertificateAsset ([string] $resourceGroup, [string] $automationAccountName, [string] $certifcateAssetName, [string] $certPath, [string] $certPlainPassword, [Boolean] $Exportable) {
@@ -926,7 +926,8 @@ if ("Y", "y" -contains $continueInput) {
         $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
 
         Write-Output "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId"
-        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId | Out-Null
+        $aadServicePrincipal = Get-AzADServicePrincipal -ApplicationId $ApplicationId
+        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ObjectId $aadServicePrincipal.Id | Out-Null
         
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
