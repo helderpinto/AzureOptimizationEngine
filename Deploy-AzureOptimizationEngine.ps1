@@ -953,7 +953,7 @@ if ("Y", "y" -contains $continueInput) {
         do {
             Start-Sleep -Seconds 10
             $roleAssignment = New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ObjectId $aadServicePrincipal.Id
-            $roleAssignment = Get-AzRoleAssignment -Scope $resourceGroupScope -ServicePrincipalName $ApplicationId -RoleDefinitionName Contributor -ErrorAction SilentlyContinue
+            $roleAssignment = Get-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ObjectId $aadServicePrincipal.Id
             $tries++
         } until ($null -ne $roleAssignment -or $tries -gt 5)
 
