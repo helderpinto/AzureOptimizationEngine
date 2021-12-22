@@ -945,8 +945,10 @@ if ("Y", "y" -contains $continueInput) {
         $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
 
         Write-Output "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId"
+        $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
+        $resourceGroupScope = $subscriptionScope + "/resourceGroups/" + $resourceGroupName
         $aadServicePrincipal = Get-AzADServicePrincipal -ApplicationId $ApplicationId
-        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ObjectId $aadServicePrincipal.Id | Out-Null
+        New-AzRoleAssignment -RoleDefinitionName Contributor -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id | Out-Null
         
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
@@ -955,7 +957,6 @@ if ("Y", "y" -contains $continueInput) {
         CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
         
         Write-Host "Removing auto-assigned Contributor role from subscription scope" -ForegroundColor Green
-        $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
         Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
     }
     else {
