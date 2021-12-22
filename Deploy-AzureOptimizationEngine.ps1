@@ -944,23 +944,23 @@ if ("Y", "y" -contains $continueInput) {
         $PfxCert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($PfxCertPathForRunAsAccount, $PfxCertPlainPasswordForRunAsAccount)
         $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
 
-        Write-Output "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId"
+        Write-Host "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId" -ForegroundColor Green
         $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
         $resourceGroupScope = $subscriptionScope + "/resourceGroups/" + $resourceGroupName
         $aadServicePrincipal = Get-AzADServicePrincipal -ApplicationId $ApplicationId
 
-        $roleAssignmentBody = @"
+        $tries = 0
+        do {
+            Start-Sleep -Seconds 10
+            New-AzRoleAssignment -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id -RoleDefinitionName Contributor -ErrorAction SilentlyContinue
+            $roleAssignment = Get-AzRoleAssignment -Scope $resourceGroupScope -ObjectId $aadServicePrincipal.Id -RoleDefinitionName Contributor -ErrorAction SilentlyContinue
+            $tries++
+        } until ($null -ne $roleAssignment -or $tries -gt 5)
+
+        if (-not($roleAssignment))
         {
-            "properties": {
-                "roleDefinitionId": "$subscriptionScope/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
-                "principalId": "$($aadServicePrincipal.Id)",
-                "principalType": "ServicePrincipal"
-            }
+            Write-Host "Could not grant role. Please grant the Contributor role manually to the $runasAppName Service Principal at the $resourceGroupName resource group scope." -ForegroundColor Red
         }
-"@
-        $roleAssignmentId = (New-Guid).Guid
-        $roleAssignmentPath = "$resourceGroupScope/providers/Microsoft.Authorization/roleAssignments/$($roleAssignmentId)?api-version=2017-05-01"
-        Invoke-AzRestMethod -Method PUT -Path $roleAssignmentPath -Payload $roleAssignmentBody
 
         CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
         
