@@ -486,7 +486,7 @@ if ("Y", "y" -contains $continueInput) {
     
         Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
         if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-            New-AzDeployment -TemplateUri $TemplateUri -rgName $resourceGroupName -Name $deploymentName `
+            New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
@@ -494,7 +494,7 @@ if ("Y", "y" -contains $continueInput) {
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
         }
         else {
-            New-AzDeployment -TemplateUri $TemplateUri -rgName $resourceGroupName -Name $deploymentName `
+            New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
