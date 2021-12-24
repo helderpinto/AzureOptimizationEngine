@@ -11,7 +11,7 @@
         },
         "contributorRoleAssignmentGuid": {
             "type": "string",
-            "defaultValue": "[parameters('rgName')]"
+            "defaultValue": "[guid(parameters('rgName'))]"
         },
         "projectLocation": {
             "type": "String"
