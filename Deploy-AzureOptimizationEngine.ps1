@@ -45,76 +45,6 @@ function ConvertTo-Hashtable {
     }
 }
 
-function CreateSelfSignedCertificate([string] $certificateName, [string] $selfSignedCertPlainPassword,
-    [string] $certPath, [string] $certPathCer, [int] $selfSignedCertNoOfMonthsUntilExpired ) {
-
-    if ($IsWindows -or $env:OS -like "Win*" -or [System.Environment]::OSVersion.Platform -like "Win*") {
-        $Cert = New-SelfSignedCertificate -DnsName $certificateName -CertStoreLocation cert:\LocalMachine\My `
-            -KeyExportPolicy Exportable -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" `
-            -NotAfter (Get-Date).AddMonths($selfSignedCertNoOfMonthsUntilExpired) -HashAlgorithm SHA256
-
-        $CertPassword = ConvertTo-SecureString $selfSignedCertPlainPassword -AsPlainText -Force
-        Export-PfxCertificate -Cert ("Cert:\localmachine\my\" + $Cert.Thumbprint) -FilePath $certPath -Password $CertPassword -Force | Write-Verbose
-        Export-Certificate -Cert ("Cert:\localmachine\my\" + $Cert.Thumbprint) -FilePath $certPathCer -Type CERT | Write-Verbose
-    }
-    elseif ($IsLinux -or $IsMacOs -or [System.Environment]::OSVersion.Platform -eq "Unix") {
-        $ValidityDays = $selfSignedCertNoOfMonthsUntilExpired * 30
-        openssl req -x509 -sha256 -nodes -days $ValidityDays -newkey rsa:2048 -subj "/CN=$certificateName" -keyout "$certPathCer.key" -out $certPathCer
-        openssl pkcs12 -export -out $certPath -password pass:$selfSignedCertPlainPassword -inkey "$certPathCer.key" -in $certPathCer
-    }
-    else {
-        throw "Unsupported OS type"
-    }
-}
-
-function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X509Certificate2] $PfxCert, [string] $applicationDisplayName) {
-    $keyValue = [System.Convert]::ToBase64String($PfxCert.GetRawCertData())
-    $identifierUri = "api://$((Get-AzContext).Tenant.Id)/$ApplicationDisplayName"
-
-    # Create an Azure AD application, AD App Credential, AD ServicePrincipal
-
-    # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
-    $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris $identifierUri
-    # Requires Application administrator or GLOBAL ADMIN
-    $AppId = $Application.AppId
-    $tries = 0
-    do
-    {
-        Start-Sleep -Seconds 20
-        $Application = Get-AzADApplication -ApplicationId $AppId
-        $tries++
-
-    } while ($null -eq $Application -and $tries -lt 5)
-    $AppCredential = New-AzADAppCredential -ApplicationId $Application.AppId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
-    # Requires Application administrator or GLOBAL ADMIN
-    $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.AppId
-    $ServicePrincipal = Get-AzADServicePrincipal -ObjectId $ServicePrincipal.Id
-
-    # Sleep here for a few seconds to allow the service principal application to become active (ordinarily takes a few seconds)
-    Start-Sleep -Seconds 15
-    # Requires User Access Administrator or Owner.
-    $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ObjectId $ServicePrincipal.Id -ErrorAction SilentlyContinue
-    $Retries = 0;
-    While ($null -eq $NewRole -and $Retries -le 6) {
-        Start-Sleep -Seconds 10
-        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ObjectId $ServicePrincipal.Id -ErrorAction SilentlyContinue
-        $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.AppId -ErrorAction SilentlyContinue
-        $Retries++;
-    }
-    return $Application.AppId.ToString()
-}
-
-function CreateAutomationCertificateAsset ([string] $resourceGroup, [string] $automationAccountName, [string] $certifcateAssetName, [string] $certPath, [string] $certPlainPassword, [Boolean] $Exportable) {
-    $CertPassword = ConvertTo-SecureString $certPlainPassword -AsPlainText -Force
-    Remove-AzAutomationCertificate -ResourceGroupName $resourceGroup -AutomationAccountName $automationAccountName -Name $certifcateAssetName -ErrorAction SilentlyContinue
-    New-AzAutomationCertificate -ResourceGroupName $resourceGroup -AutomationAccountName $automationAccountName -Path $certPath -Name $certifcateAssetName -Password $CertPassword -Exportable:$Exportable  | write-verbose
-}
-
-function CreateAutomationConnectionAsset ([string] $resourceGroup, [string] $automationAccountName, [string] $connectionAssetName, [string] $connectionTypeName, [System.Collections.Hashtable] $connectionFieldValues ) {
-    Remove-AzAutomationConnection -ResourceGroupName $resourceGroup -AutomationAccountName $automationAccountName -Name $connectionAssetName -Force -ErrorAction SilentlyContinue
-    New-AzAutomationConnection -ResourceGroupName $ResourceGroup -AutomationAccountName $automationAccountName -Name $connectionAssetName -ConnectionTypeName $connectionTypeName -ConnectionFieldValues $connectionFieldValues
-}
-
 $ErrorActionPreference = "Stop"
 
 $lastDeploymentStatePath = ".\last-deployment-state.json"
@@ -525,12 +455,6 @@ if ("Y", "y" -contains $continueInput) {
 
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
     
-    if ($null -eq $rg) {
-        Write-Host "Resource group $resourceGroupName does not exist." -ForegroundColor Yellow
-        Write-Host "Creating resource group $resourceGroupName..." -ForegroundColor Green
-        New-AzResourceGroup -Name $resourceGroupName -Location $targetLocation
-    }
-
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
     $upgradingSchedules = $false
     $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
@@ -562,7 +486,7 @@ if ("Y", "y" -contains $continueInput) {
     
         Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
         if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+            New-AzDeployment -TemplateUri $TemplateUri -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
@@ -570,7 +494,7 @@ if ("Y", "y" -contains $continueInput) {
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
         }
         else {
-            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+            New-AzDeployment -TemplateUri $TemplateUri -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
@@ -911,68 +835,6 @@ if ("Y", "y" -contains $continueInput) {
         Write-Host "Setting initial deployment date ($deploymentDate)..." -ForegroundColor Green
         New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
-    }
-
-    Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green
-
-    $CertificateAssetName = "AzureRunAsCertificate"
-    $ConnectionAssetName = "AzureRunAsConnection"
-    $ConnectionTypeName = "AzureServicePrincipal"
-    $SelfSignedCertNoOfMonthsUntilExpired = 12
-
-    $runAsConnection = Get-AzAutomationConnection -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $ConnectionAssetName -ErrorAction SilentlyContinue
-    
-    if ($null -eq $runAsConnection) {
-
-        $runasAppName = "$automationAccountName-runasaccount"
-
-        $CertificateName = $automationAccountName + $CertificateAssetName
-        $TempDir = [System.IO.Path]::GetTempPath()
-        $PfxCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".pfx")
-        $PfxCertPlainPasswordForRunAsAccount = -join ((65..90) + (97..122) | Get-Random -Count 20 | % { [char]$_ })
-        $CerCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".cer")
-
-        try {
-            CreateSelfSignedCertificate $CertificateName $PfxCertPlainPasswordForRunAsAccount $PfxCertPathForRunAsAccount $CerCertPathForRunAsAccount $SelfSignedCertNoOfMonthsUntilExpired   
-        }
-        catch {
-            Write-Host "Message: [$($_.Exception.Message)"] -ForegroundColor Red
-            Write-Host "Failed to create self-signed certificate. Please, run this script in an elevated prompt." -ForegroundColor Red
-            throw "Terminating due to lack of administrative privileges."
-        }
-
-        $PfxCert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($PfxCertPathForRunAsAccount, $PfxCertPlainPasswordForRunAsAccount)
-        $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
-
-        Write-Host "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId" -ForegroundColor Green
-        $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
-        $resourceGroupScope = $subscriptionScope + "/resourceGroups/" + $resourceGroupName
-        $aadServicePrincipal = Get-AzADServicePrincipal -ApplicationId $ApplicationId
-
-        $tries = 0
-        do {
-            Start-Sleep -Seconds 10
-            $roleAssignment = New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ObjectId $aadServicePrincipal.Id
-            $roleAssignment = Get-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ObjectId $aadServicePrincipal.Id
-            $tries++
-        } until ($null -ne $roleAssignment -or $tries -gt 5)
-
-        if (-not($roleAssignment))
-        {
-            Write-Host "Could not grant role. Please grant the Contributor role manually to the $runasAppName Service Principal at the $resourceGroupName resource group scope." -ForegroundColor Red
-        }
-
-        CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
-        
-        $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id }
-
-        CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
-        
-        Write-Host "Removing auto-assigned Contributor role from subscription scope" -ForegroundColor Green
-        Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
-    }
-    else {
-        Write-Host "(The Automation Run As account was already deployed)" -ForegroundColor Green
     }
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
