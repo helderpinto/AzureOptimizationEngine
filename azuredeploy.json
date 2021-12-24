@@ -7,11 +7,11 @@
         },
         "readerRoleAssignmentGuid": {
             "type": "string",
-            "defaultValue": "24a5eb49-f043-42ed-ad02-b539666af0c1"
+            "defaultValue": "[guid(subscription().subscriptionId, parameters('rgName'))]"
         },
         "contributorRoleAssignmentGuid": {
             "type": "string",
-            "defaultValue": "abc0904f-2293-4b81-b0e2-a8dd4acb77b1"
+            "defaultValue": "[guid(subscription().subscriptionId, parameters('rgName'))]"
         },
         "projectLocation": {
             "type": "String"
