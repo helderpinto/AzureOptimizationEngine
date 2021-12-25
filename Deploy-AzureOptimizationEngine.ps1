@@ -993,7 +993,7 @@ if ("Y", "y" -contains $continueInput) {
         Import-Module Microsoft.Graph.Identity.DirectoryManagement
         Import-Module Microsoft.Graph.Applications
 
-        Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account..." -ForegroundColor Green
+        Write-Host "Granting Azure AD Global Reader role to the Automation Account..." -ForegroundColor Green
 
         #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
         $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
