@@ -486,7 +486,7 @@ if ("Y", "y" -contains $continueInput) {
     
         Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
         if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-            New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
@@ -494,13 +494,14 @@ if ("Y", "y" -contains $continueInput) {
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
         }
         else {
-            New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
                 -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-        }    
+        }
+        $spnId = $deployment.Outputs['automationPrincipalId'].Value 
     }
     else
     {
@@ -970,6 +971,22 @@ if ("Y", "y" -contains $continueInput) {
         }
     }
     
+    if ($null -eq $spnId)
+    {
+        $auto = Get-AzAutomationAccount -Name $automationAccountName -ResourceGroupName $resourceGroupName
+        $spnId = $auto.Identity.PrincipalId
+        if ($null -eq $spnId)
+        {
+            $runAsConnection = Get-AzAutomationConnection -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name AzureRunAsConnection -ErrorAction SilentlyContinue
+            $runAsAppId = $runAsConnection.FieldDefinitionValues.ApplicationId
+            if ($runAsAppId)
+            {
+                $runAsServicePrincipal = Get-AzADServicePrincipal -ApplicationId $runAsAppId
+                $spnId = $runAsServicePrincipal.Id
+            }
+        }
+    }
+
     try
     {
         Import-Module Microsoft.Graph.Authentication
@@ -1006,15 +1023,12 @@ if ("Y", "y" -contains $continueInput) {
         $token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
         Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
 
-        $spnName = "$automationAccountName-runasaccount"
-        
         $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
             | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = $globalReaderRole.Members.Id
-        $spn = Get-MgServicePrincipal -Filter "DisplayName eq '$spnName'"
-        if (-not($globalReaders -contains $spn.Id))
+        if (-not($globalReaders -contains $spnId))
         {
-            New-MgDirectoryRoleMemberByRef -DirectoryRoleId $globalReaderRole.Id -BodyParameter @{"@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($spn.Id)"}
+            New-MgDirectoryRoleMemberByRef -DirectoryRoleId $globalReaderRole.Id -BodyParameter @{"@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$spnId"}
             Write-Host "Role granted." -ForegroundColor Green
         }
         else
@@ -1025,7 +1039,7 @@ if ("Y", "y" -contains $continueInput) {
     catch
     {
         Write-Host $Error[0] -ForegroundColor Yellow
-        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $spnName Service Principal." -ForegroundColor Red
+        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $automationAccountName managed identity or, for previous versions of AOE, to the Run As Account principal." -ForegroundColor Red
     }
 
     Write-Host "Deployment completed!" -ForegroundColor Green

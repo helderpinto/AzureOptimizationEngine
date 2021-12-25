@@ -2178,5 +2178,10 @@
             }
         }
     ],
-    "outputs": {}
+    "outputs": {
+        "automationPrincipalId": {
+            "type": "string",
+            "value": "[reference('resourcesDeployment').outputs.automationPrincipalId.value]"
+        }
+    }
 }
