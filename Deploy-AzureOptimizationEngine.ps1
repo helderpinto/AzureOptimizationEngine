@@ -794,7 +794,7 @@ if ("Y", "y" -contains $continueInput) {
 
     if ($upgradingSchedules) {
         $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
-        $dailySchedules = $schedules | Where-Object { $_.Frequency -eq "Day" }
+        $dailySchedules = $schedules | Where-Object { $_.Frequency -eq "Day" -or $_.Frequency -eq "Hour" }
         Write-Host "Fixing daily schedules after upgrade..." -ForegroundColor Green
         foreach ($schedule in $dailySchedules) {
             $now = (Get-Date).ToUniversalTime()
@@ -813,7 +813,7 @@ if ("Y", "y" -contains $continueInput) {
                   `"startTime`": `"$startTime`",
                   `"expiryTime`": `"$expiryTime`",
                   `"interval`": 1,
-                  `"frequency`": `"Day`",
+                  `"frequency`": `"$($schedule.Frequency.ToString())`",
                   `"advancedSchedule`": {}
                 }
               }"
