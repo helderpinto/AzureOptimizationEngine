@@ -190,7 +190,7 @@ The simplest, quickest and recommended method for installing AOE is by using the
 1. Open Azure Cloud Shell (PowerShell)
 2. Run `git clone https://github.com/helderpinto/AzureOptimizationEngine.git azureoptimizationengine`
 3. Run `cd azureoptimizationengine`
-4. (optional) Run `Install-Module Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement` - this is required to grant the Global Reader role to the Automation Run As Account in Azure AD
+4. (optional) Run `Install-Module Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement` - this is required to grant the Global Reader role to the Automation Managed Identity in Azure AD
 5. Run `.\Deploy-AzureOptimizationEngine.ps1`
 6. Input your deployment options and let the deployment finish (it will take less than 5 minutes)
 
@@ -238,7 +238,7 @@ To ensure the VM right-size recommendations have all the required data to provid
 
 ### Widening the scope of AOE recommendations - more subscriptions or more workspaces
 
-By default, the Azure Automation Run As Account is created with Reader role only over the respective subscription. However, you can widen the scope of its recommendations just by granting the same Reader role to other subscriptions or, even simpler, to a top-level Management Group.
+By default, the Azure Automation Managed Identity is assigned the Reader role only over the respective subscription. However, you can widen the scope of its recommendations just by granting the same Reader role to other subscriptions or, even simpler, to a top-level Management Group.
 
 In the context of augmented VM right-size recommendations, you may have your VMs reporting to multiple workspaces. If you need to include other workspaces - besides the main one AOE is using - in the recommendations scope, you just have to add their workspace IDs to the `AzureOptimization_RightSizeAdditionalPerfWorkspaces` variable (see more details in [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md)).
 
