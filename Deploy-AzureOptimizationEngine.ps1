@@ -1,4 +1,3 @@
-#Requires -RunAsAdministrator
 param (
     [Parameter(Mandatory = $false)]
     [string] $TemplateUri,
@@ -991,7 +990,6 @@ if ("Y", "y" -contains $continueInput) {
     {
         Import-Module Microsoft.Graph.Authentication
         Import-Module Microsoft.Graph.Identity.DirectoryManagement
-        Import-Module Microsoft.Graph.Applications
 
         Write-Host "Granting Azure AD Global Reader role to the Automation Account..." -ForegroundColor Green
 
