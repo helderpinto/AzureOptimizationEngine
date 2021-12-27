@@ -37,6 +37,18 @@
             "description": "Orphaned Public IP (without owner resource) incur in unnecessary costs"
         },
         {
+            "category": "Cost",
+            "typeId": "a4955cc9-533d-46a2-8625-5c4ebd1c30d5",
+            "impact": "High",
+            "description": "VM Scale Set has been underutilized"
+        },
+        {
+            "category": "Cost",
+            "typeId": "4854b5dc-4124-4ade-879e-6a7bb65350ab",
+            "impact": "High",
+            "description": "Premium SSD disk has been underutilized"
+        },
+        {
             "category": "HighAvailability",
             "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
             "impact": "High",
@@ -83,6 +95,24 @@
             "typeId": "b576a069-b1f2-43a6-9134-5ee75376402a",
             "impact": "High",
             "description": "Virtual Machines should use Managed Disks for higher availability and manageability"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "1bf03c4a-c402-4e6c-bf20-051b18af30e2",
+            "impact": "High",
+            "description": "Virtual Machine Scale Sets should use Managed Disks for higher availability and manageability"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "1a77887c-7375-434e-af19-c2543171e0b8",
+            "impact": "High",
+            "description": "Virtual Machines should be placed in multiple Availability Zones"
+        },
+        {
+            "category": "HighAvailability",
+            "typeId": "47e5457c-b345-4372-b536-8887fa8f0298",
+            "impact": "High",
+            "description": "Virtual Machine Scale Sets should be placed in multiple Availability Zones"
         },
         {
             "category": "Security",
@@ -161,6 +191,12 @@
             "typeId": "4468da8d-1e72-4998-b6d2-3bc38ddd9330",
             "impact": "High",
             "description": "Subscriptions close to the maximum limit of resource groups"
+        },
+        {
+            "category": "Performance",
+            "typeId": "20a40c62-e5c8-4cc3-9fc2-f4ac75013182",
+            "impact": "Medium",
+            "description": "VM Scale Set performance has been constrained by lack of resources"
         }
     ]
 }

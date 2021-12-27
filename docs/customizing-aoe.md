@@ -9,10 +9,13 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_PerfPercentileDisk` - The default percentile for disk IO/throughput metrics aggregations is 99. The lower the percentile, the less conservative will be VM right-size fit score algorithm.
 * `AzureOptimization_PerfPercentileMemory` - The default percentile for memory metrics aggregations is 99. The lower the percentile, the less conservative will be VM right-size fit score algorithm.
 * `AzureOptimization_PerfPercentileNetwork` - The default percentile for network metrics aggregations is 99. The lower the percentile, the less conservative will be VM right-size fit score algorithm.
-* `AzureOptimization_PerfThresholdCpuPercentage` - The CPU threshold (in % Processor Time) above which the VM right-size fit score will decrease.
+* `AzureOptimization_PerfThresholdCpuPercentage` - The CPU threshold (in % Processor Time) above which the VM right-size fit score will decrease or below which the VM scale set right-size Cost recommendation will trigger.
 * `AzureOptimization_PerfThresholdCpuShutdownPercentage` - The CPU threshold (in % Processor Time) above which the VM right-size fit score will decrease (_shutdown recommendations only_).
-* `AzureOptimization_PerfThresholdMemoryPercentage` - The memory threshold (in % Used Memory) above which the VM right-size fit score will decrease.
+* `AzureOptimization_PerfThresholdCpuDegradedMaxPercentage` - The CPU threshold (Maximum observed in % Processor Time) above which the VM scale set right-size Performance recommendation will trigger.
+* `AzureOptimization_PerfThresholdCpuDegradedAvgPercentage` - The CPU threshold (Average observed in % Processor Time) above which the VM scale set right-size Performance recommendation will trigger.
+* `AzureOptimization_PerfThresholdMemoryPercentage` - The memory threshold (in % Used Memory) above which the VM right-size fit score will decrease or below which the VM scale set right-size Cost recommendation will trigger.
 * `AzureOptimization_PerfThresholdMemoryShutdownPercentage` - The memory threshold (in % Used Memory) above which the VM right-size fit score will decrease (_shutdown recommendations only_).
+* `AzureOptimization_PerfThresholdMemoryDegradedPercentage` - The memory threshold (in % Used Memory) above which the VM scale set right-size Performance recommendation will trigger.
 * `AzureOptimization_PerfThresholdNetworkMbps` - The network threshold (in Total Mbps) above which the VM right-size fit score will decrease.
 * `AzureOptimization_PerfThresholdNetworkShutdownMbps` - The network threshold (in Total Mbps) above which the VM right-size fit score will decrease (_shutdown recommendations only_).
 * `AzureOptimization_RecommendAdvisorPeriodInDays` - The interval in days to look for Advisor recommendations in the Log Analytics repository - the default is 7, as Advisor recommendations are collected once a week.
@@ -39,5 +42,5 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_RemediateUnattachedDisksMinWeeksInARow` - The minimum number of weeks in a row an unattached disk recommendation must have been done for the remediation to occur.
 * `AzureOptimization_RemediateUnattachedDisksAction` - The action to apply for an unattached disk recommendation remediation (`Delete` or `Downsize`).
 * `AzureOptimization_RemediateUnattachedDisksTagsFilter` - The tag name/value pairs an unattached disk recommendation must have for the remediation to occur. Example: `[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]`
-* `AzureOptimization_RightSizeAdditionalPerfWorkspaces` - A comma-separated list of additional Log Analytics workspace IDs where to look for VM metrics (see [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md)).
+* `AzureOptimization_RightSizeAdditionalPerfWorkspaces` - A comma-separated list of additional Log Analytics workspace IDs where to look for VM metrics (see [Configuring Log Analytics workspaces](./configuring-workspaces.md)).
 

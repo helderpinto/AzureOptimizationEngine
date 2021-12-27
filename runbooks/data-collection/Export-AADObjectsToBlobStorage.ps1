@@ -13,23 +13,66 @@ $ErrorActionPreference = "Stop"
 
 function Build-CredObjectWithDates {
     param (
-        [object[]] $credObjectWithStrings
+        [object] $appObject
     )
     
     $credObjects = @()
 
-    foreach ($obj in $credObjectWithStrings)
+    foreach ($obj in $appObject.KeyCredentials)
     {
         $credObject = New-Object PSObject -Property @{
+            DisplayName = $obj.DisplayName
             KeyId = $obj.KeyId
             KeyType = $obj.Type
-            StartDate = (Get-Date($obj.StartDate)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
-            EndDate = (Get-Date($obj.EndDate)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+            StartDate = (Get-Date($obj.StartDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+            EndDate = (Get-Date($obj.EndDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+        }
+        $credObjects += $credObject        
+    }
+
+    foreach ($obj in $appObject.PasswordCredentials)
+    {
+        $credObject = New-Object PSObject -Property @{
+            DisplayName = $obj.DisplayName
+            KeyId = $obj.KeyId
+            KeyType = "Password"
+            StartDate = (Get-Date($obj.StartDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+            EndDate = (Get-Date($obj.EndDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
         }
         $credObjects += $credObject        
     }
 
     return $credObjects
+}
+
+function Build-PrincipalNames {
+    param (
+        [object] $appObject
+    )
+    
+    $principalNames = @()
+
+    if ($appObject.Web.HomePageUrl)
+    {
+        $principalNames += $appObject.Web.HomePageUrl
+    }
+
+    foreach ($obj in $appObject.IdentifierUris)
+    {
+        $principalNames += $obj
+    }
+
+    foreach ($obj in $appObject.ServicePrincipalNames)
+    {
+        $principalNames += $obj
+    }
+
+    foreach ($obj in $appObject.AlternativeNames)
+    {
+        $principalNames += $obj
+    }
+
+    return $principalNames
 }
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
@@ -95,55 +138,39 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $tenantId = (Get-AzContext).Tenant.Id
 
-Import-Module AzureADPreview
-
-try
+#workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
+$localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+if (-not(get-item "$localPath\.graph\" -ErrorAction SilentlyContinue))
 {
-    if (-not([string]::IsNullOrEmpty($externalCredentialName)))
-    {
-        $apiEndpointUri = "https://graph.windows.net/"  
-        if ($cloudEnvironment -eq "AzureChinaCloud")
-        {
-            $apiEndpointUri = "https://graph.chinacloudapi.cn/"
-        }
-        if ($cloudEnvironment -eq "AzureGermanCloud")
-        {
-            $apiEndpointUri = "https://graph.cloudapi.de/"
-        }
-        $applicationId = $externalCredential.GetNetworkCredential().UserName
-        $secret = $externalCredential.GetNetworkCredential().Password
-        $encodedSecret = [System.Web.HttpUtility]::UrlEncode($secret)
-        $RequestAccessTokenUri = "https://login.microsoftonline.com/$externalTenantId/oauth2/token"  
-        if ($cloudEnvironment -eq "AzureChinaCloud")
-        {
-            $RequestAccessTokenUri = "https://login.partner.microsoftonline.cn/$externalTenantId/oauth2/token"
-        }
-        if ($cloudEnvironment -eq "AzureUSGovernment")
-        {
-            $RequestAccessTokenUri = "https://login.microsoftonline.us/$externalTenantId/oauth2/token"
-        }
-        if ($cloudEnvironment -eq "AzureGermanCloud")
-        {
-            $RequestAccessTokenUri = "https://login.microsoftonline.de/$externalTenantId/oauth2/token"
-        }
-        $body = "grant_type=client_credentials&client_id=$applicationId&client_secret=$encodedSecret&resource=$apiEndpointUri"  
-        $contentType = 'application/x-www-form-urlencoded'  
-        $Token = Invoke-RestMethod -Method Post -Uri $RequestAccessTokenUri -Body $body -ContentType $contentType      
-        $ctx = Get-AzContext
-        Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -AadAccessToken $token.access_token -AccountId $ctx.Account.Id -TenantId $externalTenantId
-    }
-    else
-    {
-        Connect-AzureAD -AzureEnvironmentName $cloudEnvironment -TenantId $tenantId -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
-    }
+    New-Item -Type Directory "$localPath\.graph"
+}
+
+Import-Module Microsoft.Graph.Authentication
+Import-Module Microsoft.Graph.Users
+Import-Module Microsoft.Graph.Applications
+Import-Module Microsoft.Graph.Groups
+
+$graphEnvironment = "Global"
+$graphEndpointUri = "https://graph.microsoft.com"  
+if ($cloudEnvironment -eq "AzureUSGovernment")
+{
+    $graphEnvironment = "USGov"
+    $graphEndpointUri = "https://graph.microsoft.us"
+}
+if ($cloudEnvironment -eq "AzureChinaCloud")
+{
+    $graphEnvironment = "China"
+    $graphEndpointUri = "https://microsoftgraph.chinacloudapi.cn"
+}
+if ($cloudEnvironment -eq "AzureGermanCloud")
+{
+    $graphEnvironment = "Germany"
+    $graphEndpointUri = "https://graph.microsoft.de"
+}
+
+$token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
+Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
     
-    $tenantDetails = Get-AzureADTenantDetail                
-}
-catch
-{
-    Write-Warning "Failed Azure AD authentication."
-}
-
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
@@ -156,30 +183,41 @@ if ("Application" -in $aadObjectsTypes)
     $aadObjects = @()
 
     Write-Output "Getting AAD applications..."
-    $apps = Get-AzADApplication
+    $apps = Get-MgApplication -All -ExpandProperty Owners -Property Id,AppId,CreatedDateTime,DeletedDateTime,DisplayName,KeyCredentials,PasswordCredentials,Owners,PublisherDomain,Web,IdentifierUris
     Write-Output "Found $($apps.Count) AAD applications"
 
     foreach ($app in $apps)
     {
-        $appCred = Get-AzADAppCredential -ApplicationId $app.ApplicationId -ErrorAction Continue
         $owners = $null
-        if ($tenantDetails)
+        if ($app.Owners.Count -gt 0)
         {
-            $owners = (Get-AzureADApplicationOwner -ObjectId $app.ObjectId -All $true).ObjectId
+            $owners = ($app.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json
+        }
+        $createdDate = $null
+        if ($app.CreatedDateTime)
+        {
+            $createdDate = (Get-Date($app.CreatedDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+        }
+        $deletedDate = $null
+        if ($app.DeletedDateTime)
+        {
+            $deletedDate = (Get-Date($app.DeletedDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
         }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
             TenantGuid = $tenantId
             Cloud = $cloudEnvironment
-            ObjectId = $app.ObjectId
-            ObjectType = $app.ObjectType
+            ObjectId = $app.Id
+            ObjectType = "Application"
             ObjectSubType = "N/A"
             DisplayName = $app.DisplayName
             SecurityEnabled = "N/A"
-            ApplicationId = $app.ApplicationId
-            Keys = (Build-CredObjectWithDates -credObjectWithStrings $appCred) | ConvertTo-Json
-            PrincipalNames = $app.HomePage
-            Owners = $owners | ConvertTo-Json
+            ApplicationId = $app.AppId
+            Keys = (Build-CredObjectWithDates -appObject $app) | ConvertTo-Json
+            PrincipalNames = (Build-PrincipalNames -appObject $app) | ConvertTo-Json
+            Owners = $owners
+            CreatedDate = $createdDate
+            DeletedDate = $deletedDate
         }
         $aadObjects += $aadObject    
     }   
@@ -205,38 +243,35 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     $aadObjects = @()
 
     Write-Output "Getting AAD service principals..."
-    $spns = Get-AzADServicePrincipal
+    $spns = Get-MgServicePrincipal -All -ExpandProperty Owners -Property Id,AppId,DeletedDateTime,DisplayName,KeyCredentials,PasswordCredentials,Owners,ServicePrincipalNames,ServicePrincipalType,AccountEnabled,AlternativeNames
     Write-Output "Found $($spns.Count) AAD service principals"
     
     foreach ($spn in $spns)
     {
-        $spnCred = Get-AzADSpCredential -ObjectId $spn.Id -ErrorAction Continue
-        if ($spn.ServicePrincipalNames)
-        {
-            $principalNames = $spn.ServicePrincipalNames | ConvertTo-Json
-        }
-        else
-        {
-            $principalNames = $spn.PrincipalNames | ConvertTo-Json        
-        }
         $owners = $null
-        if ($tenantDetails)
+        if ($spn.Owners.Count -gt 0)
         {
-            $owners = (Get-AzureADServicePrincipalOwner -ObjectId $spn.Id -All $true).ObjectId
+            $owners = ($spn.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json
+        }
+        $deletedDate = $null
+        if ($spn.DeletedDateTime)
+        {
+            $deletedDate = (Get-Date($spn.DeletedDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
         }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
             TenantGuid = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $spn.Id
-            ObjectType = $spn.ObjectType
-            ObjectSubType = "N/A"
+            ObjectType = "ServicePrincipal"
+            ObjectSubType = $spn.ServicePrincipalType
             DisplayName = $spn.DisplayName
-            SecurityEnabled = "N/A"
-            ApplicationId = $spn.ApplicationId
-            Keys = (Build-CredObjectWithDates -credObjectWithStrings $spnCred) | ConvertTo-Json
-            PrincipalNames = $principalNames
-            Owners = $owners | ConvertTo-Json
+            SecurityEnabled = $spn.AccountEnabled
+            ApplicationId = $spn.AppId
+            Keys = (Build-CredObjectWithDates -appObject $spn) | ConvertTo-Json
+            PrincipalNames = (Build-PrincipalNames -appObject $spn) | ConvertTo-Json
+            Owners = $owners
+            DeletedDate = $deletedDate
         }
         $aadObjects += $aadObject    
     }
@@ -262,21 +297,33 @@ if ("User" -in $aadObjectsTypes)
     $aadObjects = @()
 
     Write-Output "Getting AAD users..."
-    $users = Get-AzADUser
+    $users = Get-MgUser -All -Property Id,AccountEnabled,DisplayName,UserPrincipalName,UserType,CreatedDateTime,DeletedDateTime
     Write-Output "Found $($users.Count) AAD users"
     
     foreach ($user in $users)
     {
+        $createdDate = $null
+        if ($user.CreatedDateTime)
+        {
+            $createdDate = (Get-Date($user.CreatedDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+        }
+        $deletedDate = $null
+        if ($user.DeletedDateTime)
+        {
+            $deletedDate = (Get-Date($user.DeletedDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+        }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
             TenantGuid = $tenantId
             Cloud = $cloudEnvironment
             ObjectId = $user.Id
             ObjectType = "User"
-            ObjectSubType = $user.Type
+            ObjectSubType = $user.UserType
             DisplayName = $user.DisplayName
             SecurityEnabled = $user.AccountEnabled
             PrincipalNames = $user.UserPrincipalName
+            CreatedDate = $createdDate
+            DeletedDate = $deletedDate
         }
         $aadObjects += $aadObject    
     }
@@ -284,11 +331,7 @@ if ("User" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-users.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-users.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
-    $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
-    $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
+    $aadObjects | Export-Csv -NoTypeInformation -Path $csvExportPath
     Write-Output "Export to $csvExportPath"
     
     $csvBlobName = $csvExportPath
@@ -302,17 +345,25 @@ if ("Group" -in $aadObjectsTypes)
     $aadObjects = @()
 
     Write-Output "Getting AAD groups..."
-    $groups = Get-AzADGroup
+    $groups = Get-MgGroup -All -ExpandProperty Members -Property Id,SecurityEnabled,DisplayName,Members,CreatedDateTime,DeletedDateTime,GroupTypes
     Write-Output "Found $($groups.Count) AAD groups"
     
     foreach ($group in $groups)
     {
-        $groupMembersObject = Get-AzADGroupMember -GroupObjectId $group.Id -ErrorAction Continue
-        $groupMembers = $groupMembersObject.Id
-        $owners = $null
-        if ($tenantDetails)
+        $groupMembers = $null
+        if ($group.Members.Count -gt 0)
         {
-            $owners = (Get-AzureADGroupOwner -ObjectId $group.Id -All $true).ObjectId
+            $groupMembers = $group.Members.Id | ConvertTo-Json
+        }
+        $createdDate = $null
+        if ($group.CreatedDateTime)
+        {
+            $createdDate = (Get-Date($group.CreatedDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
+        }
+        $deletedDate = $null
+        if ($group.DeletedDateTime)
+        {
+            $deletedDate = (Get-Date($group.DeletedDateTime)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:00.000Z")
         }
         $aadObject = New-Object PSObject -Property @{
             Timestamp = $timestamp
@@ -320,11 +371,12 @@ if ("Group" -in $aadObjectsTypes)
             Cloud = $cloudEnvironment
             ObjectId = $group.Id
             ObjectType = "Group"
-            ObjectSubType = $group.Type
+            ObjectSubType = $group.GroupTypes | ConvertTo-Json
             DisplayName = $group.DisplayName
             SecurityEnabled = $group.SecurityEnabled
-            PrincipalNames = $groupMembers | ConvertTo-Json
-            Owners = $owners | ConvertTo-Json
+            PrincipalNames = $groupMembers
+            CreatedDate = $createdDate
+            DeletedDate = $deletedDate
         }
         $aadObjects += $aadObject    
     }

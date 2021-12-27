@@ -24,14 +24,18 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
 
 * Cost
     * Augmented Advisor Cost VM right-size recommendations, with fit score based on Virtual Machine guest OS metrics (collected by Log Analytics agents) and Azure properties
+    * Underutilized VM Scale Sets
     * Unattached disks
     * Standard Load Balancers without backend pool
     * Application Gateways without backend pool
     * VMs deallocated since a long time ago (forgotten VMs)
     * Orphaned Public IPs
 * High Availability
-    * Virtual Machine high availability (availability set, managed disks, storage account distribution when using unmanaged disks)
+    * Virtual Machine high availability (availability zones count, availability set, managed disks, storage account distribution when using unmanaged disks)
+    * VM Scale Set high availability (availability zones count, managed disks)
     * Availability Sets structure (fault/update domains count)
+* Performance
+    * VM Scale Sets constrained by lack of compute resources
 * Security
     * Service Principal credentials/certificates without expiration date
     * NSG rules referring to empty or inexisting subnets
@@ -78,6 +82,18 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ## <a id="releases"></a>Releases ##
 
+* 12/2021
+    * Several new recommendations added
+        * **Cost** - Underutilized VM Scale Sets
+        * **Performance** - VM Scale Sets constrained by lack of compute resources
+        * **High Availability** - VM Scale Sets not using managed disks
+        * **High Availability** - Virtual Machines or VM Scale Sets not leveraging multiple Availability Zones
+    * Azure AD exports migrated to the Microsoft Graph SDK (preparing for the deprecation of Azure AD Graph)
+    * Automation Runbooks use by default Managed Identity authentication (no more certificate-based Run As Accounts)
+    * Support for resetting Automation schedules with the `Reset-AutomationSchedules.ps1` script
+    * Workbooks usability and content improvements
+    * Runbook performance improvements
+    * Several bug fixes
 * 09/2021
     * Several new recommendations added
         * **Operational Excellence** - Subscriptions close to the maximum limit of RBAC assignments
@@ -155,10 +171,10 @@ read the whole blog series dedicated to this project, starting [here](https://te
 ### Requirements
 
 * A supported Azure subscription (see the [FAQs](#faq))
-* Azure Powershell 4.5.0+
-* AzureADPreview PowerShell module
-* A user account with Owner permissions over the chosen subscription and enough privileges to register Azure AD applications ([see details](https://docs.microsoft.com/en-us/azure/automation/manage-runas-account#permissions)), so that the Automation Run As Account is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
-* (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Run As Account is granted the required privileges over Azure AD (Global Reader)
+* Azure Powershell 6.6.0+
+* Microsoft.Graph.Authentication and Microsoft.Graph.Identity.DirectoryManagement PowerShell modules
+* A user account with Owner permissions over the chosen subscription, so that the Automation Managed Identity is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
+* (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Managed Identity is granted the required privileges over Azure AD (Global Reader)
 
 During deployment, you'll be asked several questions. You must plan for the following:
 
@@ -174,13 +190,13 @@ The simplest, quickest and recommended method for installing AOE is by using the
 1. Open Azure Cloud Shell (PowerShell)
 2. Run `git clone https://github.com/helderpinto/AzureOptimizationEngine.git azureoptimizationengine`
 3. Run `cd azureoptimizationengine`
-4. (optional) Run `Connect-AzureAD` - this is required to grant the Global Reader role to the Automation Run As Account in Azure AD
+4. (optional) Run `Install-Module Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement` - this is required to grant the Global Reader role to the Automation Managed Identity in Azure AD
 5. Run `.\Deploy-AzureOptimizationEngine.ps1`
 6. Input your deployment options and let the deployment finish (it will take less than 5 minutes)
 
 If the deployment fails for some reason, you can simply repeat it, as it is idempotent. The same if you want to upgrade a previous deployment with the latest version of the repo. You just have to keep the same deployment options. _Cool feature_: the deployment script persists your previous deployment options and lets you reuse it! 
 
-If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)) and also the AzureADPreview module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/active-directory/install-adv2?view=azureadps-2.0)). **IMPORTANT**: don't forget to call the deployment script from a PowerShell **elevated prompt** (by the way, Azure Cloud Shell always runs elevated).
+If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)) and also the Microsoft.Graph modules (instructions [here](https://docs.microsoft.com/en-us/graph/powershell/installation)).
 
 If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token (see syntax and example below)
 
@@ -194,11 +210,7 @@ If you choose to deploy all the dependencies from your own local repository, you
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://aoesa.blob.core.windows.net/files/azuredeploy.json" -ArtifactsSasToken "?sv=2019-10-10&ss=bfqt&srt=o&sp=rwdlacupx&se=2020-06-13T23:27:18Z&st=2020-06-13T15:27:18Z&spr=https&sig=4cvPayBlF67aYvifwu%2BIUw8Ldh5txpFGgXlhzvKF3%2BI%3D"
 ```
 
-## <a id="usage"></a>Usage instructions ##
-
-Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones! The first recommendations will be available more or less 3h30m after the deployment. In order to see them, you'll need to connect Power BI to the AOE database (see details below). Every week at the same time, AOE recommendations will be updated according to the current state of your environment.
-
-## <a id="upgrade"></a>Upgrading AOE ##
+### <a id="upgrade"></a>Upgrading AOE ##
 
 If you have a previous version of AOE and wish to upgrade, it's as simple as re-running the deployment script with the resource naming options you chose at the initial deployment. It will re-deploy the ARM template, adding new resources and updating existing ones. 
 
@@ -216,13 +228,17 @@ With the `DoPartialUpgrade` switch, the deployment will only:
 * Upgrade the SQL database model
 * Update Log Analytics Workbooks
 
+## <a id="usage"></a>Usage instructions ##
+
+Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones! The first recommendations will be available more or less 3h30m after the deployment. In order to see them, you'll need to connect Power BI to the AOE database (see details below). Every week at the same time, AOE recommendations will be updated according to the current state of your environment.
+
 ### Validating whether Log Analytics is collecting the right performance counters
 
 To ensure the VM right-size recommendations have all the required data to provide its full value, Log Analytics must be collecting specific performance counters. You can use the [Setup-LogAnalyticsWorkspaces.ps1](./Setup-LogAnalyticsWorkspaces.ps1) script as a configuration checker/fixer. For more details, see [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md).
 
 ### Widening the scope of AOE recommendations - more subscriptions or more workspaces
 
-By default, the Azure Automation Run As Account is created with Reader role only over the respective subscription. However, you can widen the scope of its recommendations just by granting the same Reader role to other subscriptions or, even simpler, to a top-level Management Group.
+By default, the Azure Automation Managed Identity is assigned the Reader role only over the respective subscription. However, you can widen the scope of its recommendations just by granting the same Reader role to other subscriptions or, even simpler, to a top-level Management Group.
 
 In the context of augmented VM right-size recommendations, you may have your VMs reporting to multiple workspaces. If you need to include other workspaces - besides the main one AOE is using - in the recommendations scope, you just have to add their workspace IDs to the `AzureOptimization_RightSizeAdditionalPerfWorkspaces` variable (see more details in [Configuring Log Analytics workspaces](./docs/configuring-workspaces.md)).
 
@@ -231,6 +247,24 @@ In the context of augmented VM right-size recommendations, you may have your VMs
 For Advisor Cost recommendations, the AOE's default configuration produces percentile 99th VM metrics aggregations, but you can adjust those to be less conservative. There are also adjustable metrics thresholds that are used to compute the fit score. The default thresholds values are 30% for CPU (5% for shutdown recommendations), 50% for memory (100% for shutdown) and 750 Mbps for network bandwidth (10 Mbps for shutdown). All the adjustable configurations are available as Azure Automation variables (for example, `AzureOptimization_PerfPercentile*` and `AzureOptimization_PerfThreshold*`).
 
 For all the available customization details, check [Customizing the Azure Optimization Engine](./docs/customizing-aoe.md).
+
+### Changing the schedules for the exports and recommendations runbooks
+
+By default, the base time for the AOE Automation schedules is set as the deployment time. Soon after the initial deployment completes, the exports, ingests and recommendations runbooks will run according to the engine's default schedules. For example, if you deploy AOE on a Monday at 11:00 a.m., you will get new recommendations every Monday at 2:30 p.m.. If this schedule, for some reason, does not fit your needs, you can reset it to the time that better suits you, by using the `Reset-AutomationSchedules.ps1` script. You just have to call the script following the syntax below and answer the input requests:
+
+```powershell
+./Reset-AutomationSchedules.ps1 -AutomationAccountName <AOE automation account> -ResourceGroupName <AOE resource group> [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
+```
+
+The base time you choose must be in UTC and must be defined according to the week day and hour you want recommendations to be generated. You must deduce 3h30m from the time you choose, because the base time defines the schedules for all the dependent automation runbooks that must run before the recommendations are generated. For example, let's say you want recommendations to be generated every Monday at 8h30 a.m.; the base time will be the next calendar date falling on a Monday, at 5h00 a.m.. The format of the date you choose must be YYYY-MM-dd HH:mm:ss, e.g., 2022-01-03 05:00:00.
+
+The script will also ask you to enter, **if needed**, the Hybrid Worker Group you want the runbooks to run in (see the next sub-section).
+
+### Changing the runbooks execution context to Hybrid Worker
+
+By default, AOE Automation runbooks are executed in the context of the Azure Automation sandbox. If you face performance issues due to the memory limits of the Automation sandbox or decide to implement private endpoints for the Storage Account or SQL Database, to harden AOE's security, you will need to execute runbooks from a Hybrid Worker (an Azure or on-premises Virtual Machine with the Automation Hybrid Worker extension). To change the execution context for the AOE runbooks, you must use the `Reset-AutomationSchedules.ps1` script. See how to use the script in the previous sub-section and, after setting the runbooks execution base time, enter the Hybrid Worker Group name you want the runbooks to run in.
+
+**IMPORTANT**: once you change the runbook execution context to Hybrid Worker, you will have to always use the `DoPartialUpgrade` flag whenever you upgrade AOE, or else you will lose the runbook schedule settings and revert to the default sandbox configuration.
 
 ### Visualizing recommendations with Power BI
 

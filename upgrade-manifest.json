@@ -2,23 +2,23 @@
     "modules": [
         {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.5.2"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.7.0"
+        },
+        {
+            "name": "Microsoft.Graph.Authentication",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
         },
         {
             "name": "Az.Advisor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.1"
-        },
-        {
-            "name": "Az.Billing",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Billing/2.0.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/1.1.2"
         },
         {
             "name": "Az.Compute",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.16.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.21.0"
         },
         {
             "name": "Az.OperationalInsights",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/2.3.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/3.0.0"
         },
         {
             "name": "Az.ResourceGraph",
@@ -26,19 +26,31 @@
         },
         {
             "name": "Az.Storage",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/3.10.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/4.1.0"
         },
         {
             "name": "Az.Resources",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/4.3.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/5.1.0"
         },
         {
             "name": "Az.Monitor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/2.7.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.0"
         },
         {
-            "name": "AzureADPreview",
-            "url": "https://www.powershellgallery.com/api/v2/package/AzureADPreview/2.0.2.138"
+            "name": "Microsoft.Graph.Users",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.9.0"
+        },
+        {
+            "name": "Microsoft.Graph.Groups",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.9.0"
+        },
+        {
+            "name": "Microsoft.Graph.Applications",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.9.0"
+        },
+        {
+            "name": "Microsoft.Graph.Identity.DirectoryManagement",
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.9.0"
         }
     ],
     "schedules": [
@@ -118,6 +130,11 @@
             "frequency": "Day"
         },
         {
+            "name": "AzureOptimization_IngestARGVMSSDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_IngestARGResourceContainersDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
@@ -146,6 +163,36 @@
             "name": "AzureOptimization_RecommendationsWeekly",
             "offset": "PT2H30M",
             "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_IngestRecommendationsWeekly",
+            "offset": "PT3H30M",
+            "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_IngestRemediationLogsDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_IngestAzMonitorMetricsHourly",
+            "offset": "PT2H",
+            "frequency": "Hour"
         }
     ],
     "baseIngest": [
@@ -256,6 +303,14 @@
             "ingestSchedule": "AzureOptimization_IngestARGVMsDaily"
         },
         {
+            "runbook": "runbooks/data-collection/Export-ARGVMSSPropertiesToBlobStorage.ps1",
+            "container": "argvmssexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGVMSSDaily"
+        },
+        {
             "runbook": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
             "container": "advisorexports",
             "requiredVariables": [
@@ -278,6 +333,45 @@
             ],
             "exportSchedule": "AzureOptimization_ExportRBACDaily",
             "ingestSchedule": "AzureOptimization_IngestRBACDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-AzMonitorMetricsToBlobStorage.ps1",
+            "container": "azmonitorexports",
+            "requiredVariables": [
+            ],
+            "exportSchedules": [
+                {
+                    "schedule": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/virtualmachinescalesets",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Maximum",
+                        "MetricNames": "CPU Percentage",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/virtualmachinescalesets",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Average",
+                        "MetricNames": "CPU Percentage",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/virtualmachinescalesets",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Minimum",
+                        "MetricNames": "Available Memory Bytes",
+                        "TimeGrain": "01:00:00"
+                    }
+                }
+            ],
+            "ingestSchedule": "AzureOptimization_IngestAzMonitorMetricsHourly"
         }
     ],
     "recommendations": [
@@ -389,6 +483,24 @@
                 {
                     "name": "AzureOptimization_RecommendationVNetSubnetEmptyMinAgeInDays",
                     "defaultValue": 30
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-VMSSOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_PerfThresholdCpuDegradedMaxPercentage",
+                    "defaultValue": 95
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage",
+                    "defaultValue": 70
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
+                    "defaultValue": 80
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

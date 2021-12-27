@@ -138,6 +138,8 @@ foreach ($blob in $allblobs) {
     }
 }
 
+$unprocessedBlobs = $unprocessedBlobs | Sort-Object -Property LastModified
+
 Write-Output "Found $($unprocessedBlobs.Count) new blobs to process..."
 
 foreach ($blob in $unprocessedBlobs) {

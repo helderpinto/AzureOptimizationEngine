@@ -30,6 +30,10 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[dbo].[Recommenda
 		(
 			[RecommendationId] ASC
 		)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF) ON [PRIMARY]
+
+		CREATE INDEX IXC_Recommendations_SubTypeId ON [dbo].[Recommendations](RecommendationSubTypeId)
+
+		CREATE INDEX IXC_Recommendations_GeneratedDate ON [dbo].[Recommendations](GeneratedDate)
 	END
 ELSE
 	BEGIN
@@ -37,16 +41,24 @@ ELSE
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceId] VARCHAR (1000) NULL
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceName] VARCHAR (500) NULL
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [ResourceGroup] VARCHAR (200) NULL
-		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'FitScore'
-)		BEGIN
+		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'FitScore')
+		BEGIN
 			EXEC sp_rename '[dbo].[Recommendations].ConfidenceScore', 'FitScore', 'COLUMN'
 		END
-		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'SubscriptionName'
-)		BEGIN
+		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'SubscriptionName')
+		BEGIN
 			ALTER TABLE [dbo].[Recommendations] ADD [SubscriptionName] VARCHAR (250) NULL
 		END
-		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'TenantGuid'
-)		BEGIN
+		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'TenantGuid')
+		BEGIN
 			ALTER TABLE [dbo].[Recommendations] ADD [TenantGuid] VARCHAR (50) NULL
+		END
+		IF NOT EXISTS (SELECT * from sysindexes WHERE id=object_id('Recommendations') and name='IXC_Recommendations_SubTypeId')
+		BEGIN
+			CREATE INDEX IXC_Recommendations_SubTypeId ON [dbo].[Recommendations](RecommendationSubTypeId)
+		END
+		IF NOT EXISTS (SELECT * from sysindexes WHERE id=object_id('Recommendations') and name='IXC_Recommendations_GeneratedDate')
+		BEGIN
+			CREATE INDEX IXC_Recommendations_GeneratedDate ON [dbo].[Recommendations](GeneratedDate)
 		END
 	END

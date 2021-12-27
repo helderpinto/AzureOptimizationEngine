@@ -134,7 +134,7 @@ $baseQuery = @"
     let stime = etime-interval; 
     $appGWsTableName
     | where TimeGenerated > ago(1d)
-    | where toint(BackendPoolsCount_s) == 0 or toint(BackendIPCount_s) == 0 or isempty(BackendIPCount_s)
+    | where toint(BackendPoolsCount_s) == 0 or ((BackendIPCount_s == 0 or isempty(BackendIPCount_s)) and (BackendAddressesCount_s == 0 or isempty(BackendAddressesCount_s)))
     | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, SkuCapacity_s, Tags_s, Cloud_s 
     | join kind=leftouter (
         $consumptionTableName
@@ -179,7 +179,7 @@ foreach ($result in $results)
     $queryText = @"
     $appGWsTableName
     | where InstanceId_s == '$queryInstanceId'
-    | where toint(BackendPoolsCount_s) == 0 or toint(BackendIPCount_s) == 0 or isempty(BackendIPCount_s)
+    | where toint(BackendPoolsCount_s) == 0 or ((toint(BackendIPCount_s) == 0 or isempty(BackendIPCount_s)) and (toint(BackendAddressesCount_s) == 0 or isempty(BackendAddressesCount_s)))
     | distinct InstanceId_s, InstanceName_s, TimeGenerated
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s
     | join kind=inner (

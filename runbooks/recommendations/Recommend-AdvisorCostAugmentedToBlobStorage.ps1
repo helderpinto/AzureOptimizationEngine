@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 function Find-SkuHourlyPrice {
     param (
-        [object] $SKUPriceSheet,
+        [object[]] $SKUPriceSheet,
         [string] $SKUName
     )
 
@@ -16,12 +16,11 @@ function Find-SkuHourlyPrice {
         {
             $skuNameFilter = "*" + $skuNameParts[1] + "*"
             $skuVersionFilter = "*" + $skuNameParts[2]
-            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
-             -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
+            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterName -like $skuNameFilter `
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
-             -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
+             -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
             
-            if ($skuPrices.Count -eq 2)
+            if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
                 $skuPriceObject = $skuPrices[0]
             }
@@ -30,7 +29,7 @@ function Find-SkuHourlyPrice {
                 $skuFilter = "*" + $skuNameParts[1] + " " + $skuNameParts[2] + "*"
                 $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilter }
     
-                if ($skuPrices.Count -eq 2)
+                if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
                     $skuPriceObject = $skuPrices[0]
                 }
@@ -41,12 +40,11 @@ function Find-SkuHourlyPrice {
         {
             $skuNameFilter = "*" + $skuNameParts[1] + "*"
     
-            $skuPrices = $SKUPriceSheet.PriceSheets | Where-Object { $_.MeterDetails.MeterCategory -eq 'Virtual Machines' `
-             -and $_.MeterDetails.MeterLocation -eq 'EU West' -and $_.MeterDetails.MeterName -like $skuNameFilter `
+            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterName -like $skuNameFilter `
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
-             -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows'}
+             -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
             
-            if ($skuPrices.Count -eq 2)
+            if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
                 $skuPriceObject = $skuPrices[0]
             }
@@ -56,7 +54,7 @@ function Find-SkuHourlyPrice {
                 $skuFilterRight = "*/" + $skuNameParts[1] + "*"
                 $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilterLeft -or $_.MeterDetails.MeterName -like $skuFilterRight }
                 
-                if ($skuPrices.Count -eq 2)
+                if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
                     $skuPriceObject = $skuPrices[0]
                 }
@@ -311,13 +309,59 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 
 Write-Output "Getting Virtual Machine SKUs for the $referenceRegion region..."
 # Get all the VM SKUs information for the reference Azure region
-$skus = Get-AzComputeResourceSku | Where-Object { $_.ResourceType -eq "virtualMachines" -and $_.LocationInfo.Location -eq $referenceRegion }
+$skus = Get-AzComputeResourceSku -Location $referenceRegion | Where-Object { $_.ResourceType -eq "virtualMachines" }
 
 Write-Output "Getting the current Pricesheet..."
 
+if ($cloudEnvironment -eq "AzureCloud")
+{
+    $pricesheetRegion = "EU West"
+}
+
 try 
 {
-    $pricesheet = Get-AzConsumptionPriceSheet -ExpandMeterDetail
+    $pricesheet = $null
+    $pricesheetEntries = @()
+    $subscription = $workspaceSubscriptionId
+    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
+
+    do
+    {
+        if (-not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
+        {
+            $PriceSheetApiPath = $pricesheet.properties.nextLink.Substring($pricesheet.properties.nextLink.IndexOf("/subscriptions/"))
+        }
+        $tries = 0
+        $requestSuccess = $false
+        do 
+        {        
+            try {
+                $tries++
+                $pricesheet = (Invoke-AzRestMethod -Path $PriceSheetApiPath -Method GET).Content | ConvertFrom-Json
+
+                if ($pricesheet.error)
+                {
+                    throw "Cost Management not available ($($pricesheet.error.message))"
+                }    
+
+                $requestSuccess = $true
+            }
+            catch {
+                $ErrorMessage = $_.Exception.Message
+                Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 30 seconds..."
+                Start-Sleep -s 30   
+            }
+        } while ( -not($requestSuccess) -and $tries -lt 3 )
+
+        if ($pricesheet.error)
+        {
+            throw "Cost Management not available"
+        }
+
+        $pricesheetEntries += $pricesheet.properties.pricesheets | Where-Object { $_.meterDetails.meterLocation -eq $pricesheetRegion -and $_.meterDetails.meterCategory -eq "Virtual Machines" }
+
+    }
+    while ($requestSuccess -and -not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
 }
 catch
 {
@@ -562,9 +606,9 @@ foreach ($result in $results) {
         $targetSku = $null
         if ($additionalInfoDictionary.targetSku -ne "Shutdown") {
             $currentSku = $skus | Where-Object { $_.Name -eq $additionalInfoDictionary.currentSku }
-            $currentSkuvCPUs = [double]($currentSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
+            $currentSkuvCPUs = [int]($currentSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
             $targetSku = $skus | Where-Object { $_.Name -eq $additionalInfoDictionary.targetSku }
-            $targetSkuvCPUs = [double]($targetSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
+            $targetSkuvCPUs = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'vCPUsAvailable' }).Value
             $targetMaxDataDiskCount = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'MaxDataDiskCount' }).Value
             if ($targetMaxDataDiskCount -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.DataDiskCount_s))) {
@@ -602,7 +646,7 @@ foreach ($result in $results) {
             $targetUncachedDiskIOPS = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskIOPS' }).Value
             if ($targetUncachedDiskIOPS -gt 0) {
                 if (-not([string]::isNullOrEmpty($result.MaxPIOPS))) {
-                    if ([double]$result.MaxPIOPS -ge $targetUncachedDiskIOPS) {
+                    if ([double]$result.MaxPIOPS -ge [double]$targetUncachedDiskIOPS) {
                         $fitScore -= 1
                         $additionalInfoDictionary["SupportsIOPS"] = "false:needs$($result.MaxPIOPS)-max$targetUncachedDiskIOPS"            
                     }
@@ -616,7 +660,7 @@ foreach ($result in $results) {
                 $fitScore -= 1
                 $additionalInfoDictionary["SupportsIOPS"] = "unknown:needs$($result.MaxPIOPS)" 
             }
-            $targetUncachedDiskMiBps = [int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskBytesPerSecond' }).Value / 1024 / 1024
+            $targetUncachedDiskMiBps = [double]([int]($targetSku.Capabilities | Where-Object { $_.Name -eq 'UncachedDiskBytesPerSecond' }).Value) / 1024 / 1024
             if ($targetUncachedDiskMiBps -gt 0) { 
                 if (-not([string]::isNullOrEmpty($result.MaxPMiBps))) {
                     if ([double]$result.MaxPMiBps -ge $targetUncachedDiskMiBps) {
@@ -633,41 +677,53 @@ foreach ($result in $results) {
                 $additionalInfoDictionary["SupportsMiBps"] = "unknown:needs$($result.MaxPMiBps)"
             }
 
-            $savingCoefficient = $currentSkuvCPUs / $targetSkuvCPUs
+            $savingCoefficient = [double] $currentSkuvCPUs / $targetSkuvCPUs
+
+            if ($savingCoefficient -gt 1)
+            {
+                $targetSkuSavingsMonthly = [double]$result.Last30DaysCost - ([double]$result.Last30DaysCost / $savingCoefficient)
+            }
+            else
+            {
+                $targetSkuSavingsMonthly = [double]$result.Last30DaysCost / 2
+            }    
 
             if ($targetSku -and $null -eq $skuPricesFound[$targetSku.Name])
             {
-                $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheet
+                $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheetEntries
             }
 
-            $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
-
-            if ($targetSku -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
+            if ($targetSku -and $skuPricesFound[$targetSku.Name] -gt 0 -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
             {
                 $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
 
                 if ($null -eq $skuPricesFound[$currentSku.Name])
                 {
-                    $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheet
+                    $skuPricesFound[$currentSku.Name] = Find-SkuHourlyPrice -SKUName $currentSku.Name -SKUPriceSheet $pricesheetEntries
                 }
 
-                if ($skuPricesFound[$currentSku.Name] -lt [double]::MaxValue)
+                if ($skuPricesFound[$currentSku.Name] -gt 0)
                 {
                     $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
                     $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
                 }
                 else
                 {
-                    $targetSkuSavingsMonthly = $result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                    $targetSkuSavingsMonthly = [double]$result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
                 }
             }
 
+            if ($targetSkuSavingsMonthly -eq [double]::PositiveInfinity)
+            {
+                $targetSkuSavingsMonthly = [double] $result.Last30DaysCost / 2
+            }
+    
             $savingsMonthly = $targetSkuSavingsMonthly
 
         }
         else
         {
-            $savingsMonthly = $result.Last30DaysCost
+            $savingsMonthly = [double]$result.Last30DaysCost
         }
 
         $cpuThreshold = $cpuPercentageThreshold

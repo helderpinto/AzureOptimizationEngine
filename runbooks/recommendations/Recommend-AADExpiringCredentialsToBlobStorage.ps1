@@ -125,7 +125,7 @@ $baseQuery = @"
     let AppsAndKeys = materialize ($aadObjectsTableName
     | where TimeGenerated > ago(1d)
     | where ObjectType_s in ('Application','ServicePrincipal')
-    | where PrincipalNames_s !has 'https://identity.azure.net'
+    | where ObjectSubType_s != 'ManagedIdentity'
     | where Keys_s startswith '['
     | extend Keys = parse_json(Keys_s)
     | project-away Keys_s
@@ -135,7 +135,7 @@ $baseQuery = @"
         $aadObjectsTableName
         | where TimeGenerated > ago(1d)
         | where ObjectType_s in ('Application','ServicePrincipal')
-        | where PrincipalNames_s !has 'https://identity.azure.net'
+        | where ObjectSubType_s != 'ManagedIdentity'
         | where isnotempty(Keys_s) and Keys_s !startswith '['
         | extend Keys = parse_json(Keys_s)
         | project-away Keys_s
@@ -243,7 +243,7 @@ $baseQuery = @"
     let expiryInterval = $($notExpiringCredsDays)d;
     let AppsAndKeys = materialize ($aadObjectsTableName
     | where TimeGenerated > ago(1d)
-    | where PrincipalNames_s !has 'https://identity.azure.net'
+    | where ObjectSubType_s != 'ManagedIdentity'
     | where Keys_s startswith '['
     | extend Keys = parse_json(Keys_s)
     | project-away Keys_s
@@ -252,7 +252,7 @@ $baseQuery = @"
     | union ( 
         $aadObjectsTableName
         | where TimeGenerated > ago(1d)
-        | where PrincipalNames_s !has 'https://identity.azure.net'
+        | where ObjectSubType_s != 'ManagedIdentity'
         | where isnotempty(Keys_s) and Keys_s !startswith '['
         | extend Keys = parse_json(Keys_s)
         | project-away Keys_s

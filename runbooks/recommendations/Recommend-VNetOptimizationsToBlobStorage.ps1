@@ -83,6 +83,9 @@ else
     $subnetMinAge = [int] $subnetMinAgeVar
 }
 
+$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
+$consumptionOffsetDaysStart = $consumptionOffsetDays + 1
+
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
@@ -146,7 +149,7 @@ $nsgRulesTableName = $lognamePrefix + ($controlRows | Where-Object { $_.Collecte
 $publicIpsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGPublicIP' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $nicsTableName, $subscriptionsTableName and $vNetsTableName"
+Write-Output "Will run query against tables $nicsTableName, $nsgRulesTableName, $publicIpsTableName, $subscriptionsTableName, $consumptionTableName and $vNetsTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            

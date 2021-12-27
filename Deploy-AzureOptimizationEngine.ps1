@@ -1,4 +1,3 @@
-#Requires -RunAsAdministrator
 param (
     [Parameter(Mandatory = $false)]
     [string] $TemplateUri,
@@ -43,76 +42,6 @@ function ConvertTo-Hashtable {
             $InputObject
         }
     }
-}
-
-function CreateSelfSignedCertificate([string] $certificateName, [string] $selfSignedCertPlainPassword,
-    [string] $certPath, [string] $certPathCer, [int] $selfSignedCertNoOfMonthsUntilExpired ) {
-
-    if ($IsWindows -or $env:OS -like "Win*" -or [System.Environment]::OSVersion.Platform -like "Win*") {
-        $Cert = New-SelfSignedCertificate -DnsName $certificateName -CertStoreLocation cert:\LocalMachine\My `
-            -KeyExportPolicy Exportable -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" `
-            -NotAfter (Get-Date).AddMonths($selfSignedCertNoOfMonthsUntilExpired) -HashAlgorithm SHA256
-
-        $CertPassword = ConvertTo-SecureString $selfSignedCertPlainPassword -AsPlainText -Force
-        Export-PfxCertificate -Cert ("Cert:\localmachine\my\" + $Cert.Thumbprint) -FilePath $certPath -Password $CertPassword -Force | Write-Verbose
-        Export-Certificate -Cert ("Cert:\localmachine\my\" + $Cert.Thumbprint) -FilePath $certPathCer -Type CERT | Write-Verbose
-    }
-    elseif ($IsLinux -or $IsMacOs -or [System.Environment]::OSVersion.Platform -eq "Unix") {
-        $ValidityDays = $selfSignedCertNoOfMonthsUntilExpired * 30
-        openssl req -x509 -sha256 -nodes -days $ValidityDays -newkey rsa:2048 -subj "/CN=$certificateName" -keyout "$certPathCer.key" -out $certPathCer
-        openssl pkcs12 -export -out $certPath -password pass:$selfSignedCertPlainPassword -inkey "$certPathCer.key" -in $certPathCer
-    }
-    else {
-        throw "Unsupported OS type"
-    }
-}
-
-function CreateServicePrincipal([System.Security.Cryptography.X509Certificates.X509Certificate2] $PfxCert, [string] $applicationDisplayName) {
-    $keyValue = [System.Convert]::ToBase64String($PfxCert.GetRawCertData())
-    $identifierUri = "api://$((Get-AzContext).Tenant.Id)/$ApplicationDisplayName"
-
-    # Create an Azure AD application, AD App Credential, AD ServicePrincipal
-
-    # Requires Application Developer Role, but works with Application administrator or GLOBAL ADMIN
-    $Application = New-AzADApplication -DisplayName $ApplicationDisplayName -HomePage ("http://" + $applicationDisplayName) -IdentifierUris $identifierUri
-    # Requires Application administrator or GLOBAL ADMIN
-    $AppId = $Application.ApplicationId
-    $tries = 0
-    do
-    {
-        Start-Sleep -Seconds 20
-        $Application = Get-AzADApplication -ApplicationId $AppId
-        $tries++
-
-    } while ($null -eq $Application -and $tries -lt 5)
-    $AppCredential = New-AzADAppCredential -ApplicationId $Application.ApplicationId -CertValue $keyValue -StartDate $PfxCert.NotBefore -EndDate $PfxCert.NotAfter
-    # Requires Application administrator or GLOBAL ADMIN
-    $ServicePrincipal = New-AzADServicePrincipal -ApplicationId $Application.ApplicationId
-    $ServicePrincipal = Get-AzADServicePrincipal -ObjectId $ServicePrincipal.Id
-
-    # Sleep here for a few seconds to allow the service principal application to become active (ordinarily takes a few seconds)
-    Start-Sleep -Seconds 15
-    # Requires User Access Administrator or Owner.
-    $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
-    $Retries = 0;
-    While ($null -eq $NewRole -and $Retries -le 6) {
-        Start-Sleep -Seconds 10
-        $NewRole = New-AzRoleAssignment -RoleDefinitionName Reader -ApplicationId $Application.ApplicationId -ErrorAction SilentlyContinue
-        $NewRole = Get-AzRoleAssignment -ServicePrincipalName $Application.ApplicationId -ErrorAction SilentlyContinue
-        $Retries++;
-    }
-    return $Application.ApplicationId.ToString()
-}
-
-function CreateAutomationCertificateAsset ([string] $resourceGroup, [string] $automationAccountName, [string] $certifcateAssetName, [string] $certPath, [string] $certPlainPassword, [Boolean] $Exportable) {
-    $CertPassword = ConvertTo-SecureString $certPlainPassword -AsPlainText -Force
-    Remove-AzAutomationCertificate -ResourceGroupName $resourceGroup -AutomationAccountName $automationAccountName -Name $certifcateAssetName -ErrorAction SilentlyContinue
-    New-AzAutomationCertificate -ResourceGroupName $resourceGroup -AutomationAccountName $automationAccountName -Path $certPath -Name $certifcateAssetName -Password $CertPassword -Exportable:$Exportable  | write-verbose
-}
-
-function CreateAutomationConnectionAsset ([string] $resourceGroup, [string] $automationAccountName, [string] $connectionAssetName, [string] $connectionTypeName, [System.Collections.Hashtable] $connectionFieldValues ) {
-    Remove-AzAutomationConnection -ResourceGroupName $resourceGroup -AutomationAccountName $automationAccountName -Name $connectionAssetName -Force -ErrorAction SilentlyContinue
-    New-AzAutomationConnection -ResourceGroupName $ResourceGroup -AutomationAccountName $automationAccountName -Name $connectionAssetName -ConnectionTypeName $connectionTypeName -ConnectionFieldValues $connectionFieldValues
 }
 
 $ErrorActionPreference = "Stop"
@@ -183,7 +112,7 @@ else {
     }
 }
 
-Write-Host "Getting Azure subscriptions..." -ForegroundColor Green
+Write-Host "Getting Azure subscriptions (filtering out unsupported ones)..." -ForegroundColor Green
 
 $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "Internal*" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
 
@@ -242,7 +171,7 @@ if (-not($deploymentOptions["SubscriptionId"]))
 }
 
 if ($ctx.Subscription.Id -ne $subscriptionId) {
-    Select-AzSubscription -SubscriptionId $subscriptionId
+    $ctx = Select-AzSubscription -SubscriptionId $subscriptionId
 }
 
 $workspaceReuse = $null
@@ -525,12 +454,6 @@ if ("Y", "y" -contains $continueInput) {
 
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
     
-    if ($null -eq $rg) {
-        Write-Host "Resource group $resourceGroupName does not exist." -ForegroundColor Yellow
-        Write-Host "Creating resource group $resourceGroupName..." -ForegroundColor Green
-        New-AzResourceGroup -Name $resourceGroupName -Location $targetLocation
-    }
-
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
     $upgradingSchedules = $false
     $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
@@ -562,7 +485,7 @@ if ("Y", "y" -contains $continueInput) {
     
         Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
         if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
@@ -570,13 +493,14 @@ if ("Y", "y" -contains $continueInput) {
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
         }
         else {
-            New-AzResourceGroupDeployment -TemplateUri $TemplateUri -ResourceGroupName $resourceGroupName -Name $deploymentName `
+            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
                 -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
                 -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                 -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
                 -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-        }    
+        }
+        $spnId = $deployment.Outputs['automationPrincipalId'].Value 
     }
     else
     {
@@ -633,9 +557,9 @@ if ("Y", "y" -contains $continueInput) {
             $moduleJson = "{ `"name`": `"$automationAccountName/$($allModules[$i].name)`", `"type`": `"Microsoft.Automation/automationAccounts/modules`", " + `
                 "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
                 "`"contentLink`": { `"uri`": `"$($allModules[$i].url)`" } } "
-            if ($allModules[$i].name -ne "Az.Accounts")
+            if ($allModules[$i].name -ne "Az.Accounts" -and $allModules[$i].name -ne "Microsoft.Graph.Authentication")
             {
-                $moduleJson += ", `"dependsOn`": [ `"Az.Accounts`" ]"
+                $moduleJson += ", `"dependsOn`": [ `"Az.Accounts`", `"Microsoft.Graph.Authentication`" ]"
             }
             $moduleJson += "}"
             $modulesDeploymentTemplateJson += $moduleJson
@@ -653,19 +577,59 @@ if ("Y", "y" -contains $continueInput) {
 
         Write-Host "Updating schedules..." -ForegroundColor Green
         $allSchedules = $upgradeManifest.schedules
+
+        $allScheduledRunbooks = Get-AzAutomationScheduledRunbook -AutomationAccountName $AutomationAccountName -ResourceGroupName $ResourceGroupName
+        $exportHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Export") })[0].HybridWorker
+        $ingestHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Ingest") })[0].HybridWorker
+        $recommendHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Recommend") })[0].HybridWorker
+        if ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })
+        {
+            $remediateHybridWorkerOption = ($allScheduledRunbooks | Where-Object { $_.RunbookName.StartsWith("Remediate") })[0].HybridWorker
+        }
+        
+        $hybridWorkerOption = "None"
+        if ($exportHybridWorkerOption -or $ingestHybridWorkerOption -or $recommendHybridWorkerOption -or $remediateHybridWorkerOption) {
+            $hybridWorkerOption = "Export: $exportHybridWorkerOption; Ingest: $ingestHybridWorkerOption; Recommend: $recommendHybridWorkerOption; Remediate: $remediateHybridWorkerOption"
+        }      
+        Write-Host "Current Hybrid Worker option: $hybridWorkerOption" -ForegroundColor Green            
+
         foreach ($schedule in $allSchedules)
         {
             if (-not($schedules | Where-Object { $_.Name -eq $schedule.name }))
             {
+                $scheduleStartTime = (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset))
+                $scheduleNow = (Get-Date).ToUniversalTime()
+
+                if ($schedule.frequency -eq "Hour")
+                {
+                    if ($scheduleNow.AddMinutes(5) -gt $scheduleStartTime)
+                    {
+                        $hoursDiff = ($scheduleNow - $scheduleStartTime).Hours + 1
+                        $scheduleStartTime = $scheduleStartTime.AddHours($hoursDiff)
+                    }
+
+                    New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                        -StartTime $scheduleStartTime -HourInterval 1 | Out-Null
+                }
                 if ($schedule.frequency -eq "Day")
                 {
+                    if ($scheduleNow.AddMinutes(5) -gt $scheduleStartTime)
+                    {
+                        $scheduleStartTime = $scheduleStartTime.AddDays(1)
+                    }
+
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -DayInterval 1 | Out-Null
+                        -StartTime $scheduleStartTime -DayInterval 1 | Out-Null
                 }
                 if ($schedule.frequency -eq "Week")
                 {
+                    if ($scheduleNow.AddMinutes(5) -gt $scheduleStartTime)
+                    {
+                        $scheduleStartTime = $scheduleStartTime.AddDays(7)
+                    }
+
                     New-AzAutomationSchedule -Name $schedule.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
-                        -StartTime (Get-Date $baseTime).Add([System.Xml.XmlConvert]::ToTimeSpan($schedule.offset)) -WeekInterval 1 | Out-Null
+                        -StartTime $scheduleStartTime -WeekInterval 1 | Out-Null
                 }
                 Write-Host "$($schedule.name) schedule created."
             }
@@ -677,19 +641,89 @@ if ("Y", "y" -contains $continueInput) {
             foreach ($dataExport in $dataExportsToSchedule)
             {
                 $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                $runbookType = $runbookName.Split("-")[0]
+                switch ($runbookType)
+                {
+                    "Export" {
+                        $hybridWorkerName = $exportHybridWorkerOption
+                    }
+                    "Recommmend" {
+                        $hybridWorkerName = $recommendHybridWorkerOption
+                    }
+                    "Ingest" {
+                        $hybridWorkerName = $ingestHybridWorkerOption
+                    }
+                    "Remediate" {
+                        $hybridWorkerName = $remediateHybridWorkerOption
+                    }
+                    Default {
+                        $hybridWorkerName = $null
+                    }
+                }
+
                 if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
                 {
-                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    if ($hybridWorkerName)
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker | Out-Null
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName | Out-Null
                     }
                     else
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                             -RunbookName $runbookName -ScheduleName $schedule.name | Out-Null                        
                     }
-                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                    Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $runbookName runbook"
+                }
+            }
+
+            $dataExportsToMultiSchedule = $upgradeManifest.dataCollection | Where-Object { $_.exportSchedules.Count -gt 0 }
+
+            foreach ($dataExport in $dataExportsToMultiSchedule)
+            {
+                $exportSchedule = $dataExport.exportSchedules | Where-Object { $_.schedule -eq $schedule.name }
+                if ($exportSchedule)
+                {
+                    $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                    $runbookType = $runbookName.Split("-")[0]
+                    switch ($runbookType)
+                    {
+                        "Export" {
+                            $hybridWorkerName = $exportHybridWorkerOption
+                        }
+                        "Recommmend" {
+                            $hybridWorkerName = $recommendHybridWorkerOption
+                        }
+                        "Ingest" {
+                            $hybridWorkerName = $ingestHybridWorkerOption
+                        }
+                        "Remediate" {
+                            $hybridWorkerName = $remediateHybridWorkerOption
+                        }
+                        Default {
+                            $hybridWorkerName = $null
+                        }
+                    }
+                    
+                    if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName -and $_.ScheduleName -eq $schedule.name}))
+                    {   
+                        $params = @{}
+                        $exportSchedule.parameters.PSObject.Properties | ForEach-Object {
+                            $params[$_.Name] = $_.Value
+                        }                                
+    
+                        if ($hybridWorkerName)
+                        {
+                            Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                                -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName -Parameters $params | Out-Null
+                        }
+                        else
+                        {
+                            Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                                -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
+                        }
+                        Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $runbookName runbook."
+                    }    
                 }
             }
 
@@ -697,21 +731,41 @@ if ("Y", "y" -contains $continueInput) {
             foreach ($dataIngest in $dataIngestToSchedule)
             {
                 $runbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook)
+                $runbookType = $runbookName.Split("-")[0]
+                switch ($runbookType)
+                {
+                    "Export" {
+                        $hybridWorkerName = $exportHybridWorkerOption
+                    }
+                    "Recommmend" {
+                        $hybridWorkerName = $recommendHybridWorkerOption
+                    }
+                    "Ingest" {
+                        $hybridWorkerName = $ingestHybridWorkerOption
+                    }
+                    "Remediate" {
+                        $hybridWorkerName = $remediateHybridWorkerOption
+                    }
+                    Default {
+                        $hybridWorkerName = $null
+                    }
+                }
+    
                 if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
                 {
                     $params = @{"StorageSinkContainer"=$dataIngest.container}
 
-                    if ($scheduledRunbooks -and $scheduledRunbooks[0].HybridWorker)
+                    if ($hybridWorkerName)
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $scheduledRunbooks[0].HybridWorker -Parameters $params | Out-Null
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName -Parameters $params | Out-Null
                     }
                     else
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
                             -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
                     }
-                    Write-Host "Added $($schedule.name) schedule to $runbookName runbook."
+                    Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $runbookName runbook."
                 }
             }
         }
@@ -739,7 +793,7 @@ if ("Y", "y" -contains $continueInput) {
 
     if ($upgradingSchedules) {
         $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
-        $dailySchedules = $schedules | Where-Object { $_.Frequency -eq "Day" }
+        $dailySchedules = $schedules | Where-Object { $_.Frequency -eq "Day" -or $_.Frequency -eq "Hour" }
         Write-Host "Fixing daily schedules after upgrade..." -ForegroundColor Green
         foreach ($schedule in $dailySchedules) {
             $now = (Get-Date).ToUniversalTime()
@@ -758,7 +812,7 @@ if ("Y", "y" -contains $continueInput) {
                   `"startTime`": `"$startTime`",
                   `"expiryTime`": `"$expiryTime`",
                   `"interval`": 1,
-                  `"frequency`": `"Day`",
+                  `"frequency`": `"$($schedule.Frequency.ToString())`",
                   `"advancedSchedule`": {}
                 }
               }"
@@ -781,54 +835,6 @@ if ("Y", "y" -contains $continueInput) {
         Write-Host "Setting initial deployment date ($deploymentDate)..." -ForegroundColor Green
         New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
-    }
-
-    Write-Host "Checking Azure Automation Run As account..." -ForegroundColor Green
-
-    $CertificateAssetName = "AzureRunAsCertificate"
-    $ConnectionAssetName = "AzureRunAsConnection"
-    $ConnectionTypeName = "AzureServicePrincipal"
-    $SelfSignedCertNoOfMonthsUntilExpired = 12
-
-    $runAsConnection = Get-AzAutomationConnection -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $ConnectionAssetName -ErrorAction SilentlyContinue
-    
-    if ($null -eq $runAsConnection) {
-
-        $runasAppName = "$automationAccountName-runasaccount"
-
-        $CertificateName = $automationAccountName + $CertificateAssetName
-        $TempDir = [System.IO.Path]::GetTempPath()
-        $PfxCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".pfx")
-        $PfxCertPlainPasswordForRunAsAccount = -join ((65..90) + (97..122) | Get-Random -Count 20 | % { [char]$_ })
-        $CerCertPathForRunAsAccount = Join-Path $TempDir ($CertificateName + ".cer")
-
-        try {
-            CreateSelfSignedCertificate $CertificateName $PfxCertPlainPasswordForRunAsAccount $PfxCertPathForRunAsAccount $CerCertPathForRunAsAccount $SelfSignedCertNoOfMonthsUntilExpired   
-        }
-        catch {
-            Write-Host "Message: [$($_.Exception.Message)"] -ForegroundColor Red
-            Write-Host "Failed to create self-signed certificate. Please, run this script in an elevated prompt." -ForegroundColor Red
-            throw "Terminating due to lack of administrative privileges."
-        }
-
-        $PfxCert = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($PfxCertPathForRunAsAccount, $PfxCertPlainPasswordForRunAsAccount)
-        $ApplicationId = CreateServicePrincipal $PfxCert $runasAppName
-
-        Write-Output "Granting Contributor role only at the $resourceGroupName resource group level to $ApplicationId"
-        New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $resourceGroupName -ApplicationId $ApplicationId | Out-Null
-        
-        CreateAutomationCertificateAsset $resourceGroupName $automationAccountName $CertificateAssetName $PfxCertPathForRunAsAccount $PfxCertPlainPasswordForRunAsAccount $true
-        
-        $ConnectionFieldValues = @{"ApplicationId" = $ApplicationId; "TenantId" = $ctx.Subscription.TenantId; "CertificateThumbprint" = $PfxCert.Thumbprint; "SubscriptionId" = $ctx.Subscription.Id }
-
-        CreateAutomationConnectionAsset $resourceGroupName $automationAccountName $ConnectionAssetName $ConnectionTypeName $ConnectionFieldValues
-        
-        Write-Output "Removing auto-assigned Contributor role from subscription scope"
-        $subscriptionScope =  "/subscriptions/" + $ctx.Subscription.Id
-        Get-AzRoleAssignment -ServicePrincipalName $ApplicationId -Scope $subscriptionScope -RoleDefinitionName Contributor | Remove-AzRoleAssignment
-    }
-    else {
-        Write-Host "(The Automation Run As account was already deployed)" -ForegroundColor Green
     }
 
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
@@ -963,25 +969,64 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
         }
     }
+    
+    if ($null -eq $spnId)
+    {
+        $auto = Get-AzAutomationAccount -Name $automationAccountName -ResourceGroupName $resourceGroupName
+        $spnId = $auto.Identity.PrincipalId
+        if ($null -eq $spnId)
+        {
+            $runAsConnection = Get-AzAutomationConnection -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name AzureRunAsConnection -ErrorAction SilentlyContinue
+            $runAsAppId = $runAsConnection.FieldDefinitionValues.ApplicationId
+            if ($runAsAppId)
+            {
+                $runAsServicePrincipal = Get-AzADServicePrincipal -ApplicationId $runAsAppId
+                $spnId = $runAsServicePrincipal.Id
+            }
+        }
+    }
 
     try
     {
-        Write-Host "Granting Azure AD Global Reader role to the Automation Run As Account (look for the login window that may have popped up)..." -ForegroundColor Green
-        $spnName = "$automationAccountName-runasaccount"
-        try
-        { 
-            Get-AzureADTenantDetail | Out-Null
-        }
-        catch 
-        { 
-            Connect-AzureAD -TenantId $ctx.Subscription.TenantId -AzureEnvironmentName $AzureEnvironment
-        }
-        $globalReaderRole = Get-AzureADDirectoryRole | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
-        $globalReaders = Get-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId
-        $spn = Get-AzureADServicePrincipal -SearchString $spnName
-        if (-not($globalReaders | Where-Object { $_.ObjectId -eq $spn.ObjectId }))
+        Import-Module Microsoft.Graph.Authentication
+        Import-Module Microsoft.Graph.Identity.DirectoryManagement
+
+        Write-Host "Granting Azure AD Global Reader role to the Automation Account..." -ForegroundColor Green
+
+        #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
+        $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+        if (-not(get-item "$localPath\.graph\" -ErrorAction SilentlyContinue))
         {
-            Add-AzureADDirectoryRoleMember -ObjectId $globalReaderRole.ObjectId -RefObjectId $spn.ObjectId
+            New-Item -Type Directory "$localPath\.graph"
+        }
+        
+        $graphEnvironment = "Global"
+        $graphEndpointUri = "https://graph.microsoft.com"  
+        if ($AzureEnvironment -eq "AzureUSGovernment")
+        {
+            $graphEnvironment = "USGov"
+            $graphEndpointUri = "https://graph.microsoft.us"
+        }
+        if ($AzureEnvironment -eq "AzureChinaCloud")
+        {
+            $graphEnvironment = "China"
+            $graphEndpointUri = "https://microsoftgraph.chinacloudapi.cn"
+        }
+        if ($AzureEnvironment -eq "AzureGermanCloud")
+        {
+            $graphEnvironment = "Germany"
+            $graphEndpointUri = "https://graph.microsoft.de"
+        }
+        
+        $token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
+        Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
+
+        $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
+            | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
+        $globalReaders = $globalReaderRole.Members.Id
+        if (-not($globalReaders -contains $spnId))
+        {
+            New-MgDirectoryRoleMemberByRef -DirectoryRoleId $globalReaderRole.Id -BodyParameter @{"@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$spnId"}
             Write-Host "Role granted." -ForegroundColor Green
         }
         else
@@ -992,7 +1037,7 @@ if ("Y", "y" -contains $continueInput) {
     catch
     {
         Write-Host $Error[0] -ForegroundColor Yellow
-        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $spnName Service Principal." -ForegroundColor Red
+        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $automationAccountName managed identity or, for previous versions of AOE, to the Run As Account principal." -ForegroundColor Red
     }
 
     Write-Host "Deployment completed!" -ForegroundColor Green
