@@ -9,7 +9,10 @@ param (
     [string] $ArtifactsSasToken,
 
     [Parameter(Mandatory = $false)]
-    [switch] $DoPartialUpgrade # updates only storage account containers, Automation assets and SQL Database model
+    [switch] $DoPartialUpgrade, # updates only storage account containers, Automation assets and SQL Database model
+
+    [Parameter(Mandatory = $false)]
+    [string] $SilentDeploymentSettingsPath
 )
 
 function ConvertTo-Hashtable {
