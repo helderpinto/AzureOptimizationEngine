@@ -694,7 +694,7 @@ if ("Y", "y" -contains $continueInput) {
                         "Export" {
                             $hybridWorkerName = $exportHybridWorkerOption
                         }
-                        "Recommmend" {
+                        "Recommend" {
                             $hybridWorkerName = $recommendHybridWorkerOption
                         }
                         "Ingest" {
@@ -740,7 +740,7 @@ if ("Y", "y" -contains $continueInput) {
                     "Export" {
                         $hybridWorkerName = $exportHybridWorkerOption
                     }
-                    "Recommmend" {
+                    "Recommend" {
                         $hybridWorkerName = $recommendHybridWorkerOption
                     }
                     "Ingest" {
@@ -954,9 +954,6 @@ if ("Y", "y" -contains $continueInput) {
         throw "Could not establish connection to SQL."
     }
     
-    Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
-    Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
-
     Write-Host "Publishing workbooks..." -ForegroundColor Green
     $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
     $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
@@ -972,6 +969,9 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
         }
     }
+
+    Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
+    Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
     
     if ($null -eq $spnId)
     {
