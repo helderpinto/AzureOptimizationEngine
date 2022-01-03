@@ -650,7 +650,7 @@ if ("Y", "y" -contains $continueInput) {
                     "Export" {
                         $hybridWorkerName = $exportHybridWorkerOption
                     }
-                    "Recommmend" {
+                    "Recommend" {
                         $hybridWorkerName = $recommendHybridWorkerOption
                     }
                     "Ingest" {
