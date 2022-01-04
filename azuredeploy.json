@@ -627,13 +627,13 @@
                             },
                             {
                                 "exportSchedule": "[variables('monitorVmssCpuAvgExportsScheduleName')]",
-                                "exportDescription": "Hourly Azure Monitor metrics exports for VMSS CPU Percentage (Avg.)",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for VMSS Percentage CPU (Avg.)",
                                 "exportTimeOffset": "PT1H15M",
                                 "exportFrequency": "Hour"
                             },
                             {
                                 "exportSchedule": "[variables('monitorVmssCpuMaxExportsScheduleName')]",
-                                "exportDescription": "Hourly Azure Monitor metrics exports for VMSS CPU Percentage (Max.)",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for VMSS Percentage CPU (Max.)",
                                 "exportTimeOffset": "PT1H15M",
                                 "exportFrequency": "Hour"
                             },
@@ -892,7 +892,7 @@
                                     "ResourceType": "microsoft.compute/virtualmachinescalesets",
                                     "TimeSpan": "01:00:00",
                                     "aggregationType": "Maximum",
-                                    "MetricNames": "CPU Percentage",
+                                    "MetricNames": "Percentage CPU",
                                     "TimeGrain": "01:00:00"
                                 }
                             },
@@ -904,7 +904,7 @@
                                     "ResourceType": "microsoft.compute/virtualmachinescalesets",
                                     "TimeSpan": "01:00:00",
                                     "aggregationType": "Average",
-                                    "MetricNames": "CPU Percentage",
+                                    "MetricNames": "Percentage CPU",
                                     "TimeGrain": "01:00:00"
                                 }
                             },
