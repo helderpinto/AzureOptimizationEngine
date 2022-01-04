@@ -346,7 +346,7 @@
                         "ResourceType": "microsoft.compute/virtualmachinescalesets",
                         "TimeSpan": "01:00:00",
                         "aggregationType": "Maximum",
-                        "MetricNames": "CPU Percentage",
+                        "MetricNames": "Percentage CPU",
                         "TimeGrain": "01:00:00"
                     }
                 },
@@ -356,7 +356,7 @@
                         "ResourceType": "microsoft.compute/virtualmachinescalesets",
                         "TimeSpan": "01:00:00",
                         "aggregationType": "Average",
-                        "MetricNames": "CPU Percentage",
+                        "MetricNames": "Percentage CPU",
                         "TimeGrain": "01:00:00"
                     }
                 },
