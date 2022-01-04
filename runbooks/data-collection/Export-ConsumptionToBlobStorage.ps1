@@ -214,6 +214,14 @@ foreach ($subscription in $subscriptions)
     
     Write-Output "Uploading CSV to Storage"
 
+    $ci = [CultureInfo]::new([System.Threading.Thread]::CurrentThread.CurrentCulture.Name)
+    if ($ci.NumberFormat.NumberDecimalSeparator -ne '.')
+    {
+        Write-Output "Current culture ($($ci.Name)) does not use . as decimal separator"    
+        $ci.NumberFormat.NumberDecimalSeparator = '.'
+        [System.Threading.Thread]::CurrentThread.CurrentCulture = $ci
+    }
+
     $billingEntries | Export-Csv -Path $csvExportPath -NoTypeInformation
 
     $csvBlobName = $csvExportPath
