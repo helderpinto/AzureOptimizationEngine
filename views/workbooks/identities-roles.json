@@ -188,6 +188,20 @@
             }
           },
           {
+            "id": "ed6eb3b2-0ce6-4070-93f3-d4fe6212fe12",
+            "version": "KqlParameterItem/1.0",
+            "name": "aadAssignmentType",
+            "label": "Assignment Type",
+            "type": 2,
+            "isRequired": true,
+            "value": "All",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\"All\", \"Direct\", \"Group\"]"
+          },
+          {
             "id": "d042742e-4a0c-4670-ace7-528f6862ae1a",
             "version": "KqlParameterItem/1.0",
             "name": "aadRoleHistoryRange",
@@ -282,6 +296,20 @@
             "timeContext": {
               "durationMs": 86400000
             }
+          },
+          {
+            "id": "ed6eb3b2-0ce6-4070-93f3-d4fe6212fe12",
+            "version": "KqlParameterItem/1.0",
+            "name": "armAssignmentType",
+            "label": "Assignment Type",
+            "type": 2,
+            "isRequired": true,
+            "value": "All",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\"All\", \"Direct\", \"Group\"]"
           },
           {
             "id": "56a07f4a-d0d5-4f5b-b07b-0e1d9dfcd91f",
@@ -733,7 +761,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}));\r\nlet RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}) | where RoleDefinition_s in ({aadRoleDefinitions}));\r\nlet EnabledObjects = materialize(AADObjectsTable\r\n| where isnotempty(ObjectId_g)\r\n| where ObjectType_s == '{aadObjectType}' and SecurityEnabled_s in ('True','N/A')\r\n| project ObjectId = ObjectId_g, PrincipalNames_s, DisplayName_s, ObjectSubType_s);\r\nlet GroupMemberships = AADObjectsTable\r\n| where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n| where PrincipalNames_s startswith '['\r\n| extend GroupMember = parse_json(PrincipalNames_s)\r\n| project-away PrincipalNames_s\r\n| mv-expand GroupMember\r\n| union (\r\n    AADObjectsTable\r\n    | where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n    | where isnotempty(PrincipalNames_s) and PrincipalNames_s !startswith '['\r\n    | extend GroupMember = parse_json(PrincipalNames_s)\r\n    | project-away PrincipalNames_s\r\n)\r\n| project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;\r\nlet DirectUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureAD'\r\n| join kind=inner (\r\n    EnabledObjects\r\n) on $left.PrincipalId_g == $right.ObjectId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g, ObjectSubType_s;\r\nlet GroupUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureAD'\r\n| join kind=inner (\r\n    GroupMemberships\r\n    | join kind=inner ( \r\n        EnabledObjects\r\n    ) on $left.GroupMember == $right.ObjectId\r\n) on $left.PrincipalId_g == $right.GroupId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g, ObjectSubType_s;\r\nGroupUserAssignments\r\n| union DirectUserAssignments\r\n| distinct DisplayName_s, PrincipalNames_s, PrincipalId_g, ObjectSubType_s, RoleDefinition_s, Scope_s, Assignment\r\n| order by PrincipalNames_s asc",
+        "query": "let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}));\r\nlet RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}) | where RoleDefinition_s in ({aadRoleDefinitions}));\r\nlet EnabledObjects = materialize(AADObjectsTable\r\n| where isnotempty(ObjectId_g)\r\n| where ObjectType_s == '{aadObjectType}' and SecurityEnabled_s in ('True','N/A')\r\n| project ObjectId = ObjectId_g, PrincipalNames_s, DisplayName_s, ObjectSubType_s);\r\nlet GroupMemberships = AADObjectsTable\r\n| where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n| where PrincipalNames_s startswith '['\r\n| extend GroupMember = parse_json(PrincipalNames_s)\r\n| project-away PrincipalNames_s\r\n| mv-expand GroupMember\r\n| union (\r\n    AADObjectsTable\r\n    | where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n    | where isnotempty(PrincipalNames_s) and PrincipalNames_s !startswith '['\r\n    | extend GroupMember = parse_json(PrincipalNames_s)\r\n    | project-away PrincipalNames_s\r\n)\r\n| project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;\r\nlet DirectUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureAD'\r\n| join kind=inner (\r\n    EnabledObjects\r\n) on $left.PrincipalId_g == $right.ObjectId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g, ObjectSubType_s;\r\nlet GroupUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureAD'\r\n| join kind=inner (\r\n    GroupMemberships\r\n    | join kind=inner ( \r\n        EnabledObjects\r\n    ) on $left.GroupMember == $right.ObjectId\r\n) on $left.PrincipalId_g == $right.GroupId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g, ObjectSubType_s;\r\nGroupUserAssignments\r\n| union DirectUserAssignments\r\n| distinct DisplayName_s, PrincipalNames_s, PrincipalId_g, ObjectSubType_s, RoleDefinition_s, Scope_s, Assignment\r\n| where '{aadAssignmentType}' == 'All' or Assignment startswith '{aadAssignmentType}'\r\n| order by PrincipalNames_s asc",
         "size": 1,
         "showAnalytics": true,
         "timeContext": {
@@ -773,9 +801,6 @@
             {
               "columnId": "Scope_s",
               "label": "Scope"
-            },
-            {
-              "columnId": "Assignment"
             }
           ]
         }
@@ -791,7 +816,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}));\r\nlet RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}) | where RoleDefinition_s in ({armRoleDefinitions}));\r\nlet EnabledObjects = materialize(AADObjectsTable\r\n| where isnotempty(ObjectId_g)\r\n| where ObjectType_s == '{armObjectType}' and SecurityEnabled_s in ('True','N/A')\r\n| project ObjectId = ObjectId_g, PrincipalNames_s, DisplayName_s, ObjectSubType_s);\r\nlet GroupMemberships = AADObjectsTable\r\n| where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n| where PrincipalNames_s startswith '['\r\n| extend GroupMember = parse_json(PrincipalNames_s)\r\n| project-away PrincipalNames_s\r\n| mv-expand GroupMember\r\n| union (\r\n    AADObjectsTable\r\n    | where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n    | where isnotempty(PrincipalNames_s) and PrincipalNames_s !startswith '['\r\n    | extend GroupMember = parse_json(PrincipalNames_s)\r\n    | project-away PrincipalNames_s\r\n)\r\n| project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;\r\nlet DirectUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureRM'\r\n| join kind=inner (\r\n    EnabledObjects\r\n) on $left.PrincipalId_g == $right.ObjectId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g, ObjectSubType_s;\r\nlet GroupUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureRM'\r\n| join kind=inner (\r\n    GroupMemberships\r\n    | join kind=inner ( \r\n        EnabledObjects\r\n    ) on $left.GroupMember == $right.ObjectId\r\n) on $left.PrincipalId_g == $right.GroupId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g, ObjectSubType_s;\r\nGroupUserAssignments\r\n| union DirectUserAssignments\r\n| distinct DisplayName_s, PrincipalNames_s, PrincipalId_g, ObjectSubType_s, RoleDefinition_s, Scope_s, Assignment\r\n| order by PrincipalNames_s asc",
+        "query": "let AADObjectsTable = materialize(AzureOptimizationAADObjectsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}));\r\nlet RBACAssignmentsTable = materialize(AzureOptimizationRBACAssignmentsV1_CL | where TimeGenerated > ago(1d) | where TenantGuid_g in ({TenantId}) | where RoleDefinition_s in ({armRoleDefinitions}));\r\nlet EnabledObjects = materialize(AADObjectsTable\r\n| where isnotempty(ObjectId_g)\r\n| where ObjectType_s == '{armObjectType}' and SecurityEnabled_s in ('True','N/A')\r\n| project ObjectId = ObjectId_g, PrincipalNames_s, DisplayName_s, ObjectSubType_s);\r\nlet GroupMemberships = AADObjectsTable\r\n| where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n| where PrincipalNames_s startswith '['\r\n| extend GroupMember = parse_json(PrincipalNames_s)\r\n| project-away PrincipalNames_s\r\n| mv-expand GroupMember\r\n| union (\r\n    AADObjectsTable\r\n    | where ObjectType_s == 'Group' and SecurityEnabled_s == 'True'\r\n    | where isnotempty(PrincipalNames_s) and PrincipalNames_s !startswith '['\r\n    | extend GroupMember = parse_json(PrincipalNames_s)\r\n    | project-away PrincipalNames_s\r\n)\r\n| project GroupId = ObjectId_g, GroupName = DisplayName_s, GroupMember = tostring(GroupMember), TenantGuid_g, Cloud_s;\r\nlet DirectUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureRM'\r\n| join kind=inner (\r\n    EnabledObjects\r\n) on $left.PrincipalId_g == $right.ObjectId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = 'Direct', Model_s, TenantGuid_g, ObjectSubType_s;\r\nlet GroupUserAssignments = RBACAssignmentsTable\r\n| where Model_s == 'AzureRM'\r\n| join kind=inner (\r\n    GroupMemberships\r\n    | join kind=inner ( \r\n        EnabledObjects\r\n    ) on $left.GroupMember == $right.ObjectId\r\n) on $left.PrincipalId_g == $right.GroupId\r\n| project PrincipalNames_s, PrincipalId_g, DisplayName_s, RoleDefinition_s, Scope_s, Assignment = strcat('Group>',GroupName), Model_s, TenantGuid_g, ObjectSubType_s;\r\nGroupUserAssignments\r\n| union DirectUserAssignments\r\n| distinct DisplayName_s, PrincipalNames_s, PrincipalId_g, ObjectSubType_s, RoleDefinition_s, Scope_s, Assignment\r\n| where '{armAssignmentType}' == 'All' or Assignment startswith '{armAssignmentType}'\r\n| order by PrincipalNames_s asc",
         "size": 1,
         "showAnalytics": true,
         "timeContext": {
@@ -831,9 +856,6 @@
             {
               "columnId": "Scope_s",
               "label": "Scope"
-            },
-            {
-              "columnId": "Assignment"
             }
           ]
         }
@@ -853,7 +875,7 @@
         "size": 1,
         "title": "Role history for selected principal",
         "timeContext": {
-          "durationMs": 0
+          "durationMs": 2592000000
         },
         "timeContextFromParameter": "aadRoleHistoryRange",
         "queryType": 0,
@@ -874,7 +896,7 @@
         "size": 1,
         "title": "Role history for selected principal",
         "timeContext": {
-          "durationMs": 0
+          "durationMs": 2592000000
         },
         "timeContextFromParameter": "armRoleHistoryRange",
         "queryType": 0,
