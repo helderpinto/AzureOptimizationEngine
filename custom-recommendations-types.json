@@ -49,6 +49,12 @@
             "description": "Premium SSD disk has been underutilized"
         },
         {
+            "category": "Cost",
+            "typeId": "08e049ca-18b0-4d22-b174-131a91d0381c",
+            "impact": "Medium",
+            "description": "Storage Account has been growing steadily"
+        },
+        {
             "category": "HighAvailability",
             "typeId": "255de20b-d5e4-4be5-9695-620b4a905774",
             "impact": "High",
