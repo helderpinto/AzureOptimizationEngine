@@ -1853,7 +1853,7 @@
                             ],
                             "properties": {
                                 "description": "The Azure SQL Server hostname for the ingestion control and recommendations tables",
-                                "value": "[concat('\"', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), providers('Microsoft.Sql', 'servers').apiVersions[0]).fullyQualifiedDomainName, '\"')]"
+                                "value": "[concat('\"', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), variables('apiVersions').sql).fullyQualifiedDomainName, '\"')]"
                             }
                         },
                         // Automation Variables (Log Analytics workspace Id)
@@ -1867,7 +1867,7 @@
                             ],
                             "properties": {
                                 "description": "The Log Analytics Workspace ID where optimization data will be ingested",
-                                "value": "[concat('\"', reference(if(not(parameters('logAnalyticsReuse')), resourceId('microsoft.operationalinsights/workspaces', parameters('logAnalyticsWorkspaceName')), resourceId(parameters('logAnalyticsWorkspaceRG'), 'microsoft.operationalinsights/workspaces', parameters('logAnalyticsWorkspaceName'))), providers('microsoft.operationalinsights', 'workspaces').apiVersions[0]).customerId, '\"')]"
+                                "value": "[concat('\"', reference(if(not(parameters('logAnalyticsReuse')), resourceId('microsoft.operationalinsights/workspaces', parameters('logAnalyticsWorkspaceName')), resourceId(parameters('logAnalyticsWorkspaceRG'), 'microsoft.operationalinsights/workspaces', parameters('logAnalyticsWorkspaceName'))), variables('apiVersions').operationalInsights).customerId, '\"')]"
                             }
                         },
                         // Automation Variables (Log Analytics workspace key)
