@@ -49,6 +49,8 @@ function ConvertTo-Hashtable {
 
 $ErrorActionPreference = "Stop"
 
+#region Deployment environment settings
+
 $lastDeploymentStatePath = ".\last-deployment-state.json"
 $deploymentOptions = @{}
 
@@ -115,6 +117,10 @@ else {
     }
 }
 
+#endregion
+
+#region Azure subscription choice
+
 Write-Host "Getting Azure subscriptions (filtering out unsupported ones)..." -ForegroundColor Green
 
 $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "Internal*" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
@@ -177,6 +183,9 @@ if ($ctx.Subscription.Id -ne $subscriptionId) {
     $ctx = Select-AzSubscription -SubscriptionId $subscriptionId
 }
 
+#endregion
+
+#region Resource naming options
 $workspaceReuse = $null
 
 $deploymentNameTemplate = "{0}" + (Get-Date).ToString("yyMMddHHmmss")
@@ -263,7 +272,9 @@ else
     $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
     $deploymentName = $deploymentNameTemplate -f $resourceGroupName
 }
+#endregion
 
+#region Resource naming availability checks
 Write-Host "Checking name prefix availability..." -ForegroundColor Green
 
 Write-Host "...for the Storage Account..." -ForegroundColor Green
@@ -324,7 +335,9 @@ if (-not($nameAvailable))
 }
 
 Write-Host "Chosen resource names are available for all services" -ForegroundColor Green
+#endregion
 
+#region Additional resource options (LA reused, region, SQL user)
 if (-not($deploymentOptions["WorkspaceResourceGroupName"]))
 {
     if ("Y", "y" -contains $workspaceReuse) {
@@ -386,7 +399,9 @@ else
     $sqlAdmin = $deploymentOptions["SqlAdmin"]    
 }
 $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
+#endregion
 
+#region Partial upgrade dependent resource checks
 if (-not($DoPartialUpgrade))
 {
     $upgrading = $false
@@ -444,6 +459,7 @@ else
         $upgrading = $false    
     }        
 }
+#endregion
 
 $deploymentMessage = "Deploying Azure Optimization Engine to subscription"
 if ($upgrading)
@@ -457,6 +473,7 @@ if ("Y", "y" -contains $continueInput) {
 
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
     
+    #region Computing schedules base time
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
     $upgradingSchedules = $false
     $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
@@ -472,9 +489,11 @@ if ("Y", "y" -contains $continueInput) {
     else {
         Write-Host "Automation schedules base time automatically set to $baseTime." -ForegroundColor Green
     }
+    #endregion
 
     if (-not($upgrading))
     {
+        #region Template-based deployment
         $jobSchedules = Get-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -ErrorAction SilentlyContinue
         if ($jobSchedules.Count -gt 0) {
             Write-Host "Unregistering previous runbook schedules associations from $automationAccountName..." -ForegroundColor Green
@@ -504,9 +523,11 @@ if ("Y", "y" -contains $continueInput) {
                 -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
         }
         $spnId = $deployment.Outputs['automationPrincipalId'].Value 
+        #endregion
     }
     else
     {
+        #region Partial upgrade deployment
         $upgradeManifest = Get-Content -Path "./upgrade-manifest.json" | ConvertFrom-Json
         Write-Host "Creating missing storage account containers..." -ForegroundColor Green
         $upgradeContainers = $upgradeManifest.dataCollection.container
@@ -792,8 +813,10 @@ if ("Y", "y" -contains $continueInput) {
         {
             Remove-AzAutomationRunbook -AutomationAccountName $automationAccountName -Name $deprecatedRunbook -ResourceGroupName $resourceGroupName -Force -ErrorAction SilentlyContinue
         }
+        #endregion
     }
 
+    #region Schedules reset
     if ($upgradingSchedules) {
         $schedules = Get-AzAutomationSchedule -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName
         $dailySchedules = $schedules | Where-Object { $_.Frequency -eq "Day" -or $_.Frequency -eq "Hour" }
@@ -822,13 +845,17 @@ if ("Y", "y" -contains $continueInput) {
             Invoke-AzRestMethod -Path $automationPath -Method PUT -Payload $body | Out-Null
         }
     }
-        
+    #endregion
+    
+    #region Open SQL Server firewall rule
     $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
     Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
     $tempFirewallRuleName = "InitialDeployment"            
     New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue
+    #endregion
     
+    #region Deployment date Automation variable
     Write-Host "Checking Azure Automation variable referring to the initial Azure Optimization Engine deployment date..." -ForegroundColor Green
     $deploymentDateVariableName = "AzureOptimization_DeploymentDate"
     $deploymentDateVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $deploymentDateVariableName -ErrorAction SilentlyContinue
@@ -839,7 +866,9 @@ if ("Y", "y" -contains $continueInput) {
         New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
     }
+    #endregion
 
+    #region SQL Database model deployment
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
     $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password        
@@ -953,7 +982,9 @@ if ("Y", "y" -contains $continueInput) {
     if (-not($connectionSuccess)) {
         throw "Could not establish connection to SQL."
     }
+    #endregion
     
+    #region Workbooks deployment
     Write-Host "Publishing workbooks..." -ForegroundColor Green
     $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
     $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
@@ -969,10 +1000,14 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
         }
     }
+    #endregion
 
+    #region Close SQL Server firewall rule
     Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
     Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
-    
+    #endregion
+
+    #region Grant Azure AD role to AOE principal
     if ($null -eq $spnId)
     {
         $auto = Get-AzAutomationAccount -Name $automationAccountName -ResourceGroupName $resourceGroupName
@@ -1042,6 +1077,7 @@ if ("Y", "y" -contains $continueInput) {
         Write-Host $Error[0] -ForegroundColor Yellow
         Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $automationAccountName managed identity or, for previous versions of AOE, to the Run As Account principal." -ForegroundColor Red
     }
+    #endregion
 
     Write-Host "Deployment completed!" -ForegroundColor Green
 }
