@@ -14,7 +14,7 @@ function Find-SkuHourlyPrice {
 
         if ($skuNameParts.Count -eq 3) # e.g., Standard_D1_v2
         {
-            $skuNameFilter = "*" + $skuNameParts[1] + "*"
+            $skuNameFilter = "*" + $skuNameParts[1] + " *"
             $skuVersionFilter = "*" + $skuNameParts[2]
             $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterName -like $skuNameFilter `
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
