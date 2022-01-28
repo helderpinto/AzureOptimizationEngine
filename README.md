@@ -183,6 +183,14 @@ During deployment, you'll be asked several questions. You must plan for the foll
 * A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
 * Azure region
 
+Bear in mind that the AOE deployment creates the following - you cannot reuse any existing resource (except the Resource Group and the Log Analytics workspace):
+
+* Azure Automation Account
+* Storage Account
+* Azure SQL Server + SQL Database
+* (optional) Log Analytics workspace
+* (optional) Resource Group
+
 ### Installation
 
 The simplest, quickest and recommended method for installing AOE is by using the **Azure Cloud Shell** (PowerShell). You just have to follow these steps:
