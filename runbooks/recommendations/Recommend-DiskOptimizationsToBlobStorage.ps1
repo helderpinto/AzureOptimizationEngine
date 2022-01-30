@@ -452,6 +452,10 @@ foreach ($result in $results)
         $additionalInfoDictionary["targetMaxMBps"] =[int] $targetSku.MaxMBps 
     
         $fitScore = 4 # needs Maximum of Maximum for metrics to have higher fit score
+        if ([int] $result.DiskSizeGB_s -gt 512)
+        {
+            $fitScore = 3.5 #disk will not support credit-based bursting, therefore the recommendation risk increases a bit
+        }
         
         $fitScore = [Math]::max(0.0, $fitScore)
 
