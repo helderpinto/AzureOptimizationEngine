@@ -6,7 +6,13 @@ param(
     [string] $externalTenantId = "",
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = ""
+    [string] $externalCredentialName = "",
+
+    [Parameter(Mandatory = $false)]
+    [string] $groupFilter = "",
+
+    [Parameter(Mandatory = $false)]
+    [string] $userFilter = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -101,6 +107,18 @@ $aadObjectsFilter = Get-AutomationVariable -Name  "AzureOptimization_AADObjectsF
 if ([string]::IsNullOrEmpty($aadObjectsFilter))
 {
     $aadObjectsFilter = "Application,ServicePrincipal"
+}
+
+$groupFilterVariable = Get-AutomationVariable -Name  "AzureOptimization_AADObjectsGroupFilter" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($groupFilter) -and -not([string]::IsNullOrEmpty($groupFilterVariable)))
+{
+    $groupFilter = $groupFilterVariable
+}
+
+$userFilterVariable = Get-AutomationVariable -Name  "AzureOptimization_AADObjectsUserFilter" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($userFilter) -and -not([string]::IsNullOrEmpty($userFilterVariable)))
+{
+    $userFilter = $userFilterVariable
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -296,8 +314,16 @@ if ("User" -in $aadObjectsTypes)
 {
     $aadObjects = @()
 
-    Write-Output "Getting AAD users..."
-    $users = Get-MgUser -All -Property Id,AccountEnabled,DisplayName,UserPrincipalName,UserType,CreatedDateTime,DeletedDateTime
+    if ([string]::IsNullOrEmpty($userFilter))
+    {
+        Write-Output "Getting AAD users..."
+        $users = Get-MgUser -All -Property Id,AccountEnabled,DisplayName,UserPrincipalName,UserType,CreatedDateTime,DeletedDateTime    
+    }
+    else
+    {
+        Write-Output "Getting AAD users with filter $userFilter..."
+        $users = Get-MgUser -Filter $userFilter -All -Property Id,AccountEnabled,DisplayName,UserPrincipalName,UserType,CreatedDateTime,DeletedDateTime            
+    }
     Write-Output "Found $($users.Count) AAD users"
     
     foreach ($user in $users)
@@ -344,8 +370,16 @@ if ("Group" -in $aadObjectsTypes)
 {
     $aadObjects = @()
 
-    Write-Output "Getting AAD groups..."
-    $groups = Get-MgGroup -All -ExpandProperty Members -Property Id,SecurityEnabled,DisplayName,Members,CreatedDateTime,DeletedDateTime,GroupTypes
+    if ([string]::IsNullOrEmpty($groupFilter))
+    {
+        Write-Output "Getting AAD groups..."
+        $groups = Get-MgGroup -All -ExpandProperty Members -Property Id,SecurityEnabled,DisplayName,Members,CreatedDateTime,DeletedDateTime,GroupTypes
+    }
+    else
+    {
+        Write-Output "Getting AAD groups with filter $groupFilter..."
+        $groups = Get-MgGroup -Filter $groupFilter -All -ExpandProperty Members -Property Id,SecurityEnabled,DisplayName,Members,CreatedDateTime,DeletedDateTime,GroupTypes
+    }
     Write-Output "Found $($groups.Count) AAD groups"
     
     foreach ($group in $groups)
