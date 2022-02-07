@@ -125,7 +125,7 @@ Write-Output "Looking for Availability Sets with a low fault domain count..."
 
 $baseQuery = @"
     $availSetTableName
-    | where TimeGenerated > ago(1d) and toint(FaultDomains_s) < 3 and toint(FaultDomains_s) < toint(VmCount_s)/2
+    | where TimeGenerated > ago(1d) and toint(FaultDomains_s) < 3 and toint(FaultDomains_s) < todouble(VmCount_s)/2
     | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s, FaultDomains_s, VmCount_s
     | join kind=leftouter ( 
         $subscriptionsTableName
@@ -235,7 +235,7 @@ Write-Output "Looking for Availability Sets with a low update domain count..."
 
 $baseQuery = @"
     $availSetTableName
-    | where TimeGenerated > ago(1d) and toint(UpdateDomains_s) < toint(VmCount_s)/2
+    | where TimeGenerated > ago(1d) and toint(UpdateDomains_s) < todouble(VmCount_s)/2
     | project TimeGenerated, InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s, UpdateDomains_s, VmCount_s
     | join kind=leftouter ( 
         $subscriptionsTableName
