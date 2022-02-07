@@ -403,7 +403,7 @@ Write-Output "Looking for subnets without any device..."
 $baseQuery = @"
     $vNetsTableName
     | where TimeGenerated > ago(1d)
-    | where toint(SubnetUsedIPs_s) == 0
+    | where toint(SubnetUsedIPs_s) == 0 and toint(SubnetDelegationsCount_s) == 0
     | join kind=leftouter ( 
         $subscriptionsTableName 
         | where TimeGenerated > ago(1d)
@@ -632,7 +632,7 @@ $baseQuery = @"
     | extend SubnetId = tolower(strcat(InstanceId_s, '/subnets/', SubnetName_s))
     | summarize ExistsSince = min(todatetime(StatusDate_s)) by SubnetId, SubnetPrefix_s );
     let SubnetsExistingLongEnoughIds = SubnetsBefore | where ExistsSince < ago(MinimumSubnetAge) | distinct SubnetId;
-    let EmptySubnets = SubnetsToday | where SubnetId in (SubnetsExistingLongEnoughIds) and toint(SubnetUsedIPs_s) == 0;
+    let EmptySubnets = SubnetsToday | where SubnetId in (SubnetsExistingLongEnoughIds) and toint(SubnetUsedIPs_s) == 0 and toint(SubnetDelegationsCount_s) == 0;
     let SubnetsTodayIds = SubnetsToday | distinct SubnetId;
     let SubnetsTodayPrefixes = SubnetsToday | distinct SubnetPrefix_s;
     let RemovedSubnets = SubnetsBefore | where SubnetId !in (SubnetsTodayIds) and SubnetPrefix_s !in (SubnetsTodayPrefixes);
