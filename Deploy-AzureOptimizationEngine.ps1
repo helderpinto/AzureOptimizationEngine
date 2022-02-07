@@ -9,7 +9,10 @@ param (
     [string] $ArtifactsSasToken,
 
     [Parameter(Mandatory = $false)]
-    [switch] $DoPartialUpgrade, # updates only storage account containers, Automation assets and SQL Database model
+    [switch] $DoPartialUpgrade,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
     [string] $SilentDeploymentSettingsPath
@@ -329,7 +332,7 @@ else {
     Write-Host "(The SQL Server was already deployed)" -ForegroundColor Green
 }
 
-if (-not($nameAvailable))
+if (-not($nameAvailable) -and -not($IgnoreNamingAvailabilityErrors))
 {
     throw "Please, fix naming issues. Terminating execution."
 }
@@ -433,8 +436,11 @@ else
         }
         else
         {
-            $upgrading = $false    
-            Write-Host "Did not find the $sqlServerName SQL Server." -ForegroundColor Yellow
+            if (-not($IgnoreNamingAvailabilityErrors))
+            {
+                $upgrading = $false    
+                Write-Host "Did not find the $sqlServerName SQL Server." -ForegroundColor Yellow    
+            }
         }
     
         $auto = Get-AzAutomationAccount -ResourceGroupName $resourceGroupName -Name $automationAccountName -ErrorAction SilentlyContinue
@@ -848,11 +854,14 @@ if ("Y", "y" -contains $continueInput) {
     #endregion
     
     #region Open SQL Server firewall rule
-    $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+    if (-not($sqlServerName -like "*.database.*"))
+    {
+        $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 
-    Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
-    $tempFirewallRuleName = "InitialDeployment"            
-    New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue
+        Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
+        $tempFirewallRuleName = "InitialDeployment"            
+        New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue    
+    }
     #endregion
     
     #region Deployment date Automation variable
@@ -871,8 +880,15 @@ if ("Y", "y" -contains $continueInput) {
     #region SQL Database model deployment
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
-    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password        
-    $sqlServerEndpoint = "$sqlServerName$($cloudDetails.SqlDatabaseDnsSuffix)"
+    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password     
+    if (-not($sqlServerName -like "*.database.*"))
+    {
+        $sqlServerEndpoint = "$sqlServerName$($cloudDetails.SqlDatabaseDnsSuffix)"
+    }
+    else 
+    {
+        $sqlServerEndpoint = $sqlServerName
+    }
     $databaseName = $sqlDatabaseName
     $SqlTimeout = 60
     $tries = 0
@@ -1003,8 +1019,11 @@ if ("Y", "y" -contains $continueInput) {
     #endregion
 
     #region Close SQL Server firewall rule
-    Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
-    Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName    
+    if (-not($sqlServerName -like "*.database.*"))
+    {
+        Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
+        Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName        
+    }    
     #endregion
 
     #region Grant Azure AD role to AOE principal
