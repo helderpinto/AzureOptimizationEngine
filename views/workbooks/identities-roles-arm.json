@@ -373,7 +373,7 @@
                 "multiSelect": true,
                 "quote": "'",
                 "delimiter": ",",
-                "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and TenantGuid_g in ({TenantId}) and ObjectType_s == '{armObjectType}'\r\n| distinct ObjectSubType_s\r\n| order by ObjectSubType_s asc",
+                "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and TenantGuid_g in ({TenantId}) and ObjectType_s == '{armObjectType}' and isnotempty(ObjectSubType_s) and isnotempty(ObjectSubType_s)\r\n| distinct ObjectSubType_s\r\n| order by ObjectSubType_s asc",
                 "value": [
                   "value::all"
                 ],
