@@ -9,7 +9,11 @@ param(
     [string] $externalTenantId = "",
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = ""
+    [string] $externalCredentialName = "",
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("ARG", "ARM")]
+    [string] $PolicyStatesEndpoint = "ARG"
 )
 
 $ErrorActionPreference = "Stop"
@@ -133,64 +137,119 @@ foreach ($sub in $subscriptions)
 
 $policyStatesTotal = @()
 
-$resultsSoFar = 0
+Write-Output "Querying for Policy states using $PolicyStatesEndpoint endpoint..."
 
-Write-Output "Querying for Policy states"
+if ($PolicyStatesEndpoint -eq "ARG")
+{
+    $resultsSoFar = 0
 
-$argQuery = @"
-policyresources
-| extend effect = tostring(properties.policyDefinitionAction)
-| extend assignmentId = tolower(properties.policyAssignmentId)
-| extend definitionId = tolower(properties.policyDefinitionId)
-| extend definitionReferenceId = tolower(properties.policyDefinitionReferenceId)
-| extend initiativeId = tolower(properties.policySetDefinitionId)
-| extend complianceState = tostring(properties.complianceState)
-| extend complianceReason = tostring(properties.complianceReasonCode)
-| extend resourceId = tolower(properties.resourceId)
-| extend resourceType = tostring(properties.resourceType)
-| extend evaluatedOn = tostring(properties.timestamp)
-| where complianceState != 'Compliant' and complianceReason !contains 'ResourceNotFound'
-| summarize StatesCount = count() by id, tenantId, subscriptionId, resourceGroup, resourceId, resourceType, complianceState, complianceReason, effect, assignmentId, definitionReferenceId, definitionId, initiativeId, evaluatedOn
-| union ( policyresources
-	| extend effect = tostring(properties.policyDefinitionAction)
-	| extend assignmentId = tolower(properties.policyAssignmentId)
-	| extend definitionId = tolower(properties.policyDefinitionId)
-	| extend definitionReferenceId = tolower(properties.policyDefinitionReferenceId)
-	| extend initiativeId = tolower(properties.policySetDefinitionId)
-	| extend complianceState = tostring(properties.complianceState)
-	| extend resourceType = tostring(properties.resourceType)
-	| extend evaluatedOn = tostring(properties.timestamp)
-	| where complianceState == 'Compliant'
-	| summarize StatesCount = count() by tenantId, subscriptionId, complianceState, effect, assignmentId, definitionReferenceId, definitionId, initiativeId
-)
-| order by id asc
+    $argQuery = @"
+    policyresources
+    | where type =~ 'microsoft.policyinsights/policystates'
+    | extend complianceState = tostring(properties.complianceState)
+    | extend complianceReason = tostring(properties.complianceReasonCode)
+    | where complianceState != 'Compliant' and complianceReason !contains 'ResourceNotFound'
+    | extend effect = tostring(properties.policyDefinitionAction)
+    | extend assignmentId = tolower(properties.policyAssignmentId)
+    | extend definitionId = tolower(properties.policyDefinitionId)
+    | extend definitionReferenceId = tolower(properties.policyDefinitionReferenceId)
+    | extend initiativeId = tolower(properties.policySetDefinitionId)
+    | extend resourceId = tolower(properties.resourceId)
+    | extend resourceType = tostring(properties.resourceType)
+    | extend evaluatedOn = todatetime(properties.timestamp)
+    | summarize StatesCount = count() by id, tenantId, subscriptionId, resourceGroup, resourceId, resourceType, complianceState, complianceReason, effect, assignmentId, definitionReferenceId, definitionId, initiativeId, evaluatedOn
+    | union ( policyresources
+        | extend complianceState = tostring(properties.complianceState)
+        | where complianceState == 'Compliant'
+        | extend effect = tostring(properties.policyDefinitionAction)
+        | extend assignmentId = tolower(properties.policyAssignmentId)
+        | extend definitionId = tolower(properties.policyDefinitionId)
+        | extend definitionReferenceId = tolower(properties.policyDefinitionReferenceId)
+        | extend initiativeId = tolower(properties.policySetDefinitionId)
+        | summarize StatesCount = count() by tenantId, subscriptionId, complianceState, effect, assignmentId, definitionReferenceId, definitionId, initiativeId
+    )
+    | order by id asc
 "@
 
-do
-{
-    if ($resultsSoFar -eq 0)
+    do
     {
-        $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
-    }
-    else
-    {
-        $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
-    }
-    if ($policyStates -and $policyStates.GetType().Name -eq "PSResourceGraphResponse")
-    {
-        $policyStates = $policyStates.Data
-    }
-    $resultsCount = $policyStates.Count
-    $resultsSoFar += $resultsCount
-    $policyStatesTotal += $policyStates
+        if ($resultsSoFar -eq 0)
+        {
+            $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
+        }
+        else
+        {
+            $policyStates = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
+        }
+        if ($policyStates -and $policyStates.GetType().Name -eq "PSResourceGraphResponse")
+        {
+            $policyStates = $policyStates.Data
+        }
+        $resultsCount = $policyStates.Count
+        $resultsSoFar += $resultsCount
+        $policyStatesTotal += $policyStates
 
-} while ($resultsCount -eq $ARGPageSize)
+    } while ($resultsCount -eq $ARGPageSize)
+
+    Write-Output "Building $($policyStatesTotal.Count) policyState entries"
+}
+else
+{
+    foreach ($sub in $subscriptions)
+    {
+        Select-AzSubscription -SubscriptionId $sub | Out-Null
+        $policyStates = Get-AzPolicyState -All
+
+        $nonCompliantStates = $policyStates | Where-Object { $_.ComplianceState -ne "Compliant" }
+
+        foreach ($policyState in $nonCompliantStates)
+        {
+            $policyStateObject = New-Object PSObject -Property @{
+                tenantId = $tenantId
+                subscriptionId = $sub
+                resourceGroup = $policyState.ResourceGroup
+                resourceId = $policyState.ResourceId
+                resourceType = $policyState.ResourceType
+                complianceState = $policyState.ComplianceState
+                complianceReason = $policyState.AdditionalProperties.complianceReasonCode
+                effect = $policyState.PolicyDefinitionAction
+                assignmentId = $policyState.PolicyAssignmentId
+                initiativeId = $policyState.PolicySetDefinitionId
+                definitionId = $policyState.PolicyDefinitionId
+                definitionReferenceId = $policyState.PolicyDefinitionReferenceId
+                evaluatedOn = [DateTime]::Parse($policyState.Timestamp).ToString("yyyy-MM-ddTHH:mm:00.000Z")
+                StatesCount = 1
+            }
+            $policyStatesTotal += $policyStateObject    
+        }
+
+        $compliantStates = $policyStates | Where-Object { $_.ComplianceState -eq "Compliant" } `
+            | Group-Object PolicyDefinitionAction, PolicyAssignmentId, PolicyDefinitionId, PolicyDefinitionReferenceId, PolicySetDefinitionId
+
+        foreach ($policyState in $compliantStates)
+        {
+            $compliantStateProps = $policyState.Name.Split(', ')
+            $policyStateObject = New-Object PSObject -Property @{
+                tenantId = $tenantId
+                subscriptionId = $sub
+                complianceState = "Compliant"
+                effect = $compliantStateProps[0]
+                assignmentId = $compliantStateProps[1]
+                definitionId = $compliantStateProps[2]
+                definitionReferenceId = $compliantStateProps[3]
+                initiativeId = $compliantStateProps[4]
+                StatesCount = $policyState.Count
+            }
+            $policyStatesTotal += $policyStateObject    
+        }
+    }        
+
+    Write-Output "Building $($policyStatesTotal.Count) policyState entries"
+}
 
 $datetime = (Get-Date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
-
-Write-Output "Building $($policyStatesTotal.Count) policyState entries"
 
 foreach ($policyState in $policyStatesTotal)
 {
