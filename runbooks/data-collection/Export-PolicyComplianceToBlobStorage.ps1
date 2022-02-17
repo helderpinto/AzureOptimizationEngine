@@ -217,7 +217,7 @@ else
                 initiativeId = $policyState.PolicySetDefinitionId
                 definitionId = $policyState.PolicyDefinitionId
                 definitionReferenceId = $policyState.PolicyDefinitionReferenceId
-                evaluatedOn = [DateTime]::Parse($policyState.Timestamp).ToString("yyyy-MM-ddTHH:mm:00.000Z")
+                evaluatedOn = $policyState.Timestamp
                 StatesCount = 1
             }
             $policyStatesTotal += $policyStateObject    
@@ -228,16 +228,27 @@ else
 
         foreach ($policyState in $compliantStates)
         {
-            $compliantStateProps = $policyState.Name.Split(', ')
+            $compliantStateProps = $policyState.Name.Split(',')
+            $definitionReferenceId = $null
+            if ($compliantStateProps[3])
+            {
+                $definitionReferenceId = $compliantStateProps[3].Trim()
+            }
+            $initiativeId = $null
+            if ($compliantStateProps[4])
+            {
+                $initiativeId = $compliantStateProps[4].Trim()
+            }
+            
             $policyStateObject = New-Object PSObject -Property @{
                 tenantId = $tenantId
                 subscriptionId = $sub
                 complianceState = "Compliant"
                 effect = $compliantStateProps[0]
-                assignmentId = $compliantStateProps[1]
-                definitionId = $compliantStateProps[2]
-                definitionReferenceId = $compliantStateProps[3]
-                initiativeId = $compliantStateProps[4]
+                assignmentId = $compliantStateProps[1].Trim()
+                definitionId = $compliantStateProps[2].Trim()
+                definitionReferenceId = $definitionReferenceId
+                initiativeId = $initiativeId
                 StatesCount = $policyState.Count
             }
             $policyStatesTotal += $policyStateObject    
