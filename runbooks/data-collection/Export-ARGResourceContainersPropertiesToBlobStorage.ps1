@@ -169,10 +169,6 @@ do
 
 } while ($resultsCount -eq $ARGPageSize)
 
-<#
-    Merging ARM + Classic VMs, enriching VM size details and building CSV entries 
-#>
-
 $datetime = (Get-Date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $statusDate = $datetime.ToString("yyyy-MM-dd")
@@ -242,4 +238,15 @@ $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
-Write-Output "DONE"
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $csvExportPath from local disk..."    
+
+Remove-Item -Path $jsonExportPath -Force
+    
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."    

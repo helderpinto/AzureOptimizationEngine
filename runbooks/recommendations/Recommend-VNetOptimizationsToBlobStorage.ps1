@@ -282,6 +282,14 @@ $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
+
 Write-Output "Looking for subnets with used IP space less than $subnetMinUsedThreshold%..."
 
 $baseQuery = @"
@@ -398,6 +406,14 @@ $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
+
 Write-Output "Looking for subnets without any device..."
 
 $baseQuery = @"
@@ -510,6 +526,14 @@ $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
+
 Write-Output "Looking for orphaned NICs..."
 
 $baseQuery = @"
@@ -618,6 +642,14 @@ $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
 
 Write-Output "Looking for NSG rules referring empty or removed subnets..."
 
@@ -767,6 +799,14 @@ $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
 
 Write-Output "Looking for NSG rules referring orphan or removed NICs..."
 
@@ -945,6 +985,14 @@ $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
+
 Write-Output "Looking for NSG rules referring orphan or removed Public IPs..."
 
 $baseQuery = @"
@@ -1107,6 +1155,14 @@ $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
+
 Write-Output "Looking for orphaned Public IPs..."
 
 $baseQuery = @"
@@ -1241,4 +1297,12 @@ $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
 

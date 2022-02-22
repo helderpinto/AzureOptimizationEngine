@@ -254,6 +254,19 @@ if ("Application" -in $aadObjectsTypes)
     $csvProperties = @{"ContentType" = "text/csv"};
     
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    
+    Remove-Item -Path $csvExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    
+    Remove-Item -Path $jsonExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
 }
 
 if ("ServicePrincipal" -in $aadObjectsTypes)
@@ -308,6 +321,19 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     $csvProperties = @{"ContentType" = "text/csv"};
     
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    
+    Remove-Item -Path $csvExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    
+    Remove-Item -Path $jsonExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
 }
 
 if ("User" -in $aadObjectsTypes)
@@ -364,6 +390,14 @@ if ("User" -in $aadObjectsTypes)
     $csvProperties = @{"ContentType" = "text/csv"};
     
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    
+    Remove-Item -Path $csvExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $csvExportPath from local disk..."    
 }
 
 if ("Group" -in $aadObjectsTypes)
@@ -429,6 +463,19 @@ if ("Group" -in $aadObjectsTypes)
     $csvProperties = @{"ContentType" = "text/csv"};
     
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    
+    Remove-Item -Path $csvExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    
+    Remove-Item -Path $jsonExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
 }
 
 Write-Output "DONE!"

@@ -194,6 +194,19 @@ foreach ($subscription in $subscriptions)
     $csvProperties = @{"ContentType" = "text/csv"};
 
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    
+    Remove-Item -Path $csvExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    
+    Remove-Item -Path $jsonExportPath -Force
+    
+    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
 }
 
 Write-Output "DONE!"
