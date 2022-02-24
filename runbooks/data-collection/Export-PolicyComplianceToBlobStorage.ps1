@@ -103,6 +103,8 @@ Write-Output "Building Policy display names..."
 $policyAssignments = @{}
 $policyInitiatives = @{}
 $policyDefinitions = @{}
+$excludedAssignmentScopes = @()
+$allInitiatives = @()
 
 foreach ($sub in $subscriptions)
 {
@@ -114,6 +116,10 @@ foreach ($sub in $subscriptions)
         {
             $policyAssignments.Add($assignment.PolicyAssignmentId, $assignment.Properties.DisplayName)
         }
+        if ($assignment.Properties.NotScopes -and -not($excludedAssignmentScopes | Where-Object { $_.PolicyAssignmentId -eq $assignment.PolicyAssignmentId }))
+        {
+            $excludedAssignmentScopes += $assignment
+        }
     }
 
     $initiatives = Get-AzPolicySetDefinition
@@ -122,6 +128,10 @@ foreach ($sub in $subscriptions)
         if (-not($policyInitiatives[$initiative.PolicySetDefinitionId]))
         {
             $policyInitiatives.Add($initiative.PolicySetDefinitionId, $initiative.Properties.DisplayName)
+        }
+        if (-not($allInitiatives | Where-Object { $_.PolicySetDefinitionId -eq $initiative.PolicySetDefinitionId }))
+        {
+            $allInitiatives += $initiative
         }
     }
 
@@ -296,6 +306,66 @@ foreach ($policyState in $policyStatesTotal)
     $allpolicyStates += $logentry
 }
 
+Write-Output "Adding excluded scopes from $($excludedAssignmentScopes.Count) assignments"
+
+foreach ($excludedAssignment in $excludedAssignmentScopes)
+{
+    $excludedIDs = @()
+    $excludedInitiative = $allInitiatives | Where-Object { $_.PolicySetDefinitionId -eq $excludedAssignment.Properties.PolicyDefinitionId }
+    if ($excludedInitiative)
+    {
+        $excludedDefinitions = $excludedInitiative.Properties.PolicyDefinitions
+        foreach ($excludedDefinition in $excludedDefinitions)
+        {
+            $excludedIDs += "$($excludedDefinition.policyDefinitionId)|$($excludedDefinition.policyDefinitionReferenceId)"
+        }
+    }
+    else
+    {
+        $excludedIDs += $excludedAssignment.Properties.PolicyDefinitionId
+    }
+
+    foreach ($excludedID in $excludedIDs)
+    {
+        $excludedIDParts = $excludedID.Split('|')
+        $definitionId = $excludedIDParts[0]
+        $definitionReferenceId = $null
+        if (-not([string]::IsNullOrEmpty($excludedIDParts[1])))
+        {
+            $definitionReferenceId = $excludedIDParts[1].ToLower()
+        }
+
+        $initiativeId = $null
+        $initiativeName = $null
+        if ($excludedInitiative)
+        {
+            $initiativeId = $excludedInitiative.PolicySetDefinitionId.ToLower()
+            $initiativeName = $policyInitiatives[$initiativeId]
+        }
+
+        foreach ($notScope in $excludedAssignment.Properties.NotScopes)
+        {
+            $logentry = New-Object PSObject -Property @{
+                Timestamp = $timestamp
+                Cloud = $cloudEnvironment
+                TenantGuid = $tenantId
+                ResourceId = $notScope
+                ComplianceState = 'Excluded'
+                AssignmentId = $excludedAssignment.PolicyAssignmentId.ToLower()
+                AssignmentName = $policyAssignments[$excludedAssignment.PolicyAssignmentId]
+                InitiativeId = $initiativeId
+                InitiativeName = $initiativeName
+                DefinitionId = $definitionId
+                DefinitionName = $policyDefinitions[$definitionId]
+                DefinitionReferenceId = $definitionReferenceId
+                StatusDate = $statusDate
+            }        
+
+            $allpolicyStates += $logentry
+        }
+    }
+}
+
 Write-Output "Uploading CSV to Storage"
 
 $today = $datetime.ToString("yyyyMMdd")
@@ -309,10 +379,8 @@ $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
-$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+Write-Output "Uploaded $csvBlobName to Blob Storage..."
 
 Remove-Item -Path $csvExportPath -Force
 
-$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Removed $csvExportPath from local disk..."    
+Write-Output "Removed $csvExportPath from local disk..."    
