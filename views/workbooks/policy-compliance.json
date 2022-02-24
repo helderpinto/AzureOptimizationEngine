@@ -1,0 +1,285 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "398ed1df-fb30-4ed7-a872-c1f10a752b40",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscription",
+            "type": 2,
+            "description": "The subscription filter does not impact other filters",
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationResourceContainersV1_CL\r\n| where ContainerType_s == 'microsoft.resources/subscriptions'\r\n| project SubscriptionGuid_g, ContainerName_s\r\n| order by ContainerName_s asc",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "e8de19a9-bd49-43c6-a0d7-5e6a3eddf3c0",
+            "version": "KqlParameterItem/1.0",
+            "name": "Initiative",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| distinct InitiativeId_s, InitiativeName_s, TenantGuid_g\r\n| join kind=inner (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| where isnotempty(InitiativeId_s)\r\n| extend InitiativeName = iif(InitiativeId_s has_any ('managementgroups','subscriptions'),strcat(InitiativeName_s, ' (', Scope_s, ')'), InitiativeName_s)\r\n| project-away TenantGuid_g*, InitiativeName_s, Scope_s\r\n| distinct InitiativeId_s, InitiativeName\r\n| project-reorder Initiative* asc\r\n| order by InitiativeName asc",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "494d3d43-f908-490a-b1cf-8f501ec873f5",
+            "version": "KqlParameterItem/1.0",
+            "name": "Definition",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative}))\r\n| distinct DefinitionId_s, DefinitionName_s, TenantGuid_g\r\n| join kind=inner (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend DefinitionName = iif(DefinitionId_s has_any ('managementgroups','subscriptions'),strcat(DefinitionName_s, ' (', Scope_s, ')'), DefinitionName_s)\r\n| project-away TenantGuid_g*, DefinitionName_s, Scope_s\r\n| project-reorder Definition* asc\r\n| distinct DefinitionId_s, DefinitionName\r\n| order by DefinitionName asc",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "0b3fe5df-b854-42c6-8b1f-9879da99ecee",
+            "version": "KqlParameterItem/1.0",
+            "name": "Assignment",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition})\r\n| distinct AssignmentId_s, AssignmentName_s, TenantGuid_g\r\n| join kind=inner (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend AssignmentName = strcat(AssignmentName_s, ' (', Scope_s, ')')\r\n| project-away TenantGuid_g*, AssignmentName_s, Scope_s\r\n| project-reorder Assignment* asc\r\n| order by AssignmentName asc",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "adad6608-5599-40ae-8ddf-75184552e017",
+            "version": "KqlParameterItem/1.0",
+            "name": "Effect",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| distinct Effect_s",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "894c0d85-0b62-4070-9046-8d47aceb8771",
+            "version": "KqlParameterItem/1.0",
+            "name": "ComplianceState",
+            "label": "Compliance State",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| distinct ComplianceState_s",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters - 0"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let AllButCompliantStates = AzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and SubscriptionGuid_g in ({Subscription})\r\n| where ComplianceState_s != 'Compliant'\r\n| summarize StatesCount=count() by SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s;\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and SubscriptionGuid_g in ({Subscription})\r\n| where ComplianceState_s == 'Compliant'\r\n| project SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s, StatesCount=tolong(StatesCount_s)\r\n| union (AllButCompliantStates)\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionGuid_g, SubscriptionName = ContainerName_s) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by InitiativeName_s asc, DefinitionName_s asc, SubscriptionName asc\r\n| project-reorder DefinitionName_s, InitiativeName_s, AssignmentName_s, SubscriptionName, Effect_s, ComplianceState_s, StatesCount",
+        "size": 2,
+        "showAnalytics": true,
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "DefinitionName_s",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "40ch"
+              }
+            },
+            {
+              "columnMatch": "InitiativeName_s",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "40ch"
+              }
+            },
+            {
+              "columnMatch": "AssignmentName_s",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "40ch"
+              }
+            },
+            {
+              "columnMatch": "ComplianceState_s",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "icons",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Compliant",
+                    "representation": "success",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "NonCompliant",
+                    "representation": "error",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Exempt",
+                    "representation": "info",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "more",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "SubscriptionGuid_g",
+              "formatter": 15,
+              "formatOptions": {
+                "linkTarget": null,
+                "showIcon": true
+              }
+            }
+          ],
+          "rowLimit": 5000,
+          "labelSettings": [
+            {
+              "columnId": "DefinitionName_s",
+              "label": "Definition"
+            },
+            {
+              "columnId": "InitiativeName_s",
+              "label": "Initiative"
+            },
+            {
+              "columnId": "AssignmentName_s",
+              "label": "Assignment"
+            },
+            {
+              "columnId": "SubscriptionName",
+              "label": "Subscription"
+            },
+            {
+              "columnId": "Effect_s",
+              "label": "Effect"
+            },
+            {
+              "columnId": "ComplianceState_s",
+              "label": "Compliance"
+            },
+            {
+              "columnId": "StatesCount",
+              "label": "Resources #"
+            }
+          ]
+        }
+      },
+      "name": "query - 1"
+    }
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

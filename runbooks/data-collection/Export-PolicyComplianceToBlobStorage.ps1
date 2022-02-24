@@ -232,12 +232,12 @@ else
             $definitionReferenceId = $null
             if ($compliantStateProps[3])
             {
-                $definitionReferenceId = $compliantStateProps[3].Trim()
+                $definitionReferenceId = $compliantStateProps[3].Trim().ToLower()
             }
             $initiativeId = $null
             if ($compliantStateProps[4])
             {
-                $initiativeId = $compliantStateProps[4].Trim()
+                $initiativeId = $compliantStateProps[4].Trim().ToLower()
             }
             
             $policyStateObject = New-Object PSObject -Property @{
@@ -245,8 +245,8 @@ else
                 subscriptionId = $sub
                 complianceState = "Compliant"
                 effect = $compliantStateProps[0]
-                assignmentId = $compliantStateProps[1].Trim()
-                definitionId = $compliantStateProps[2].Trim()
+                assignmentId = $compliantStateProps[1].Trim().ToLower()
+                definitionId = $compliantStateProps[2].Trim().ToLower()
                 definitionReferenceId = $definitionReferenceId
                 initiativeId = $initiativeId
                 StatesCount = $policyState.Count
