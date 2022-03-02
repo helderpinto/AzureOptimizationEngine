@@ -328,7 +328,7 @@ foreach ($excludedAssignment in $excludedAssignmentScopes)
     foreach ($excludedID in $excludedIDs)
     {
         $excludedIDParts = $excludedID.Split('|')
-        $definitionId = $excludedIDParts[0]
+        $definitionId = $excludedIDParts[0].ToLower()
         $definitionReferenceId = $null
         if (-not([string]::IsNullOrEmpty($excludedIDParts[1])))
         {
@@ -349,7 +349,7 @@ foreach ($excludedAssignment in $excludedAssignmentScopes)
                 Timestamp = $timestamp
                 Cloud = $cloudEnvironment
                 TenantGuid = $tenantId
-                ResourceId = $notScope
+                ResourceId = $notScope.ToLower()
                 ComplianceState = 'Excluded'
                 AssignmentId = $excludedAssignment.PolicyAssignmentId.ToLower()
                 AssignmentName = $policyAssignments[$excludedAssignment.PolicyAssignmentId]
