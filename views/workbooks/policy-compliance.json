@@ -164,7 +164,7 @@
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
-      "name": "parameters - 0"
+      "name": "parameters-0"
     },
     {
       "type": 3,
@@ -305,46 +305,19 @@
           ]
         }
       },
-      "name": "query - 1"
+      "name": "mainQuery"
     },
     {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeName_s == '{selectedInitiative}' and DefinitionName_s == '{selectedDefinition}' and AssignmentName_s == '{selectedAssignment}' and ComplianceState_s == 'Excluded'\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1));\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeName_s == '{selectedInitiative}' and DefinitionName_s == '{selectedDefinition}' and AssignmentName_s == '{selectedAssignment}' and ComplianceState_s !in ('Compliant','Excluded');\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeName_s == '{selectedInitiative}' and DefinitionName_s == '{selectedDefinition}' and AssignmentName_s == '{selectedAssignment}' and ComplianceState_s == 'Compliant'\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionGuid_g, SubscriptionName = ContainerName_s) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| where SubscriptionName == '{selectedSubscription}' and ComplianceState_s == '{selectedState}'\r\n| extend ResourceId = iif(ResourceId has 'policyinsights',substring(ResourceId,0,indexof(ResourceId,'/providers/microsoft.policyinsights/')),ResourceId)\r\n| extend ResourceCount = iif(isnotempty(ResourceCount), ResourceCount, iif(isnotempty(StatesCount_s), toint(StatesCount_s), 1))\r\n| project ResourceId, SubscriptionName, DefinitionName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount",
+        "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeName_s == '{selectedInitiative}' and DefinitionName_s == '{selectedDefinition}' and AssignmentName_s == '{selectedAssignment}' and ComplianceState_s == 'Excluded'\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1));\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeName_s == '{selectedInitiative}' and DefinitionName_s == '{selectedDefinition}' and AssignmentName_s == '{selectedAssignment}' and ComplianceState_s !in ('Compliant','Excluded');\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeName_s == '{selectedInitiative}' and DefinitionName_s == '{selectedDefinition}' and AssignmentName_s == '{selectedAssignment}' and ComplianceState_s == 'Compliant'\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionGuid_g, SubscriptionName = ContainerName_s) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| where SubscriptionName == '{selectedSubscription}' and ComplianceState_s == '{selectedState}'\r\n| extend ResourceId = iif(ResourceId has 'policyinsights',substring(ResourceId,0,indexof(ResourceId,'/providers/microsoft.policyinsights/')),ResourceId)\r\n| extend ResourceCount = iif(isnotempty(ResourceCount), ResourceCount, iif(isnotempty(StatesCount_s), toint(StatesCount_s), 1))\r\n| project ResourceId, SubscriptionName, DefinitionName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount",
         "size": 1,
         "showAnalytics": true,
         "title": "Resources compliance (select a line from above)",
         "timeContext": {
           "durationMs": 86400000
         },
-        "exportedParameters": [
-          {
-            "fieldName": "DefinitionName_s",
-            "parameterName": "selectedDefinition",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "InitiativeName_s",
-            "parameterName": "selectedInitiative",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "AssignmentName_s",
-            "parameterName": "selectedAssignment",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "selectedSubscription",
-            "parameterName": "SubscriptionName",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "ComplianceState_s",
-            "parameterName": "selectedState",
-            "parameterType": 1
-          }
-        ],
         "showExportToExcel": true,
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
@@ -353,6 +326,13 @@
           "formatters": [
             {
               "columnMatch": "DefinitionName_s",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "40ch"
+              }
+            },
+            {
+              "columnMatch": "AssignmentName_s",
               "formatter": 0,
               "formatOptions": {
                 "customColumnWidthSetting": "40ch"
@@ -399,13 +379,6 @@
               }
             },
             {
-              "columnMatch": "AssignmentName_s",
-              "formatter": 0,
-              "formatOptions": {
-                "customColumnWidthSetting": "40ch"
-              }
-            },
-            {
               "columnMatch": "SubscriptionGuid_g",
               "formatter": 15,
               "formatOptions": {
@@ -429,6 +402,10 @@
               "label": "Definition"
             },
             {
+              "columnId": "AssignmentName_s",
+              "label": "Assignment"
+            },
+            {
               "columnId": "Effect_s",
               "label": "Effect"
             },
@@ -443,7 +420,7 @@
           ]
         }
       },
-      "name": "query - 1 - Copy"
+      "name": "complianceDetails"
     },
     {
       "type": 9,
@@ -491,7 +468,7 @@
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
-      "name": "parameters - 4"
+      "name": "parameters-1"
     },
     {
       "type": 3,
@@ -502,33 +479,6 @@
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Compliance over time (select a line from top grid)",
-        "exportedParameters": [
-          {
-            "fieldName": "DefinitionName_s",
-            "parameterName": "selectedDefinition",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "InitiativeName_s",
-            "parameterName": "selectedInitiative",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "AssignmentName_s",
-            "parameterName": "selectedAssignment",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "selectedSubscription",
-            "parameterName": "SubscriptionName",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "ComplianceState_s",
-            "parameterName": "selectedState",
-            "parameterType": 1
-          }
-        ],
         "showExportToExcel": true,
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
@@ -601,7 +551,7 @@
           "rowLimit": 5000
         }
       },
-      "name": "query - 1 - Copy - Copy"
+      "name": "complianceOverTime"
     }
   ],
   "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
