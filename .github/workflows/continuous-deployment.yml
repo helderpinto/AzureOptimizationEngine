@@ -8,11 +8,8 @@ jobs:
       - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
       - name: Check out repository code
         uses: actions/checkout@v2
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
       - name: Testing PowerShell script call
         run: |
-          Install-Module -Name Az,Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Repository PSGallery -Force
+          Install-Module -Name Az,Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -AllowClobber -Repository PSGallery -Force
           ./Setup-LogAnalyticsWorkspaces.ps1
       - run: echo "🍏 This job's status is ${{ job.status }}."
