@@ -13,6 +13,6 @@ jobs:
           ls ${{ github.workspace }}
       - name: Testing PowerShell script call
         run: |
-          Install-Module -Name ,Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Repository PSGallery -Force
+          Install-Module -Name Az,Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Repository PSGallery -Force
           ./Setup-LogAnalyticsWorkspaces.ps1
       - run: echo "🍏 This job's status is ${{ job.status }}."
