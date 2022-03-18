@@ -1,7 +1,7 @@
-name: GitHub Actions Demo
+name: AOE Continuous Deployment
 on: [push]
 jobs:
-  Explore-GitHub-Actions:
+  AOE-CD:
     runs-on: windows-2019
     steps:
       - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub!"
@@ -13,5 +13,6 @@ jobs:
           ls ${{ github.workspace }}
       - name: Testing PowerShell script call
         run: |
+          Install-Module -Name ,Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Repository PSGallery -Force
           ./Setup-LogAnalyticsWorkspaces.ps1
       - run: echo "🍏 This job's status is ${{ job.status }}."
