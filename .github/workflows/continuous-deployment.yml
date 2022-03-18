@@ -9,9 +9,11 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Installing modules
+        shell: pwsh
         run: |
           Install-Module -Name Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Repository PSGallery -Force
       - name: Testing PowerShell script call
+        shell: pwsh
         run: |
           Import-Module Az
           ./Setup-LogAnalyticsWorkspaces.ps1
