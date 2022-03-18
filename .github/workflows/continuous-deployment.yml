@@ -2,7 +2,7 @@ name: AOE Continuous Deployment
 on: [push]
 jobs:
   AOE-CD:
-    runs-on: windows-2019
+    runs-on: ubuntu-latest
     steps:
       - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub!"
       - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
