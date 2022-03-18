@@ -13,5 +13,6 @@ jobs:
           Install-Module -Name Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Scope CurrentUser -Repository PSGallery -Force
       - name: Testing PowerShell script call
         run: |
+          Import-Module Az
           ./Setup-LogAnalyticsWorkspaces.ps1
       - run: echo "🍏 This job's status is ${{ job.status }}."
