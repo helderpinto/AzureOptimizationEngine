@@ -179,7 +179,15 @@ if ($cloudEnvironment -eq "AzureGermanCloud")
 $token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
 Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment    
 
-$domainName = (Get-MgDomain | Where-Object { $_.IsVerified -and $_.IsDefault })[0].Id
+$verifiedDefaultDomains = Get-MgDomain | Where-Object { $_.IsVerified -and $_.IsDefault }
+if ($verifiedDefaultDomains.Count -gt 1)
+{
+    $domainName = $verifiedDefaultDomains[0].Id 
+}
+else
+{
+    $domainName = $verifiedDefaultDomains.Id     
+}
 
 $roles = Get-MgDirectoryRole -ExpandProperty Members -Property DisplayName,Members
 foreach ($role in $roles)
