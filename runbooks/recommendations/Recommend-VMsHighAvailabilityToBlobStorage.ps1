@@ -234,7 +234,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -352,7 +352,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -478,7 +478,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -604,7 +604,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -719,7 +719,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -837,7 +837,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -961,7 +961,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -1078,7 +1078,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -1207,7 +1207,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
@@ -1325,7 +1325,7 @@ Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkCon
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
 
-Remove-Item -Path $csvExportPath -Force
+Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
