@@ -207,6 +207,8 @@ try
 catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
+    throw "Execution aborted"
 }
 
 Write-Output "Query finished with $($results.Count) results."
