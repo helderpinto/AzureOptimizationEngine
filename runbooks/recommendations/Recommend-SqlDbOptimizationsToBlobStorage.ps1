@@ -96,7 +96,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGSqlDatabase','AzMonitorMetrics','AzureConsumption','ARGResourceContainers')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGSqlDb','AzMonitorMetrics','AzureConsumption','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -116,7 +116,7 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$sqlDbsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGSqlDatabase' }).LogAnalyticsSuffix + "_CL"
+$sqlDbsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGSqlDb' }).LogAnalyticsSuffix + "_CL"
 $metricsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzMonitorMetrics' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"

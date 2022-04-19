@@ -334,6 +334,13 @@
                                 "description": "GUID for the VNet Export job schedule creation - create a unique before deploy"
                             }
                         },
+                        "argSqlDbExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the ARG SQL DB Export job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "monitorVmssCpuMaxExportJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -349,6 +356,13 @@
                             }
                         },
                         "monitorVmssMemoryMinExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "monitorSqlDbDtuMaxExportJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
                             "metadata": {
@@ -474,6 +488,13 @@
                                 "description": "GUID for the VNet Ingest job schedule creation - create a unique before deploy"
                             }
                         },
+                        "argSqlDbIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the ARG SQL DB Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "monitorIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -558,6 +579,13 @@
                                 "description": "GUID for the VMSS Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
                             }
                         },
+                        "sqldbOptimizationsRecommendationJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the SQL DB Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "recommendationsIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -584,6 +612,7 @@
                         "argNSGExportsRunbookName": "Export-ARGNSGPropertiesToBlobStorage",
                         "argVNetExportsRunbookName": "Export-ARGVNetPropertiesToBlobStorage",
                         "argPublicIpExportsRunbookName": "Export-ARGPublicIpPropertiesToBlobStorage",
+                        "argSqlDbExportsRunbookName": "Export-ARGSqlDatabasePropertiesToBlobStorage",
                         "monitorExportsRunbookName": "Export-AzMonitorMetricsToBlobStorage",
                         // CSV exports schedules
                         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
@@ -594,6 +623,7 @@
                         "monitorVmssCpuMaxExportsScheduleName": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
                         "monitorVmssCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
                         "monitorVmssMemoryMinExportsScheduleName": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
+                        "monitorSqlDbDtuMaxExportsScheduleName": "AzureOptimization_ExportMonitorSqlDbDtuMaxHourly",
                         "csvExportsSchedules": [
                             {
                                 "exportSchedule": "[variables('argExportsScheduleName')]",
@@ -640,6 +670,12 @@
                             {
                                 "exportSchedule": "[variables('monitorVmssMemoryMinExportsScheduleName')]",
                                 "exportDescription": "Hourly Azure Monitor metrics exports for VMSS Available Memory (Min.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorSqlDbDtuMaxExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for SQL Database Percentage DTU (Max.)",
                                 "exportTimeOffset": "PT1H15M",
                                 "exportFrequency": "Hour"
                             }
@@ -870,6 +906,20 @@
                                 "exportJobId": "[parameters('argPublicIPExportJobId')]"
                             },
                             {
+                                "runbookName": "[variables('argSqlDbExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "argsqldbexports",
+                                "variableName": "AzureOptimization_ARGSqlDatabaseContainer",
+                                "variableDescription": "The Storage Account container where Azure Resource Graph SQL DB exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestARGSqlDbDaily",
+                                "ingestDescription": "Daily Azure Resource Graph SQL DB ingests",
+                                "ingestTimeOffset": "PT1H30M",
+                                "ingestFrequency": "Day",
+                                "ingestJobId": "[parameters('argSqlDbIngestJobId')]",
+                                "exportSchedule": "[variables('argExportsScheduleName')]",
+                                "exportJobId": "[parameters('argSqlDbExportJobId')]"
+                            },
+                            {
                                 "runbookName": "[variables('monitorExportsRunbookName')]",
                                 "isOneToMany": true,
                                 "containerName": "azmonitorexports",
@@ -919,6 +969,19 @@
                                     "MetricNames": "Available Memory Bytes",
                                     "TimeGrain": "01:00:00"
                                 }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorSqlDbDtuMaxExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorSqlDbDtuMaxExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.sql/servers/databases",
+                                    "ARGFilter": "sku.tier in ('Standard','Premium')",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Maximum",
+                                    "MetricNames": "dtu_consumption_percent",
+                                    "TimeGrain": "01:00:00"
+                                }
                             }
                         ],
                         // recommendations runbooks
@@ -933,6 +996,7 @@
                         "armOptimizationsRecommendationsRunbookName": "Recommend-ARMOptimizationsToBlobStorage",
                         "vnetOptimizationsRecommendationsRunbookName": "Recommend-VNetOptimizationsToBlobStorage",
                         "vmssOptimizationsRecommendationsRunbookName": "Recommend-VMSSOptimizationsToBlobStorage",
+                        "sqldbOptimizationsRecommendationsRunbookName": "Recommend-SqlDbOptimizationsToBlobStorage",
                         "recommendations": [
                             {
                                 "recommendationJobId": "[parameters('unattachedDisksRecommendationJobId')]",
@@ -977,6 +1041,10 @@
                             {
                                 "recommendationJobId": "[parameters('vmssOptimizationsRecommendationJobId')]",
                                 "runbookName": "[variables('vmssOptimizationsRecommendationsRunbookName')]"
+                            },
+                            {
+                                "recommendationJobId": "[parameters('sqldbOptimizationsRecommendationJobId')]",
+                                "runbookName": "[variables('sqldbOptimizationsRecommendationsRunbookName')]"
                             }
                         ],
                         "remediationLogsContainerName": "remediationlogs",
@@ -1163,6 +1231,13 @@
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVNetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
+                                "name": "[variables('argSqlDbExportsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Exports SQL DB properties to Blob Storage using Azure Resource Graph",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argSqlDbExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
                                 "name": "[variables('monitorExportsRunbookName')]",
                                 "version": "1.0.0.0",
                                 "description": "Exports Azure Monitor metrics to Blob Storage",
@@ -1252,6 +1327,13 @@
                                 "description": "Generates VM Scale Set optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmssOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('sqldbOptimizationsRecommendationsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Generates SQL DB optimizations recommendations",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('sqldbOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('recommendationsIngestRunbookName')]",
@@ -1399,6 +1481,11 @@
                                 "value": 99
                             },
                             {
+                                "name": "AzureOptimization_PerfPercentileSqlDtu",
+                                "description": "The percentile to be used for SQL DB DTU metrics",
+                                "value": 99
+                            },
+                            {
                                 "name": "AzureOptimization_PerfThresholdCpuPercentage",
                                 "description": "The processor usage percentage threshold above which the fit score is decreased or below which the instance is considered underutilized",
                                 "value": 30
@@ -1442,6 +1529,11 @@
                                 "name": "AzureOptimization_PerfThresholdNetworkShutdownMbps",
                                 "description": "The network usage threshold (in Mbps) above which the fit score is decreased (shutdown scenarios)",
                                 "value": 10
+                            },
+                            {
+                                "name": "AzureOptimization_PerfThresholdDtuPercentage",
+                                "description": "The DTU usage percentage threshold below which a SQL Database instance is considered underutilized",
+                                "value": 40
                             },
                             {
                                 "name": "AzureOptimization_RemediateRightSizeMinFitScore",

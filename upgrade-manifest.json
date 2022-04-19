@@ -135,6 +135,11 @@
             "frequency": "Day"
         },
         {
+            "name": "AzureOptimization_IngestARGSqlDbDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_IngestARGResourceContainersDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
@@ -186,6 +191,11 @@
         },
         {
             "name": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorSqlDbDtuMaxHourly",
             "offset": "PT1H15M",
             "frequency": "Hour"
         },
@@ -311,6 +321,14 @@
             "ingestSchedule": "AzureOptimization_IngestARGVMSSDaily"
         },
         {
+            "runbook": "runbooks/data-collection/Export-ARGSqlDatabasePropertiesToBlobStorage.ps1",
+            "container": "argsqldbexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGSqlDbDaily"
+        },
+        {
             "runbook": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
             "container": "advisorexports",
             "requiredVariables": [
@@ -367,6 +385,17 @@
                         "TimeSpan": "01:00:00",
                         "aggregationType": "Minimum",
                         "MetricNames": "Available Memory Bytes",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorSqlDbDtuMaxHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.sql/servers/databases",
+                        "ARGFilter": "sku.tier in ('Standard','Premium')",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Maximum",
+                        "MetricNames": "dtu_consumption_percent",
                         "TimeGrain": "01:00:00"
                     }
                 }
@@ -501,6 +530,20 @@
                 {
                     "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
                     "defaultValue": 80
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-SqlDbOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_PerfPercentileSqlDtu",
+                    "defaultValue": 99
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdDtuPercentage",
+                    "defaultValue": 40
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
