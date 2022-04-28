@@ -148,7 +148,7 @@ $baseQuery = @"
     let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
     let stime = etime-BillingInterval; 
     let CandidateDatabaseIds = $sqlDbsTableName
-    | where TimeGenerated > ago(1d) and SkuTier_s in ('Standard','Premium')
+    | where TimeGenerated > ago(1d) and SkuName_s in ('Standard','Premium')
     | distinct InstanceId_s;
     $metricsTableName
     | where TimeGenerated > ago(MetricsInterval)
