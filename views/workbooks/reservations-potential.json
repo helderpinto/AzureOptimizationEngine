@@ -155,7 +155,7 @@
           "version": "KqlItem/1.0",
           "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| parse AdditionalInfo_s with * \"ServiceType=\" VMSize \";\" *\r\n| where VMSize == '{VMSize}' and Location_s == '{Location}'\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by UsageDate_t, InstanceId_s, SubscriptionGuid_g\r\n| summarize AvgUsedQuantity = round(avg(UsedQuantity),1) by InstanceId_s, SubscriptionGuid_g\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where TimeGenerated > ago(1d) and ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionName=ContainerName_s, SubscriptionGuid_g) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| project-reorder InstanceId_s, SubscriptionName\r\n| order by InstanceId_s asc",
           "size": 0,
-          "title": "Instances usage for selected size/location",
+          "title": "Instances usage for selected size/location (click on a line at the left table)",
           "showExportToExcel": true,
           "queryType": 0,
           "resourceType": "microsoft.operationalinsights/workspaces",
@@ -182,7 +182,7 @@
           "version": "KqlItem/1.0",
           "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| parse AdditionalInfo_s with * \"ServiceType=\" VMSize \";\" *\r\n| where VMSize == '{VMSize}' and Location_s == '{Location}'\r\n| summarize UsedQuantity = round(sum(todouble(Quantity_s)/24)) by UsageDate_t\r\n| extend RIPotential = {RIPotential}\r\n| render timechart",
           "size": 0,
-          "title": "Instance count for selected size/location",
+          "title": "Instance count for selected size/location (click on a line at the above table)",
           "queryType": 0,
           "resourceType": "microsoft.operationalinsights/workspaces",
           "chartSettings": {
