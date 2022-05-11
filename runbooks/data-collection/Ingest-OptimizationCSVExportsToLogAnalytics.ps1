@@ -295,4 +295,6 @@ foreach ($blob in $unprocessedBlobs) {
             $linesProcessed += $currentObjectLines  
         }            
     }
+
+    Remove-Item -Path $blob.Name -Force
 }

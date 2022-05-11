@@ -276,4 +276,6 @@ foreach ($blob in $unprocessedBlobs) {
             }        
         }
     }
+
+    Remove-Item -Path $blob.Name -Force
 }
