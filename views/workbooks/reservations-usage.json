@@ -99,7 +99,6 @@
             "label": "Aggregator Tag",
             "type": 1,
             "isRequired": true,
-            "value": "environment",
             "timeContext": {
               "durationMs": 2592000000
             },
@@ -110,8 +109,7 @@
             "version": "KqlParameterItem/1.0",
             "name": "BillingAccount",
             "label": "Billing Account ID",
-            "type": 1,
-            "value": "56195175"
+            "type": 1
           }
         ],
         "style": "pills",
@@ -227,7 +225,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"61548b73-54fa-4d19-853c-18409ca37086\",\"mergeType\":\"inner\",\"leftTable\":\"reservationDetailsAll\",\"rightTable\":\"riUsageDailyAverage\",\"leftColumn\":\"reservationId\",\"rightColumn\":\"ReservationId_g\"}],\"projectRename\":[{\"originalName\":\"[riUsageDailyAverage].ReservationName_s\",\"mergedName\":\"Reservation\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].totalReservedQuantity\",\"mergedName\":\"Quantity bought\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageDailyAverage].AvgRIsUsedDaily\",\"mergedName\":\"RIs Used/Day\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].avgUtilizationPercentage\",\"mergedName\":\"Utilization (%)\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].reservationId\",\"mergedName\":\"reservationId\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageDailyAverage].ReservationId_g\",\"mergedName\":\"ReservationId_g\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"}]}",
+        "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"61548b73-54fa-4d19-853c-18409ca37086\",\"mergeType\":\"inner\",\"leftTable\":\"reservationDetailsAll\",\"rightTable\":\"riUsageDailyAverage\",\"leftColumn\":\"reservationId\",\"rightColumn\":\"ReservationId_g\"}],\"projectRename\":[{\"originalName\":\"[riUsageDailyAverage].ReservationName_s\",\"mergedName\":\"Reservation\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].totalReservedQuantity\",\"mergedName\":\"Quantity bought\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageDailyAverage].AvgRIsUsedDaily\",\"mergedName\":\"RIs Used/Day\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].avgUtilizationPercentage\",\"mergedName\":\"Avg. Monthly Usage (%)\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].reservationId\",\"mergedName\":\"reservationId\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageDailyAverage].ReservationId_g\",\"mergedName\":\"ReservationId_g\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"}]}",
         "size": 0,
         "title": "Reservation Usage Details",
         "exportedParameters": [
@@ -265,13 +263,13 @@
         }
       },
       "customWidth": "50",
-      "name": "query - 6"
+      "name": "reservationUsageMerge"
     },
     {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| parse AdditionalInfo_s with * \"RINormalizationRatio=\" RINormalizationRatio \"}\" *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagMiddle ';' *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagEnd '}' *\r\n| extend AggregatorTag = iif(isnotempty(AggregatorTagMiddle),AggregatorTagMiddle,AggregatorTagEnd)\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIsDaily=round(sum(UsedRIs),2) by UsageDate_t, AggregatorTag\r\n| summarize AvgRIsUsedDaily=round(avg(UsedRIsDaily)/{selectedQuantity}*100,2) by AggregatorTag\r\n| order by AggregatorTag asc, AvgRIsUsedDaily",
+        "query": "let absoluteRIBought = toscalar(AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}')\r\n    and CollectedDate_t < todatetime('{LookbackPeriod:endISO}')\r\n    and ChargeType_s == 'Usage'\r\n    and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| summarize (datetime_diff('Day',max(UsageDate_t),min(UsageDate_t))+1)*{selectedQuantity});\r\nAzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| parse AdditionalInfo_s with * \"RINormalizationRatio=\" RINormalizationRatio \"}\" *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagMiddle ';' *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagEnd '}' *\r\n| extend AggregatorTag = iif(isnotempty(AggregatorTagMiddle), trim(' ',AggregatorTagMiddle), trim(' ',AggregatorTagEnd))\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIPercentage=round(sum(UsedRIs) / absoluteRIBought * 100, 2) by AggregatorTag, SubscriptionGuid_g\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionGuid_g\r\n) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| project-reorder AggregatorTag, Subscription, UsedRIPercentage\r\n| order by AggregatorTag asc, UsedRIPercentage",
         "size": 1,
         "showAnalytics": true,
         "title": "Average Daily Reservation Usage by Tag (select Reservation first)",
@@ -295,8 +293,8 @@
               "label": "Aggregator Tag"
             },
             {
-              "columnId": "AvgRIsUsedDaily",
-              "label": "RIs Used Daily (%)"
+              "columnId": "UsedRIPercentage",
+              "label": "Used RI (%)"
             }
           ]
         }
