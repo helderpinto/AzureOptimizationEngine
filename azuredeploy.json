@@ -1413,7 +1413,7 @@
                             {
                                 "name": "AzureOptimization_LogAnalyticsChunkSize",
                                 "description": "The size (in rows) for each chunk of Log Analytics ingestion request",
-                                "value": 9000
+                                "value": 8000
                             },
                             {
                                 "name": "AzureOptimization_StorageBlobsPageSize",
