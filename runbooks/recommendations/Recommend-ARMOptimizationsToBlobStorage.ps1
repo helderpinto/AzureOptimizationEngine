@@ -56,7 +56,7 @@ else
 $assignmentsSubscriptionsLimitVar = Get-AutomationVariable -Name  "AzureOptimization_RecommendationRBACSubscriptionsAssignmentsLimit" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($assignmentsSubscriptionsLimitVar) -or $assignmentsSubscriptionsLimitVar -eq 0)
 {
-    $assignmentsSubscriptionsLimit = 2000
+    $assignmentsSubscriptionsLimit = 4000
 }
 else
 {

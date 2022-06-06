@@ -706,7 +706,7 @@
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
         "chartSettings": {
-          "customThresholdLine": "2000",
+          "customThresholdLine": "4000",
           "customThresholdLineStyle": 5
         }
       },
