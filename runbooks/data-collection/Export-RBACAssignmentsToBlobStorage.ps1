@@ -79,7 +79,7 @@ foreach ($subscription in $subscriptions) {
 
     Select-AzSubscription -SubscriptionId $subscription.Id -TenantId $tenantId | Out-Null
 
-    $assignments = Get-AzRoleAssignment -IncludeClassicAdministrators
+    $assignments = Get-AzRoleAssignment -IncludeClassicAdministrators -ErrorAction Continue
     Write-Output "Found $($assignments.Count) assignments for $($subscription.Name) subscription..."
 
     foreach ($assignment in $assignments) {
