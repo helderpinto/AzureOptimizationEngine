@@ -1742,6 +1742,50 @@
                                 "publicAccess": "None"
                             }
                         },
+                        {
+                            "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+                            "apiVersion": "2021-02-01",
+                            "name": "[concat(parameters('storageAccountName'), '/default/')]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+                            ],
+                            "properties": {
+                                "policy": {
+                                    "rules": [
+                                        {
+                                            "enabled": true,
+                                            "name": "Clean6MonthsOldBlobs",
+                                            "type": "Lifecycle",
+                                            "definition": {
+                                                "actions": {
+                                                    "baseBlob": {
+                                                        "delete": {
+                                                            "daysAfterModificationGreaterThan": 180
+                                                        }
+                                                    },
+                                                    "snapshot": {
+                                                        "delete": {
+                                                            "daysAfterCreationGreaterThan": 180
+                                                        }
+                                                    },
+                                                    "version": {
+                                                        "delete": {
+                                                            "daysAfterCreationGreaterThan": 180
+                                                        }
+                                                    }
+                                                },
+                                                "filters": {
+                                                    "blobTypes": [
+                                                        "blockBlob"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        },
                         // Azure SQL Server
                         {
                             "type": "Microsoft.Sql/servers",
