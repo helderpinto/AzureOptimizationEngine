@@ -341,6 +341,13 @@
                                 "description": "GUID for the ARG SQL DB Export job schedule creation - create a unique before deploy"
                             }
                         },
+                        "policyStateExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Policy State Export job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "monitorVmssCpuMaxExportJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -495,6 +502,13 @@
                                 "description": "GUID for the ARG SQL DB Ingest job schedule creation - create a unique before deploy"
                             }
                         },
+                        "policyStateIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Policy State Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "monitorIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -613,6 +627,7 @@
                         "argVNetExportsRunbookName": "Export-ARGVNetPropertiesToBlobStorage",
                         "argPublicIpExportsRunbookName": "Export-ARGPublicIpPropertiesToBlobStorage",
                         "argSqlDbExportsRunbookName": "Export-ARGSqlDatabasePropertiesToBlobStorage",
+                        "policyStateExportsRunbookName": "Export-PolicyComplianceToBlobStorage",
                         "monitorExportsRunbookName": "Export-AzMonitorMetricsToBlobStorage",
                         // CSV exports schedules
                         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
@@ -620,6 +635,7 @@
                         "consumptionExportsScheduleName": "AzureOptimization_ExportConsumptionDaily",
                         "aadObjectsExportsScheduleName": "AzureOptimization_ExportAADObjectsDaily",
                         "rbacExportsScheduleName": "AzureOptimization_ExportRBACDaily",
+                        "policyStateExportsScheduleName": "AzureOptimization_ExportPolicyStateDaily",
                         "monitorVmssCpuMaxExportsScheduleName": "AzureOptimization_ExportMonitorVmssCpuMaxHourly",
                         "monitorVmssCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
                         "monitorVmssMemoryMinExportsScheduleName": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
@@ -652,6 +668,12 @@
                             {
                                 "exportSchedule": "[variables('rbacExportsScheduleName')]",
                                 "exportDescription": "Daily Azure RBAC exports",
+                                "exportTimeOffset": "PT1H",
+                                "exportFrequency": "Day"
+                            },
+                            {
+                                "exportSchedule": "[variables('policyStateExportsScheduleName')]",
+                                "exportDescription": "Daily Azure Policy State exports",
                                 "exportTimeOffset": "PT1H",
                                 "exportFrequency": "Day"
                             },
@@ -918,6 +940,20 @@
                                 "ingestJobId": "[parameters('argSqlDbIngestJobId')]",
                                 "exportSchedule": "[variables('argExportsScheduleName')]",
                                 "exportJobId": "[parameters('argSqlDbExportJobId')]"
+                            },
+                            {
+                                "runbookName": "[variables('policyStateExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "policystateexports",
+                                "variableName": "AzureOptimization_PolicyStatesContainer",
+                                "variableDescription": "The Storage Account container where Azure Policy State exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestPolicyStateDaily",
+                                "ingestDescription": "Daily Azure Policy State ingests",
+                                "ingestTimeOffset": "PT1H30M",
+                                "ingestFrequency": "Day",
+                                "ingestJobId": "[parameters('policyStateIngestJobId')]",
+                                "exportSchedule": "[variables('policyStateExportsScheduleName')]",
+                                "exportJobId": "[parameters('policyStateExportJobId')]"
                             },
                             {
                                 "runbookName": "[variables('monitorExportsRunbookName')]",
@@ -1236,6 +1272,13 @@
                                 "description": "Exports SQL DB properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argSqlDbExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('policyStateExportsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Exports Azure Policy State to Blob Storage",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('policyStateExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('monitorExportsRunbookName')]",

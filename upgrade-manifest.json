@@ -80,6 +80,11 @@
             "frequency": "Day"
         },
         {
+            "name": "AzureOptimization_ExportPolicyStateDaily",
+            "offset": "PT1H",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_IngestARGAppGWsDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
@@ -136,6 +141,11 @@
         },
         {
             "name": "AzureOptimization_IngestARGSqlDbDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestPolicyStateDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
         },
@@ -351,6 +361,14 @@
             ],
             "exportSchedule": "AzureOptimization_ExportRBACDaily",
             "ingestSchedule": "AzureOptimization_IngestRBACDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-PolicyComplianceToBlobStorage.ps1",
+            "container": "policystateexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportPolicyStateDaily",
+            "ingestSchedule": "AzureOptimization_IngestPolicyStateDaily"
         },
         {
             "runbook": "runbooks/data-collection/Export-AzMonitorMetricsToBlobStorage.ps1",
