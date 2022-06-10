@@ -2,11 +2,11 @@
     "modules": [
         {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.7.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.8.0"
         },
         {
             "name": "Microsoft.Graph.Authentication",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.6"
         },
         {
             "name": "Az.Advisor",
@@ -14,43 +14,47 @@
         },
         {
             "name": "Az.Compute",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.21.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.27.0"
         },
         {
             "name": "Az.OperationalInsights",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/3.0.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/3.1.0"
         },
         {
             "name": "Az.ResourceGraph",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.11.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.12.0"
         },
         {
             "name": "Az.Storage",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/4.1.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/4.6.0"
         },
         {
             "name": "Az.Resources",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/5.1.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/6.0.0"
         },
         {
             "name": "Az.Monitor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.1"
+        },
+        {
+            "name": "Az.PolicyInsights",
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.PolicyInsights/1.5.0"
         },
         {
             "name": "Microsoft.Graph.Users",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.9.6"
         },
         {
             "name": "Microsoft.Graph.Groups",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.9.6"
         },
         {
             "name": "Microsoft.Graph.Applications",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.9.6"
         },
         {
             "name": "Microsoft.Graph.Identity.DirectoryManagement",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.9.6"
         }
     ],
     "schedules": [
