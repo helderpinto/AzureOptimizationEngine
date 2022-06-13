@@ -376,7 +376,7 @@
           "type": 3,
           "content": {
             "version": "KqlItem/1.0",
-            "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and ComplianceState_s == 'Excluded' and 'Excluded' in ({ComplianceState})\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| where (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1))\r\n| project ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount;\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s !in ('Compliant','Excluded')\r\n| project ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s;\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s == 'Compliant'\r\n| project SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s, StatesCount=tolong(StatesCount_s)\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionGuid_g, SubscriptionName = ContainerName_s) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by InitiativeName_s asc, DefinitionName_s asc, SubscriptionName asc\r\n| extend ResourceId = iif(ResourceId has 'policyinsights', substring(ResourceId, 0, indexof(ResourceId, '/providers/microsoft.policyinsights/')), ResourceId)\r\n| extend ResourceCount = iif(isnotempty(ResourceCount), ResourceCount, 1)\r\n| project-reorder ResourceId, SubscriptionName, DefinitionName_s, InitiativeName_s, AssignmentName_s, SubscriptionName, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount",
+            "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and ComplianceState_s == 'Excluded' and 'Excluded' in ({ComplianceState})\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| where (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1))\r\n| project ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount;\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s !in ('Compliant','Excluded')\r\n| project ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s;\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s == 'Compliant'\r\n| project SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s, StatesCount=tolong(StatesCount_s)\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionGuid_g, SubscriptionName = ContainerName_s) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by InitiativeName_s asc, DefinitionName_s asc, SubscriptionName asc\r\n| extend ResourceId = iif(ResourceId has 'policyinsights', substring(ResourceId, 0, indexof(ResourceId, '/providers/microsoft.policyinsights/')), ResourceId)\r\n| extend ResourceCount = iif(isnotempty(ResourceCount), ResourceCount, iif(isnotempty(StatesCount), StatesCount, 1))\r\n| project ResourceId, SubscriptionName, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount",
             "size": 2,
             "showAnalytics": true,
             "title": "Policy Compliance Full Report",
@@ -417,24 +417,47 @@
             "gridSettings": {
               "formatters": [
                 {
+                  "columnMatch": "ResourceId",
+                  "formatter": 13,
+                  "formatOptions": {
+                    "linkTarget": null,
+                    "showIcon": true,
+                    "customColumnWidthSetting": "28ch"
+                  }
+                },
+                {
+                  "columnMatch": "SubscriptionName",
+                  "formatter": 0,
+                  "formatOptions": {
+                    "customColumnWidthSetting": "18ch"
+                  }
+                },
+                {
                   "columnMatch": "DefinitionName_s",
                   "formatter": 0,
                   "formatOptions": {
-                    "customColumnWidthSetting": "40ch"
+                    "customColumnWidthSetting": "30ch"
                   }
                 },
                 {
                   "columnMatch": "InitiativeName_s",
                   "formatter": 0,
                   "formatOptions": {
-                    "customColumnWidthSetting": "40ch"
+                    "customColumnWidthSetting": "30ch"
                   }
                 },
                 {
                   "columnMatch": "AssignmentName_s",
                   "formatter": 0,
                   "formatOptions": {
-                    "customColumnWidthSetting": "40ch"
+                    "customColumnWidthSetting": "30ch"
+                  }
+                },
+                {
+                  "columnMatch": "Effect_s",
+                  "formatter": 0,
+                  "formatOptions": {
+                    "customColumnWidthSetting": "14ch"
                   }
                 },
                 {
@@ -471,16 +494,23 @@
                   }
                 },
                 {
-                  "columnMatch": "SubscriptionGuid_g",
-                  "formatter": 15,
+                  "columnMatch": "ComplianceReason_s",
+                  "formatter": 0,
                   "formatOptions": {
-                    "linkTarget": null,
-                    "showIcon": true
+                    "customColumnWidthSetting": "19ch"
                   }
+                },
+                {
+                  "columnMatch": "SubscriptionGuid_g",
+                  "formatter": 5
                 }
               ],
               "rowLimit": 10000,
               "labelSettings": [
+                {
+                  "columnId": "ResourceId",
+                  "label": "Resource"
+                },
                 {
                   "columnId": "SubscriptionName",
                   "label": "Subscription"
@@ -506,7 +536,11 @@
                   "label": "Compliance"
                 },
                 {
-                  "columnId": "StatesCount",
+                  "columnId": "ComplianceReason_s",
+                  "label": "Reason"
+                },
+                {
+                  "columnId": "ResourceCount",
                   "label": "Resources #"
                 }
               ]
