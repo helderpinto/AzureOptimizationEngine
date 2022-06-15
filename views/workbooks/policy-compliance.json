@@ -388,7 +388,7 @@
               "columnMatch": "ResourceId",
               "formatter": 13,
               "formatOptions": {
-                "linkTarget": null,
+                "linkTarget": "Resource",
                 "showIcon": true,
                 "customColumnWidthSetting": "28ch"
               }
