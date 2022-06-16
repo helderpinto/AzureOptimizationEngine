@@ -580,7 +580,7 @@
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
         },
         {
-            "runbook": "runbooks/recommendations/Recommend-StorageAccountsOptimizationsToBlobStorage.ps1",
+            "runbook": "runbooks/recommendations/Recommend-StorageAccountOptimizationsToBlobStorage.ps1",
             "requiredVariables": [
                 {
                     "name": "AzureOptimization_RecommendationStorageAcountGrowthThresholdPercentage",
