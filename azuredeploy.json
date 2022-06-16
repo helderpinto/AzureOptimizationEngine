@@ -1439,7 +1439,7 @@
                                 "version": "1.0.0.0",
                                 "description": "Cleans up older recommendations from SQL Database",
                                 "type": "PowerShell",
-                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('cleanupOlderRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/maintenance/',variables('cleanupOlderRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             }
                         ],
                         "automationVariables": [
