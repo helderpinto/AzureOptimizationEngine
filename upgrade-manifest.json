@@ -217,6 +217,11 @@
             "name": "AzureOptimization_IngestAzMonitorMetricsHourly",
             "offset": "PT2H",
             "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_CleanUpRecommendationsWeekly",
+            "offset": "PT6D",
+            "frequency": "Week"
         }
     ],
     "baseIngest": [
@@ -227,6 +232,10 @@
         {
             "runbook": "runbooks/recommendations/Ingest-RecommendationsToSQLServer.ps1",
             "source": "recommendations"
+        },
+        {
+            "runbook": "runbooks/maintenance/CleanUp-OlderRecommendationsFromSqlServer.ps1",
+            "source": "maintenance"
         }
     ],
     "dataCollection": [
@@ -566,6 +575,24 @@
                 {
                     "name": "AzureOptimization_PerfThresholdDtuPercentage",
                     "defaultValue": 40
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-StorageAccountsOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RecommendationStorageAcountGrowthThresholdPercentage",
+                    "defaultValue": 5
+                },
+                {
+                    "name": "AzureOptimization_RecommendationStorageAcountGrowthMonthlyCostThreshold",
+                    "defaultValue": 50
+                },
+                {
+                    "name": "AzureOptimization_RecommendationStorageAcountGrowthLookbackDays",
+                    "defaultValue": 30
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

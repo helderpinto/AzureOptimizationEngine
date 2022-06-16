@@ -52,7 +52,7 @@
             "category": "Cost",
             "typeId": "08e049ca-18b0-4d22-b174-131a91d0381c",
             "impact": "Medium",
-            "description": "Storage Account has been growing steadily"
+            "description": "Storage Account without retention policy in place"
         },
         {
             "category": "HighAvailability",

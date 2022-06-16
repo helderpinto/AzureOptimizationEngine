@@ -48,9 +48,9 @@ $growthPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimiza
 if (-not($growthPercentageThreshold -gt 0)) {
     $growthPercentageThreshold = 5
 }
-$monthlyCostThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationStorageAcountMonthlyCostThreshold" -ErrorAction SilentlyContinue)
+$monthlyCostThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationStorageAcountGrowthMonthlyCostThreshold" -ErrorAction SilentlyContinue)
 if (-not($monthlyCostThreshold -gt 0)) {
-    $monthlyCostThreshold = 100
+    $monthlyCostThreshold = 50
 }
 $growthLookbackDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationStorageAcountGrowthLookbackDays" -ErrorAction SilentlyContinue)
 if (-not($growthLookbackDays -gt 0)) {
@@ -222,12 +222,15 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
+    $costsAmount = ([double] $result.InitialDailyCost + [double] $result.CurrentDailyCost) / 2 * 30
+
     $additionalInfoDictionary["InitialDailyCost"] = $result.InitialDailyCost
     $additionalInfoDictionary["CurrentDailyCost"] = $result.CurrentDailyCost
     $additionalInfoDictionary["GrowthPercentage"] = $result.GrowthPercentage
-    $additionalInfoDictionary["CostsAmount"] = ([double] $result.InitialDailyCost + [double] $result.CurrentDailyCost) / 2 * 30
+    $additionalInfoDictionary["CostsAmount"] = $costsAmount
+    $additionalInfoDictionary["savingsAmount"] = $costsAmount * 0.25 # estimated 25% savings
 
-    $fitScore = 5 # needs Maximum of Maximum for metrics to have higher fit score
+    $fitScore = 4 # savings are estimated with a significant error margin
     
     $fitScore = [Math]::max(0.0, $fitScore)
 
@@ -257,7 +260,7 @@ foreach ($result in $results)
         RecommendationType          = "Saving"
         RecommendationSubType       = "StorageAccountsGrowing"
         RecommendationSubTypeId     = "08e049ca-18b0-4d22-b174-131a91d0381c"
-        RecommendationDescription   = "Storage Account has been growing steadily"
+        RecommendationDescription   = "Storage Account without retention policy in place"
         RecommendationAction        = "Review whether the Storage Account has a retention policy for example via Lifecycle Management"
         InstanceId                  = $result.InstanceId_s
         InstanceName                = $result.InstanceName_s

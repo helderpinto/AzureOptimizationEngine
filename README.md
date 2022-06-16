@@ -31,7 +31,7 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * VMs deallocated since a long time ago (forgotten VMs)
     * Orphaned Public IPs
     * Underutilized Azure SQL Databases (DTU-based SKUs only)
-    * Storage Accounts without retention in place
+    * Storage Accounts without retention policy in place
 * High Availability
     * Virtual Machine high availability (availability zones count, availability set, managed disks, storage account distribution when using unmanaged disks)
     * VM Scale Set high availability (availability zones count, managed disks)
@@ -87,7 +87,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 * 06/2022
     * New Cost recommendations added
         * Underutilized SQL Dabases (DTU-based SKUs only)
-        * Storage Accounts without retention in place
+        * Storage Accounts without retention policy in place
     * New workbooks
         * Policy Compliance
         * Reservations Potential (preview)
