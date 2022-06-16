@@ -853,17 +853,6 @@ if ("Y", "y" -contains $continueInput) {
     }
     #endregion
     
-    #region Open SQL Server firewall rule
-    if (-not($sqlServerName -like "*.database.*"))
-    {
-        $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
-
-        Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
-        $tempFirewallRuleName = "InitialDeployment"            
-        New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue    
-    }
-    #endregion
-    
     #region Deployment date Automation variable
     Write-Host "Checking Azure Automation variable referring to the initial Azure Optimization Engine deployment date..." -ForegroundColor Green
     $deploymentDateVariableName = "AzureOptimization_DeploymentDate"
@@ -877,6 +866,17 @@ if ("Y", "y" -contains $continueInput) {
     }
     #endregion
 
+    #region Open SQL Server firewall rule
+    if (-not($sqlServerName -like "*.database.*"))
+    {
+        $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+
+        Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
+        $tempFirewallRuleName = "InitialDeployment"            
+        New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue    
+    }
+    #endregion
+    
     #region SQL Database model deployment
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
@@ -1000,6 +1000,14 @@ if ("Y", "y" -contains $continueInput) {
     }
     #endregion
     
+    #region Close SQL Server firewall rule
+    if (-not($sqlServerName -like "*.database.*"))
+    {
+        Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
+        Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName        
+    }    
+    #endregion
+
     #region Workbooks deployment
     Write-Host "Publishing workbooks..." -ForegroundColor Green
     $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
@@ -1016,14 +1024,6 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
         }
     }
-    #endregion
-
-    #region Close SQL Server firewall rule
-    if (-not($sqlServerName -like "*.database.*"))
-    {
-        Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
-        Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName        
-    }    
     #endregion
 
     #region Grant Azure AD role to AOE principal
