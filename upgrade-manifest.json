@@ -220,7 +220,7 @@
         },
         {
             "name": "AzureOptimization_CleanUpRecommendationsWeekly",
-            "offset": "PT6D",
+            "offset": "P6D",
             "frequency": "Week"
         }
     ],

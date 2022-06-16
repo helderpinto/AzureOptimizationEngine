@@ -2238,7 +2238,7 @@
                                 "description": "Starts the weekly Recommendations cleanup",
                                 "expiryTime": "9999-12-31T17:59:00-06:00",
                                 "isEnabled": true,
-                                "startTime": "[dateTimeAdd(parameters('baseTime'), 'PT6D')]",
+                                "startTime": "[dateTimeAdd(parameters('baseTime'), 'P6D')]",
                                 "interval": 1,
                                 "frequency": "Week"
                             }
