@@ -92,9 +92,9 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
         * Policy Compliance
         * Reservations Potential (preview)
         * Reservations Usage (preview)
-    * Added Storage Lifecycle Management policy (new deployments only)
+    * Added Storage Lifecycle Management policy (new deployments or full upgrades only)
     * Added SQL Database retention policy runbook to clean up recommendations older than 365 days (configurable)
-    * Support for existing SQL Server reuse in upgrade scenarios (after migrating original database)
+    * Support for (any type of) existing SQL Server reuse in upgrade scenarios (after migrating original database)
     * Workbooks usability improvements
     * Runbook performance improvements
     * Several bug fixes

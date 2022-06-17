@@ -1084,11 +1084,22 @@ if ("Y", "y" -contains $continueInput) {
         if (-not($globalReaders -contains $spnId))
         {
             New-MgDirectoryRoleMemberByRef -DirectoryRoleId $globalReaderRole.Id -BodyParameter @{"@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$spnId"}
-            Write-Host "Role granted." -ForegroundColor Green
+            Start-Sleep -Seconds 5
+            $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
+                | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
+            $globalReaders = $globalReaderRole.Members.Id
+            if ($globalReaders -contains $spnId)
+            {
+                Write-Host "Role granted." -ForegroundColor Green
+            }
+            else
+            {
+                throw "Error when trying to grant Global Reader role"
+            }
         }
         else
         {
-            Write-Host "Role was already granted." -ForegroundColor Green            
+            Write-Host "Role was already granted before." -ForegroundColor Green            
         }        
     }
     catch

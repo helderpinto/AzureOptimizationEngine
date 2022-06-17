@@ -9,6 +9,7 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_PerfPercentileDisk` - The default percentile for disk IO/throughput metrics aggregations is 99. The lower the percentile, the less conservative will be VM right-size fit score algorithm.
 * `AzureOptimization_PerfPercentileMemory` - The default percentile for memory metrics aggregations is 99. The lower the percentile, the less conservative will be VM right-size fit score algorithm.
 * `AzureOptimization_PerfPercentileNetwork` - The default percentile for network metrics aggregations is 99. The lower the percentile, the less conservative will be VM right-size fit score algorithm.
+* `AzureOptimization_PerfPercentileSqlDtu` - The default percentile to be used for SQL DB DTU metrics. The lower the percentile, the less conservative will be the SQL Database right-size algorithm.
 * `AzureOptimization_PerfThresholdCpuPercentage` - The CPU threshold (in % Processor Time) above which the VM right-size fit score will decrease or below which the VM scale set right-size Cost recommendation will trigger.
 * `AzureOptimization_PerfThresholdCpuShutdownPercentage` - The CPU threshold (in % Processor Time) above which the VM right-size fit score will decrease (_shutdown recommendations only_).
 * `AzureOptimization_PerfThresholdCpuDegradedMaxPercentage` - The CPU threshold (Maximum observed in % Processor Time) above which the VM scale set right-size Performance recommendation will trigger.
@@ -18,6 +19,7 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_PerfThresholdMemoryDegradedPercentage` - The memory threshold (in % Used Memory) above which the VM scale set right-size Performance recommendation will trigger.
 * `AzureOptimization_PerfThresholdNetworkMbps` - The network threshold (in Total Mbps) above which the VM right-size fit score will decrease.
 * `AzureOptimization_PerfThresholdNetworkShutdownMbps` - The network threshold (in Total Mbps) above which the VM right-size fit score will decrease (_shutdown recommendations only_).
+* `AzureOptimization_PerfThresholdDtuPercentage` - The DTU usage percentage threshold below which a SQL Database instance is considered underutilized.
 * `AzureOptimization_RecommendAdvisorPeriodInDays` - The interval in days to look for Advisor recommendations in the Log Analytics repository - the default is 7, as Advisor recommendations are collected once a week.
 * `AzureOptimization_RecommendationAADMaxCredValidityYears` - The maximum number of years for a Service Principal credential/certificate validity - any validity above this interval will generate a Security recommendation. Defaults to 2.
 * `AzureOptimization_RecommendationAADMinCredValidityDays` - The minimum number of days for a Service Principal credential/certificate before it expires - any validity below this interval will generate an Operational Excellence recommendation. Defaults to 30.
@@ -31,6 +33,9 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_RecommendationRBACSubscriptionsAssignmentsLimit` - The maximum limit for RBAC assignments per subscription. Currently set to 2000 (as [documented](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#azure-rbac-limits)).
 * `AzureOptimization_RecommendationRBACMgmtGroupsAssignmentsLimit` - The maximum limit for RBAC assignments per management group. Currently set to 500 (as [documented](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#azure-rbac-limits)).
 * `AzureOptimization_RecommendationResourceGroupsPerSubLimit` - The maximum limit for Resource Group count per subscription. Currently set to 980 (as [documented](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#subscription-limits)).
+* `AzureOptimization_RecommendationStorageAcountGrowthThresholdPercentage` - The minimum Storage Account growth percentage required to flag Storage as not having a retention policy in place.
+* `AzureOptimization_RecommendationStorageAcountGrowthMonthlyCostThreshold` - The minimum monthly cost (in your EA/MCA currency) required to flag Storage as not having a retention policy in place.
+* `AzureOptimization_RecommendationStorageAcountGrowthLookbackDays` - The lookback period (in days) for analyzing Storage Account growth.
 * `AzureOptimization_ReferenceRegion` - The Azure region used as a reference for getting the list of available SKUs (defaults to `westeurope`).
 * `AzureOptimization_RemediateRightSizeMinFitScore` - The minimum fit score a VM right-size recommendation must have for the remediation to occur.
 * `AzureOptimization_RemediateRightSizeMinWeeksInARow` - The minimum number of weeks in a row a VM right-size recommendation must have been done for the remediation to occur.
@@ -43,4 +48,4 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_RemediateUnattachedDisksAction` - The action to apply for an unattached disk recommendation remediation (`Delete` or `Downsize`).
 * `AzureOptimization_RemediateUnattachedDisksTagsFilter` - The tag name/value pairs an unattached disk recommendation must have for the remediation to occur. Example: `[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]`
 * `AzureOptimization_RightSizeAdditionalPerfWorkspaces` - A comma-separated list of additional Log Analytics workspace IDs where to look for VM metrics (see [Configuring Log Analytics workspaces](./configuring-workspaces.md)).
-
+* `AzureOptimization_RecommendationsMaxAgeInDays` - The maximum age (in days) for a recommendation to be kept in the SQL database. Default: 365.
