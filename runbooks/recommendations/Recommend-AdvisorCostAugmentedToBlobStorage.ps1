@@ -482,7 +482,8 @@ let DiskPerf = Perf
             MaxPWriteMiBps = (maxif(SumPCounter, CounterName == 'Disk Write Bytes/sec') / 1024 / 1024) by _ResourceId, WorkspaceId$diskPerfAdditionalWorkspaces;
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
-| extend InstanceName_s = iif(isnotempty(InstanceName_s),InstanceName_s,InstanceName_g)
+| extend AdvisorRecIdIndex = indexof(InstanceId_s, '/providers/microsoft.advisor/recommendations')
+| extend InstanceName_s = iif(isnotempty(InstanceName_s),InstanceName_s,iif(AdvisorRecIdIndex > 0, split(substring(InstanceId_s, 0, AdvisorRecIdIndex),'/')[-1], split(InstanceId_s,'/')[-1]))
 | distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g
 | join kind=leftouter (
     $consumptionTableName

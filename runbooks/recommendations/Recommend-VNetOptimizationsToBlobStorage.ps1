@@ -666,7 +666,7 @@ $baseQuery = @"
     let SubnetsToday = materialize( $vNetsTableName
     | where TimeGenerated > ago(1d)
     | extend SubnetId = tolower(strcat(InstanceId_s, '/subnets/', SubnetName_s))
-    | distinct SubnetId, SubnetPrefix_s, SubnetUsedIPs_s );
+    | distinct SubnetId, SubnetPrefix_s, SubnetUsedIPs_s, SubnetDelegationsCount_s );
     let SubnetsBefore = materialize( $vNetsTableName
     | where TimeGenerated < ago(1d)
     | extend SubnetId = tolower(strcat(InstanceId_s, '/subnets/', SubnetName_s))
