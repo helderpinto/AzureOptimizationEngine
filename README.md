@@ -72,7 +72,7 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
 
 ### Log Analytics Workbooks
 
-With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned or how your resources are distributed.
+With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned, how your resources are distributed or exploring Azure Policy compliance results over time.
 
 ![Costs growing anomalies](./docs/workbooks-costsgrowing-anomalies.jpg "Costs growing anomalies")
 
@@ -81,6 +81,8 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 ![Azure AD/RM principals and roles summary, with service principal credentials expiration](./docs/workbooks-identitiesroles-summary.jpg "Azure AD/RM principals and roles summary, with service principal credentials expiration")
 
 ![Privileged Azure AD roles and assignment history](./docs/workbooks-identitiesroles-rolehistory.jpg "Priviliged Azure AD roles and assignment history")
+
+![Policy Compliance state, with evolution over time](./docs/workbooks-policycompliance.jpg "Policy Compliance state, with evolution over time")
 
 ## <a id="releases"></a>Releases ##
 
@@ -92,9 +94,9 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
         * Policy Compliance
         * Reservations Potential (preview)
         * Reservations Usage (preview)
-    * Added Storage Lifecycle Management policy (new deployments or full upgrades only)
+    * Added Storage Lifecycle Management policy, cleaning up CSVs older than 6 months (new deployments or full upgrades only)
     * Added SQL Database retention policy runbook to clean up recommendations older than 365 days (configurable)
-    * Support for (any type of) existing SQL Server reuse in upgrade scenarios (after migrating original database)
+    * Support for (any type of) existing SQL Server reuse (upgrade scenarios only, after manually migrating original database to new server)
     * Workbooks usability improvements
     * Runbook performance improvements
     * Several bug fixes
