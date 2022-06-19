@@ -2,11 +2,11 @@
     "modules": [
         {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.7.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.8.0"
         },
         {
             "name": "Microsoft.Graph.Authentication",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.6"
         },
         {
             "name": "Az.Advisor",
@@ -14,43 +14,47 @@
         },
         {
             "name": "Az.Compute",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.21.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/4.27.0"
         },
         {
             "name": "Az.OperationalInsights",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/3.0.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.OperationalInsights/3.1.0"
         },
         {
             "name": "Az.ResourceGraph",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.11.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/0.12.0"
         },
         {
             "name": "Az.Storage",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/4.1.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/4.6.0"
         },
         {
             "name": "Az.Resources",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/5.1.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/6.0.0"
         },
         {
             "name": "Az.Monitor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/3.0.1"
+        },
+        {
+            "name": "Az.PolicyInsights",
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.PolicyInsights/1.5.0"
         },
         {
             "name": "Microsoft.Graph.Users",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.9.6"
         },
         {
             "name": "Microsoft.Graph.Groups",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.9.6"
         },
         {
             "name": "Microsoft.Graph.Applications",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.9.6"
         },
         {
             "name": "Microsoft.Graph.Identity.DirectoryManagement",
-            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.9.6"
         }
     ],
     "schedules": [
@@ -76,6 +80,11 @@
         },
         {
             "name": "AzureOptimization_ExportARGDaily",
+            "offset": "PT1H",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_ExportPolicyStateDaily",
             "offset": "PT1H",
             "frequency": "Day"
         },
@@ -135,6 +144,16 @@
             "frequency": "Day"
         },
         {
+            "name": "AzureOptimization_IngestARGSqlDbDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestPolicyStateDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_IngestARGResourceContainersDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
@@ -190,9 +209,19 @@
             "frequency": "Hour"
         },
         {
+            "name": "AzureOptimization_ExportMonitorSqlDbDtuMaxHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
             "name": "AzureOptimization_IngestAzMonitorMetricsHourly",
             "offset": "PT2H",
             "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_CleanUpRecommendationsWeekly",
+            "offset": "P6D",
+            "frequency": "Week"
         }
     ],
     "baseIngest": [
@@ -203,6 +232,10 @@
         {
             "runbook": "runbooks/recommendations/Ingest-RecommendationsToSQLServer.ps1",
             "source": "recommendations"
+        },
+        {
+            "runbook": "runbooks/maintenance/CleanUp-OlderRecommendationsFromSqlServer.ps1",
+            "source": "maintenance"
         }
     ],
     "dataCollection": [
@@ -311,6 +344,14 @@
             "ingestSchedule": "AzureOptimization_IngestARGVMSSDaily"
         },
         {
+            "runbook": "runbooks/data-collection/Export-ARGSqlDatabasePropertiesToBlobStorage.ps1",
+            "container": "argsqldbexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGSqlDbDaily"
+        },
+        {
             "runbook": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
             "container": "advisorexports",
             "requiredVariables": [
@@ -333,6 +374,14 @@
             ],
             "exportSchedule": "AzureOptimization_ExportRBACDaily",
             "ingestSchedule": "AzureOptimization_IngestRBACDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-PolicyComplianceToBlobStorage.ps1",
+            "container": "policystateexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportPolicyStateDaily",
+            "ingestSchedule": "AzureOptimization_IngestPolicyStateDaily"
         },
         {
             "runbook": "runbooks/data-collection/Export-AzMonitorMetricsToBlobStorage.ps1",
@@ -367,6 +416,17 @@
                         "TimeSpan": "01:00:00",
                         "aggregationType": "Minimum",
                         "MetricNames": "Available Memory Bytes",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorSqlDbDtuMaxHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.sql/servers/databases",
+                        "ARGFilter": "sku.tier in ('Standard','Premium')",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Maximum",
+                        "MetricNames": "dtu_consumption_percent",
                         "TimeGrain": "01:00:00"
                     }
                 }
@@ -501,6 +561,38 @@
                 {
                     "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
                     "defaultValue": 80
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-SqlDbOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_PerfPercentileSqlDtu",
+                    "defaultValue": 99
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdDtuPercentage",
+                    "defaultValue": 40
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-StorageAccountOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RecommendationStorageAcountGrowthThresholdPercentage",
+                    "defaultValue": 5
+                },
+                {
+                    "name": "AzureOptimization_RecommendationStorageAcountGrowthMonthlyCostThreshold",
+                    "defaultValue": 50
+                },
+                {
+                    "name": "AzureOptimization_RecommendationStorageAcountGrowthLookbackDays",
+                    "defaultValue": 30
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

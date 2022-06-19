@@ -110,10 +110,11 @@ $argQuery = @"
     | extend enableDdosProtection = properties.enableDdosProtection
     | project-away properties
     | extend subnetPrefix = tostring(subnets.properties.addressPrefix)
+    | extend subnetDelegationsCount = array_length(subnets.properties.delegations)
     | extend subnetUsedIPs = iif(isnotempty(subnets.properties.ipConfigurations), array_length(subnets.properties.ipConfigurations), 0)
     | extend subnetTotalPrefixIPs = pow(2, 32 - toint(split(subnetPrefix,'/')[1])) - 5
     | extend subnetNsgId = tolower(subnets.properties.networkSecurityGroup.id)
-    | project id, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName = tolower(tostring(subnets.name)), subnetPrefix, subnetTotalPrefixIPs, subnetUsedIPs, subnetNsgId, peeringsCount, enableDdosProtection, tags
+    | project id, vnetName = name, resourceGroup, subscriptionId, tenantId, location, vnetPrefixes, dnsServers, subnetName = tolower(tostring(subnets.name)), subnetPrefix, subnetDelegationsCount, subnetTotalPrefixIPs, subnetUsedIPs, subnetNsgId, peeringsCount, enableDdosProtection, tags
     | order by id asc
 "@
 
@@ -161,6 +162,7 @@ foreach ($subnet in $subnetsTotal)
         EnableDdosProtection = $subnet.enableDdosProtection
         SubnetName = $subnet.subnetName
         SubnetPrefix = $subnet.subnetPrefix
+        SubnetDelegationsCount = $subnet.subnetDelegationsCount
         SubnetTotalPrefixIPs = $subnet.subnetTotalPrefixIPs
         SubnetUsedIPs = $subnet.subnetUsedIPs
         SubnetNSGId = $subnet.subnetNsgId
@@ -277,4 +279,10 @@ $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
-Write-Output "DONE"
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $csvExportPath from local disk..."    

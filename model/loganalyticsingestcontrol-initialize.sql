@@ -100,8 +100,20 @@ BEGIN
     VALUES ('argvmssexports', '1901-01-01T00:00:00Z', -1, 'VMSSV1', 'ARGVMSS')
 END
 
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'argsqldbexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('argsqldbexports', '1901-01-01T00:00:00Z', -1, 'SqlDbV1', 'ARGSqlDb')
+END
+
 IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'azmonitorexports')
 BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('azmonitorexports', '1901-01-01T00:00:00Z', -1, 'MonitorMetricsV1', 'MonitorMetrics')
+END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'policystateexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('policystateexports', '1901-01-01T00:00:00Z', -1, 'PolicyStatesV1', 'PolicyStates')
 END

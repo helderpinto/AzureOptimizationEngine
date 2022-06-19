@@ -30,7 +30,7 @@ $sharedKey = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorksp
 $LogAnalyticsChunkSize = [int] (Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsChunkSize" -ErrorAction SilentlyContinue)
 if (-not($LogAnalyticsChunkSize -gt 0))
 {
-    $LogAnalyticsChunkSize = 10000
+    $LogAnalyticsChunkSize = 8000
 }
 $lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))
@@ -207,7 +207,8 @@ $newProcessedTime = $null
 $unprocessedBlobs = @()
 
 foreach ($blob in $allblobs) {
-    if ($lastProcessedDateTime -lt $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")) {
+    if ($lastProcessedDateTime -lt $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'") -or `
+        ($lastProcessedDateTime -eq $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'") -and $lastProcessedLine -gt 0)) {
         $unprocessedBlobs += $blob
     }
 }
@@ -294,4 +295,6 @@ foreach ($blob in $unprocessedBlobs) {
             $linesProcessed += $currentObjectLines  
         }            
     }
+
+    Remove-Item -Path $blob.Name -Force
 }

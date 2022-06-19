@@ -1,0 +1,27 @@
+name: AOE Continuous Deployment
+on: 
+  workflow_dispatch:
+  schedule:
+    - cron: '30 17 * * *'
+jobs:
+  AOE-CD:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub for the ${{ github.ref }} branch of the ${{ github.repository }} repository!"
+      - name: Installing modules
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Az,Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement -Force
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Login via Az module
+        uses: azure/login@v1
+        with:
+          creds: ${{secrets.AZURE_CREDENTIALS}}
+          enable-AzPSSession: true 
+      - name: Testing PowerShell script call
+        shell: pwsh
+        run: |
+          ./Setup-LogAnalyticsWorkspaces.ps1
+      - run: echo "🍏 This job's status is ${{ job.status }}."

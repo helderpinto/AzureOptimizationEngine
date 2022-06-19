@@ -1,0 +1,494 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "b58b4eb8-5821-44d2-bc7e-54054df27320",
+            "version": "KqlParameterItem/1.0",
+            "name": "LookbackPeriod",
+            "label": "Lookback Period",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 2592000000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 5184000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            }
+          },
+          {
+            "id": "08c51931-8b6c-419d-8de2-f9d24e8e6dd7",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceType",
+            "label": "Resource Type",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| distinct MeterCategory_s\r\n| order by MeterCategory_s asc",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 0
+            },
+            "timeContextFromParameter": "LookbackPeriod",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "5b2d78e9-7177-4d9b-86fa-2a9b12dd470a",
+            "version": "KqlParameterItem/1.0",
+            "name": "Reservation",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s) and MeterCategory_s in ({ResourceType:value})\r\n| distinct ReservationId_g, ReservationName_s\r\n| order by ReservationName_s asc",
+            "value": [
+              "value::all"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 0
+            },
+            "timeContextFromParameter": "LookbackPeriod",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "version": "KqlParameterItem/1.0",
+            "name": "Aggregator",
+            "label": "Aggregator Tag",
+            "type": 1,
+            "isRequired": true,
+            "timeContext": {
+              "durationMs": 2592000000
+            },
+            "id": "a3fb4877-28ef-43fc-8821-376df486fa2a"
+          },
+          {
+            "id": "aa8a7236-be04-4bac-a536-0bb7fb3ae68b",
+            "version": "KqlParameterItem/1.0",
+            "name": "BillingAccount",
+            "label": "Billing Account ID",
+            "type": 1
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters - 0"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "93e7a6c7-cb1f-49ee-b135-468b9f528b04",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Reservation Analysis",
+            "subTarget": "reservationAnalysis",
+            "style": "link"
+          },
+          {
+            "id": "96332944-d3f7-4b0b-ad56-ab25a9e91049",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Full Report",
+            "subTarget": "fullReport",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "tabs"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"ARMEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GET\",\"path\":\"/providers/Microsoft.Billing/billingaccounts/{BillingAccount}/providers/Microsoft.Consumption/reservationSummaries?api-version=2021-10-01&$filter=properties/UsageDate ge {LookbackPeriod:startISO} and properties/UsageDate le {LookbackPeriod:endISO}&grain=monthly\",\"urlParams\":[],\"batchDisabled\":false,\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"tablePath\":\"$.value[*].properties\",\"columns\":[{\"path\":\"$.reservationId\",\"columnid\":\"reservationId\"},{\"path\":\"$.totalReservedQuantity\",\"columnid\":\"totalReservedQuantity\",\"columnType\":\"long\"},{\"path\":\"$.avgUtilizationPercentage\",\"columnid\":\"avgUtilizationPercentage\"}]}}]}",
+        "size": 4,
+        "title": "Reservation Details (all)",
+        "exportFieldName": "quantity",
+        "exportParameterName": "quantityBought",
+        "queryType": 12,
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "userFriendlyRenewState",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "renew",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "archived",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "displayProvisioningState",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "effectiveDateTime",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "purchaseDate",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "appliedScopeType",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "provisioningState",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "utilization",
+              "formatter": 5
+            }
+          ],
+          "rowLimit": 5000
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "debug",
+        "comparison": "isEqualTo",
+        "value": "true"
+      },
+      "customWidth": "50",
+      "name": "reservationDetailsAll"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g in ({Reservation:value})\r\n| parse AdditionalInfo_s with * \"RINormalizationRatio=\" RINormalizationRatio \"}\" *\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIsDaily=round(sum(UsedRIs),2) by UsageDate_t, ReservationName_s, ReservationId_g\r\n| summarize AvgRIsUsedDaily=round(avg(UsedRIsDaily),2) by ReservationName_s, ReservationId_g\r\n| order by ReservationId_g\r\n",
+        "size": 1,
+        "title": "Average Daily Instance Usage by Reservation (all)",
+        "timeContextFromParameter": "LookbackPeriod",
+        "exportedParameters": [
+          {
+            "fieldName": "ReservationId_g",
+            "parameterName": "selectedReservation"
+          },
+          {
+            "fieldName": "ReservationName_s",
+            "parameterName": "selectedReservationName",
+            "parameterType": 1
+          }
+        ],
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 5000,
+          "labelSettings": [
+            {
+              "columnId": "ReservationName_s",
+              "label": "Reservation"
+            },
+            {
+              "columnId": "AvgRIsUsedDaily",
+              "label": "RIs Used Daily (Avg.)"
+            }
+          ]
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "debug",
+        "comparison": "isEqualTo",
+        "value": "true"
+      },
+      "customWidth": "50",
+      "name": "riUsageDailyAverage"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let DaysSeenByReservation = AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g in ({Reservation:value})\r\n| summarize DaysSeen=datetime_diff('Day', max(UsageDate_t), min(UsageDate_t))+1 by ReservationId_g;\r\nAzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g in ({Reservation:value})\r\n| parse AdditionalInfo_s with * \"RINormalizationRatio=\" RINormalizationRatio \"}\" *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagMiddle ';' *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagEnd '}' *\r\n| extend AggregatorTag = iif(isnotempty(AggregatorTagMiddle), AggregatorTagMiddle, AggregatorTagEnd)\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize TotalUsedRIs=round(sum(UsedRIs),2) by ReservationName_s, ReservationId_g, AggregatorTag, SubscriptionGuid_g\r\n| join kind=inner (DaysSeenByReservation) on ReservationId_g\r\n| project-away ReservationId_g1\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionGuid_g\r\n) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by ReservationId_g",
+        "size": 1,
+        "title": "Total Instance Usage by Reservation (all)",
+        "exportedParameters": [
+          {
+            "fieldName": "ReservationId_g",
+            "parameterName": "selectedReservation"
+          },
+          {
+            "fieldName": "ReservationName_s",
+            "parameterName": "selectedReservationName",
+            "parameterType": 1
+          }
+        ],
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 5000,
+          "labelSettings": [
+            {
+              "columnId": "ReservationName_s",
+              "label": "Reservation"
+            }
+          ]
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "debug",
+        "comparison": "isEqualTo",
+        "value": "true"
+      },
+      "customWidth": "50",
+      "name": "riUsageFullReportPartial"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"61548b73-54fa-4d19-853c-18409ca37086\",\"mergeType\":\"inner\",\"leftTable\":\"reservationDetailsAll\",\"rightTable\":\"riUsageDailyAverage\",\"leftColumn\":\"reservationId\",\"rightColumn\":\"ReservationId_g\"}],\"projectRename\":[{\"originalName\":\"[riUsageDailyAverage].ReservationName_s\",\"mergedName\":\"Reservation\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].totalReservedQuantity\",\"mergedName\":\"Quantity bought\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageDailyAverage].AvgRIsUsedDaily\",\"mergedName\":\"RIs Used/Day\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].avgUtilizationPercentage\",\"mergedName\":\"Avg. Monthly Usage (%)\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].reservationId\",\"mergedName\":\"reservationId\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageDailyAverage].ReservationId_g\",\"mergedName\":\"ReservationId_g\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"}]}",
+        "size": 0,
+        "title": "Reservation Usage Details",
+        "exportedParameters": [
+          {
+            "fieldName": "ReservationId_g",
+            "parameterName": "selectedReservation",
+            "parameterType": 1
+          },
+          {
+            "fieldName": "Quantity bought",
+            "parameterName": "selectedQuantity",
+            "parameterType": 1
+          }
+        ],
+        "queryType": 7,
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Reservation",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "40ch"
+              }
+            },
+            {
+              "columnMatch": "reservationId",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "ReservationId_g",
+              "formatter": 5
+            }
+          ],
+          "rowLimit": 5000
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "reservationAnalysis"
+      },
+      "customWidth": "50",
+      "name": "reservationUsageMerge"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"61548b73-54fa-4d19-853c-18409ca37086\",\"mergeType\":\"inner\",\"leftTable\":\"reservationDetailsAll\",\"rightTable\":\"riUsageFullReportPartial\",\"leftColumn\":\"reservationId\",\"rightColumn\":\"ReservationId_g\"}],\"projectRename\":[{\"originalName\":\"[reservationDetailsAll].reservationId\",\"mergedName\":\"reservationId\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].totalReservedQuantity\",\"mergedName\":\"totalReservedQuantity\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[reservationDetailsAll].avgUtilizationPercentage\",\"mergedName\":\"avgUtilizationPercentage\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageFullReportPartial].ReservationName_s\",\"mergedName\":\"Reservation\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageFullReportPartial].ReservationId_g\",\"mergedName\":\"ReservationId_g\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageFullReportPartial].AggregatorTag\",\"mergedName\":\"Aggregator Tag\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageFullReportPartial].TotalUsedRIs\",\"mergedName\":\"TotalUsedRIs\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageFullReportPartial].DaysSeen\",\"mergedName\":\"DaysSeen\",\"fromId\":\"61548b73-54fa-4d19-853c-18409ca37086\"},{\"originalName\":\"[riUsageFullReportPartial].Subscription\",\"mergedName\":\"Subscription\",\"fromId\":\"unknown\"},{\"originalName\":\"[Added column]\",\"mergedName\":\"Used RI (%)\",\"fromId\":null,\"isNewItem\":true,\"newItemData\":[{\"criteriaContext\":{\"operator\":\"Default\",\"rightValType\":\"column\",\"resultValType\":\"expression\",\"resultVal\":\"[\\\"TotalUsedRIs\\\"] / ([\\\"totalReservedQuantity\\\"] * [\\\"DaysSeen\\\"]) * 100\"}}]}]}",
+        "size": 2,
+        "title": "Reservation Usage Full Report",
+        "exportedParameters": [
+          {
+            "fieldName": "ReservationId_g",
+            "parameterName": "selectedReservation",
+            "parameterType": 1
+          },
+          {
+            "fieldName": "Quantity bought",
+            "parameterName": "selectedQuantity",
+            "parameterType": 1
+          }
+        ],
+        "showExportToExcel": true,
+        "queryType": 7,
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "reservationId",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "totalReservedQuantity",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "avgUtilizationPercentage",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "Reservation",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "40ch"
+              }
+            },
+            {
+              "columnMatch": "ReservationId_g",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "TotalUsedRIs",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "DaysSeen",
+              "formatter": 5
+            },
+            {
+              "columnMatch": "Used RI (%)",
+              "formatter": 0,
+              "numberFormat": {
+                "unit": 17,
+                "options": {
+                  "style": "decimal",
+                  "maximumFractionDigits": 2
+                }
+              }
+            }
+          ],
+          "rowLimit": 5000
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "fullReport"
+      },
+      "name": "reservationUsageFullReportMerge"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let absoluteRIBought = toscalar(AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}')\r\n    and CollectedDate_t < todatetime('{LookbackPeriod:endISO}')\r\n    and ChargeType_s == 'Usage'\r\n    and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| summarize (datetime_diff('Day',max(UsageDate_t),min(UsageDate_t))+1)*{selectedQuantity});\r\nAzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| parse AdditionalInfo_s with * \"RINormalizationRatio=\" RINormalizationRatio \"}\" *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagMiddle ';' *\r\n| parse kind = regex flags = Ui Tags_s with * '{Aggregator}=' AggregatorTagEnd '}' *\r\n| extend AggregatorTag = iif(isnotempty(AggregatorTagMiddle), trim(' ',AggregatorTagMiddle), trim(' ',AggregatorTagEnd))\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIPercentage=round(sum(UsedRIs) / absoluteRIBought * 100, 2) by AggregatorTag, SubscriptionGuid_g\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionGuid_g\r\n) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| project-reorder AggregatorTag, Subscription, UsedRIPercentage\r\n| order by AggregatorTag asc, UsedRIPercentage",
+        "size": 1,
+        "showAnalytics": true,
+        "title": "Average Daily Reservation Usage by Tag (select Reservation first)",
+        "timeContextFromParameter": "LookbackPeriod",
+        "exportFieldName": "ReservationId_g",
+        "exportParameterName": "selectedReservation",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ReservationId_g",
+              "formatter": 5
+            }
+          ],
+          "rowLimit": 5000,
+          "labelSettings": [
+            {
+              "columnId": "AggregatorTag",
+              "label": "Aggregator Tag"
+            },
+            {
+              "columnId": "UsedRIPercentage",
+              "label": "Used RI (%)"
+            }
+          ]
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "reservationAnalysis"
+      },
+      "customWidth": "50",
+      "name": "riUsageDailyAverageByInstance"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| parse AdditionalInfo_s with * \"RINormalizationRatio=\" RINormalizationRatio \"}\" *\r\n| parse AdditionalInfo_s with * \"ServiceType=\" VMSize \";\" *\r\n| extend ConsumedSize = iif(isnotempty(VMSize), VMSize, strcat(MeterSubCategory_s, ' ', MeterName_s))\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize round(sum(UsedRIs),1) by UsageDate_t, ConsumedSize, ReservationName_s",
+        "size": 0,
+        "aggregation": 3,
+        "title": "Average RI Usage by Size (select Reservation first)",
+        "timeContextFromParameter": "LookbackPeriod",
+        "exportFieldName": "ReservationId_g",
+        "exportParameterName": "selectedReservation",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "barchart",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ReservationId_g",
+              "formatter": 5
+            }
+          ],
+          "rowLimit": 1000
+        },
+        "chartSettings": {
+          "group": "ConsumedSize",
+          "createOtherGroup": null,
+          "customThresholdLine": "{selectedQuantity}",
+          "customThresholdLineStyle": 1
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "reservationAnalysis"
+      },
+      "name": "riUsageDailyAverageBySize"
+    }
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

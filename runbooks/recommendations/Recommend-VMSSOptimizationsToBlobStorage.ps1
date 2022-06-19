@@ -14,7 +14,7 @@ function Find-SkuHourlyPrice {
 
         if ($skuNameParts.Count -eq 3) # e.g., Standard_D1_v2
         {
-            $skuNameFilter = "*" + $skuNameParts[1] + "*"
+            $skuNameFilter = "*" + $skuNameParts[1] + " *"
             $skuVersionFilter = "*" + $skuNameParts[2]
             $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterName -like $skuNameFilter `
              -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
@@ -373,6 +373,8 @@ try
 catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
+    throw "Execution aborted"
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -593,6 +595,14 @@ $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
 
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $jsonExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
+
 Write-Output "Looking for performance constrained Scale Sets, with more than $cpuDegradedMaxPercentageThreshold% Max. CPU, $cpuDegradedAvgPercentageThreshold% Avg. CPU and $memoryDegradedPercentageThreshold% RAM usage..."
 
 $baseQuery = @"
@@ -651,6 +661,8 @@ try
 catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
+    throw "Execution aborted"
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -779,4 +791,12 @@ $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $jsonExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
 

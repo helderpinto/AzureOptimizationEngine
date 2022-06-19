@@ -289,6 +289,8 @@ try
 catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
+    throw "Execution aborted"
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -452,6 +454,10 @@ foreach ($result in $results)
         $additionalInfoDictionary["targetMaxMBps"] =[int] $targetSku.MaxMBps 
     
         $fitScore = 4 # needs Maximum of Maximum for metrics to have higher fit score
+        if ([int] $result.DiskSizeGB_s -gt 512)
+        {
+            $fitScore = 3.5 #disk will not support credit-based bursting, therefore the recommendation risk increases a bit
+        }
         
         $fitScore = [Math]::max(0.0, $fitScore)
 
@@ -537,3 +543,12 @@ $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $jsonExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
+

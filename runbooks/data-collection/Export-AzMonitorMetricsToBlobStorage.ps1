@@ -250,6 +250,14 @@ if ($AggregationOfType -ne "Default")
 $AggregationTypeName = "$($AggregationType.ToLower())$AggregationOfTypeName"
 $csvExportPath = "$metricMoment-metrics-$ResourceTypeName-$MetricName-$AggregationTypeName-$subscriptionSuffix.csv"
 
+$ci = [CultureInfo]::new([System.Threading.Thread]::CurrentThread.CurrentCulture.Name)
+if ($ci.NumberFormat.NumberDecimalSeparator -ne '.')
+{
+    Write-Output "Current culture ($($ci.Name)) does not use . as decimal separator"    
+    $ci.NumberFormat.NumberDecimalSeparator = '.'
+    [System.Threading.Thread]::CurrentThread.CurrentCulture = $ci
+}
+
 $customMetrics | Export-Csv -Path $csvExportPath -NoTypeInformation
 
 $csvBlobName = $csvExportPath
@@ -257,3 +265,12 @@ $csvBlobName = $csvExportPath
 $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $csvExportPath from local disk..."
+

@@ -133,7 +133,8 @@ $newProcessedTime = $null
 $unprocessedBlobs = @()
 
 foreach ($blob in $allblobs) {
-    if ($lastProcessedDateTime -lt $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")) {
+    if ($lastProcessedDateTime -lt $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'") -or `
+        ($lastProcessedDateTime -eq $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'") -and $lastProcessedLine -gt 0)) {
         $unprocessedBlobs += $blob
     }
 }
@@ -275,4 +276,6 @@ foreach ($blob in $unprocessedBlobs) {
             }        
         }
     }
+
+    Remove-Item -Path $blob.Name -Force
 }

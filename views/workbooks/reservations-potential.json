@@ -1,0 +1,205 @@
+{
+    "version": "Notebook/1.0",
+    "items": [
+      {
+        "type": 9,
+        "content": {
+          "version": "KqlParameterItem/1.0",
+          "parameters": [
+            {
+              "id": "b58b4eb8-5821-44d2-bc7e-54054df27320",
+              "version": "KqlParameterItem/1.0",
+              "name": "LookbackPeriod",
+              "label": "Lookback Period",
+              "type": 4,
+              "isRequired": true,
+              "value": {
+                "durationMs": 2592000000
+              },
+              "typeSettings": {
+                "selectableValues": [
+                  {
+                    "durationMs": 604800000
+                  },
+                  {
+                    "durationMs": 1209600000
+                  },
+                  {
+                    "durationMs": 2592000000
+                  },
+                  {
+                    "durationMs": 5184000000
+                  },
+                  {
+                    "durationMs": 7776000000
+                  }
+                ]
+              },
+              "timeContext": {
+                "durationMs": 86400000
+              }
+            }
+          ],
+          "style": "pills",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "name": "parameters - 0"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| parse AdditionalInfo_s with * \"ServiceType=\" VMSize \";\" *\r\n| where isnotempty(VMSize)\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by InstanceId_s, UsageDate_t, VMSize, Location_s\r\n| summarize RIPotential=sum(UsedQuantity/24), AvgSizeUsageHours=avg(UsedQuantity) by UsageDate_t, VMSize, Location_s\r\n| summarize RIPotential=round(avg(RIPotential),1), AvgSizeUsageHours=round(avg(AvgSizeUsageHours)) by VMSize, Location_s\r\n| extend Fragmentation = case(AvgSizeUsageHours >= 24.0, 0.0, AvgSizeUsageHours >= 18.0 and AvgSizeUsageHours < 24.0, 0.25, AvgSizeUsageHours >= 12.0 and AvgSizeUsageHours < 18.0, 0.5, AvgSizeUsageHours >= 6.0 and AvgSizeUsageHours < 12.0, 0.75, 1.0)\r\n| project-reorder VMSize, Location_s, RIPotential, Fragmentation\r\n| order by Fragmentation asc, RIPotential desc",
+          "size": 0,
+          "title": "Instance sizes usage and RI potential/fragmentation",
+          "exportedParameters": [
+            {
+              "fieldName": "VMSize",
+              "parameterName": "VMSize",
+              "parameterType": 1
+            },
+            {
+              "fieldName": "Location_s",
+              "parameterName": "Location",
+              "parameterType": 1
+            },
+            {
+              "fieldName": "RIPotential",
+              "parameterName": "RIPotential",
+              "parameterType": 1
+            }
+          ],
+          "showExportToExcel": true,
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces",
+          "gridSettings": {
+            "formatters": [
+              {
+                "columnMatch": "Fragmentation",
+                "formatter": 18,
+                "formatOptions": {
+                  "thresholdsOptions": "colors",
+                  "thresholdsGrid": [
+                    {
+                      "operator": "==",
+                      "thresholdValue": "0",
+                      "representation": "green",
+                      "text": "Low to none"
+                    },
+                    {
+                      "operator": "==",
+                      "thresholdValue": "0.25",
+                      "representation": "yellow",
+                      "text": "Some"
+                    },
+                    {
+                      "operator": "==",
+                      "thresholdValue": "0.5",
+                      "representation": "orange",
+                      "text": "Some to High"
+                    },
+                    {
+                      "operator": "==",
+                      "thresholdValue": "0.75",
+                      "representation": "purple",
+                      "text": "High"
+                    },
+                    {
+                      "operator": "==",
+                      "thresholdValue": "1",
+                      "representation": "red",
+                      "text": "Very High"
+                    },
+                    {
+                      "operator": "Default",
+                      "thresholdValue": null,
+                      "representation": "blue",
+                      "text": "{0}{1}"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rowLimit": 1000,
+            "labelSettings": [
+              {
+                "columnId": "VMSize",
+                "label": "Size"
+              },
+              {
+                "columnId": "Location_s",
+                "label": "Region"
+              },
+              {
+                "columnId": "RIPotential",
+                "label": "Count (Avg.)"
+              },
+              {
+                "columnId": "Fragmentation",
+                "label": "Fragmentation"
+              },
+              {
+                "columnId": "AvgSizeUsageHours",
+                "label": "Usage (Avg. Hrs.)"
+              }
+            ]
+          }
+        },
+        "customWidth": "50",
+        "name": "riPotential"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| parse AdditionalInfo_s with * \"ServiceType=\" VMSize \";\" *\r\n| where VMSize == '{VMSize}' and Location_s == '{Location}'\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by UsageDate_t, InstanceId_s, SubscriptionGuid_g\r\n| summarize AvgUsedQuantity = round(avg(UsedQuantity),1) by InstanceId_s, SubscriptionGuid_g\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where TimeGenerated > ago(1d) and ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionName=ContainerName_s, SubscriptionGuid_g) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| project-reorder InstanceId_s, SubscriptionName\r\n| order by InstanceId_s asc",
+          "size": 0,
+          "title": "Instances usage for selected size/location (click on a line at the left table)",
+          "showExportToExcel": true,
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces",
+          "gridSettings": {
+            "rowLimit": 5000,
+            "labelSettings": [
+              {
+                "columnId": "InstanceId_s",
+                "label": "Instance Name"
+              },
+              {
+                "columnId": "AvgUsedQuantity",
+                "label": "Usage (Avg. Hrs.)"
+              }
+            ]
+          }
+        },
+        "customWidth": "50",
+        "name": "riPotentialInstances"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| parse AdditionalInfo_s with * \"ServiceType=\" VMSize \";\" *\r\n| where VMSize == '{VMSize}' and Location_s == '{Location}'\r\n| summarize UsedQuantity = round(sum(todouble(Quantity_s)/24)) by UsageDate_t\r\n| extend RIPotential = {RIPotential}\r\n| render timechart",
+          "size": 0,
+          "title": "Instance count for selected size/location (click on a line at the above table)",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces",
+          "chartSettings": {
+            "seriesLabelSettings": [
+              {
+                "seriesName": "UsedQuantity",
+                "label": "Instance #"
+              },
+              {
+                "seriesName": "RIPotential",
+                "label": "RI Potential"
+              }
+            ]
+          }
+        },
+        "name": "riPotentialOverTime"
+      }
+    ],
+    "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+  }

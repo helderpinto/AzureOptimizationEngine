@@ -79,7 +79,7 @@ foreach ($subscription in $subscriptions) {
 
     Select-AzSubscription -SubscriptionId $subscription.Id -TenantId $tenantId | Out-Null
 
-    $assignments = Get-AzRoleAssignment -IncludeClassicAdministrators
+    $assignments = Get-AzRoleAssignment -IncludeClassicAdministrators -ErrorAction Continue
     Write-Output "Found $($assignments.Count) assignments for $($subscription.Name) subscription..."
 
     foreach ($assignment in $assignments) {
@@ -132,6 +132,19 @@ $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $csvExportPath from local disk..."    
+
+Remove-Item -Path $jsonExportPath -Force
+    
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."    
+
 $roleAssignments = @()
 
 Write-Output "Getting Azure AD roles..."
@@ -166,7 +179,7 @@ if ($cloudEnvironment -eq "AzureGermanCloud")
 $token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
 Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment    
 
-$domainName = (Get-MgDomain | Where-Object { $_.IsVerified })[0].Id
+$domainName = (Get-MgDomain | Where-Object { $_.IsVerified -and $_.IsDefault } | Select-Object -First 1).Id
 
 $roles = Get-MgDirectoryRole -ExpandProperty Members -Property DisplayName,Members
 foreach ($role in $roles)
@@ -203,4 +216,15 @@ $csvProperties = @{"ContentType" = "text/csv"};
 
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force    
 
-Write-Output "DONE!"
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+
+Remove-Item -Path $csvExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $csvExportPath from local disk..."    
+
+Remove-Item -Path $jsonExportPath -Force
+    
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."    

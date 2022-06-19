@@ -2,7 +2,7 @@
 
 The Azure Optimization Engine (AOE) is an extensible solution designed to generate optimization recommendations for your Azure environment. See it like a fully customizable Azure Advisor. Actually, the first custom recommendations use-case covered by this tool was augmenting Azure Advisor Cost recommendations, particularly Virtual Machine right-sizing, with a fit score based on VM metrics and properties. Other recommendations are being added to the tool, not only for cost optimization but also for security, high availability and other [Well-Architected Framework](https://docs.microsoft.com/en-us/azure/architecture/framework/) pillars. You are welcome to contribute with new types of recommendations!
 
-It is highly recommended that you read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298). You'll find all the information needed to understand the whole solution.
+It is highly recommended that you read the whole blog series dedicated to this project, starting [here](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1339298). You'll find all the information needed to understand the whole solution. [Luke Murray](https://github.com/lukemurraynz) did a great job, in his [Azure Spring Clean 2022 blog post](https://luke.geek.nz/azure/azure-optimization-engine), describing AOE and how to set it up, with full deployment and configuration steps.
 
 ## README index
 
@@ -30,6 +30,8 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Application Gateways without backend pool
     * VMs deallocated since a long time ago (forgotten VMs)
     * Orphaned Public IPs
+    * Underutilized Azure SQL Databases (DTU-based SKUs only)
+    * Storage Accounts without retention policy in place
 * High Availability
     * Virtual Machine high availability (availability zones count, availability set, managed disks, storage account distribution when using unmanaged disks)
     * VM Scale Set high availability (availability zones count, managed disks)
@@ -70,7 +72,7 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
 
 ### Log Analytics Workbooks
 
-With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned or how your resources are distributed.
+With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned, how your resources are distributed or exploring Azure Policy compliance results over time.
 
 ![Costs growing anomalies](./docs/workbooks-costsgrowing-anomalies.jpg "Costs growing anomalies")
 
@@ -80,8 +82,24 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ![Privileged Azure AD roles and assignment history](./docs/workbooks-identitiesroles-rolehistory.jpg "Priviliged Azure AD roles and assignment history")
 
+![Policy Compliance state, with evolution over time](./docs/workbooks-policycompliance.jpg "Policy Compliance state, with evolution over time")
+
 ## <a id="releases"></a>Releases ##
 
+* 06/2022
+    * New Cost recommendations added
+        * Underutilized SQL Dabases (DTU-based SKUs only)
+        * Storage Accounts without retention policy in place
+    * New workbooks
+        * Policy Compliance
+        * Reservations Potential (preview)
+        * Reservations Usage (preview)
+    * Added Storage Lifecycle Management policy, cleaning up CSVs older than 6 months (new deployments or full upgrades only)
+    * Added SQL Database retention policy runbook to clean up recommendations older than 365 days (configurable)
+    * Support for (any type of) existing SQL Server reuse (upgrade scenarios only, after manually migrating original database to new server)
+    * Workbooks usability improvements
+    * Runbook performance improvements
+    * Several bug fixes
 * 12/2021
     * Several new recommendations added
         * **Cost** - Underutilized VM Scale Sets
@@ -182,6 +200,14 @@ During deployment, you'll be asked several questions. You must plan for the foll
 * An Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
 * A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
 * Azure region
+
+Bear in mind that the AOE deployment creates the following (you cannot reuse any existing resource, except the Resource Group and the Log Analytics workspace):
+
+* Azure Automation Account
+* Storage Account
+* Azure SQL Server + SQL Database
+* (optional) Log Analytics workspace
+* (optional) Resource Group
 
 ### Installation
 

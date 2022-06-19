@@ -27,9 +27,6 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
     $storageAccountSinkContainer = "recommendationsexports"
 }
 
-$deploymentDate = Get-AutomationVariable -Name  "AzureOptimization_DeploymentDate" # yyyy-MM-dd format
-$deploymentDate = $deploymentDate.Replace('"', "")
-
 $lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))
 {
@@ -46,7 +43,20 @@ if ([string]::IsNullOrEmpty($sqldatabase))
     $sqldatabase = "azureoptimization"
 }
 
-$deallocatedIntervalDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationLongDeallocatedVmsIntervalDays")
+# storage account thresholds variables
+$growthPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationStorageAcountGrowthThresholdPercentage" -ErrorAction SilentlyContinue)
+if (-not($growthPercentageThreshold -gt 0)) {
+    $growthPercentageThreshold = 5
+}
+$monthlyCostThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationStorageAcountGrowthMonthlyCostThreshold" -ErrorAction SilentlyContinue)
+if (-not($monthlyCostThreshold -gt 0)) {
+    $monthlyCostThreshold = 50
+}
+$growthLookbackDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_RecommendationStorageAcountGrowthLookbackDays" -ErrorAction SilentlyContinue)
+if (-not($growthLookbackDays -gt 0)) {
+    $growthLookbackDays = 30
+}
+
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
 $consumptionOffsetDaysStart = $consumptionOffsetDays + 1
 
@@ -86,7 +96,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','ARGVirtualMachine','AzureConsumption','ARGResourceContainers')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGResourceContainers','AzureConsumption')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -106,19 +116,15 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
-$disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGManagedDisk' }).LogAnalyticsSuffix + "_CL"
-$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
+$consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmsTableName, $disksTableName, $subscriptionsTableName and $consumptionTableName"
+Write-Output "Will run query against tables $subscriptionsTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
 
-$recommendationSearchTimeSpan = $deallocatedIntervalDays + $consumptionOffsetDaysStart
-$offlineInterval = $deallocatedIntervalDays + $consumptionOffsetDays
-$billingInterval = 30 + $consumptionOffsetDays
+$recommendationSearchTimeSpan = $growthLookbackDays + $consumptionOffsetDaysStart
 
 # Grab a context reference to the Storage Account where the recommendations file will be stored
 
@@ -130,57 +136,46 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
-# Execute the recommendation query against Log Analytics
+Write-Output "Looking for ever growing Storage Accounts, with more than $monthlyCostThreshold/month costs, growing more than $growthPercentageThreshold% over the last $growthLookbackDays days..."
+
+$dailyCostThreshold = [Math]::Round($monthlyCostThreshold / 30)
 
 $baseQuery = @"
-    let offlineInterval = $($offlineInterval)d;
-    let billingInterval = $($billingInterval)d;
-    let billingWindowIntervalEnd = $($consumptionOffsetDays)d; 
-    let billingWindowIntervalStart = $($consumptionOffsetDaysStart)d; 
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
-    let stime = etime-offlineInterval;
-    let BilledVMs = $consumptionTableName 
-    | where UsageDate_t between (stime..etime)
-    | where InstanceId_s like 'microsoft.compute/virtualmachines/' or InstanceId_s like 'microsoft.classiccompute/virtualmachines/' 
-    | distinct InstanceId_s;
-    let RunningVMs = $vmsTableName
-    | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
-    | where PowerState_s has_any ('running','starting','readyrole')
-    | distinct InstanceId_s;
-    let BilledDisks = $consumptionTableName 
-    | where UsageDate_t between (stime..etime)
-    | where InstanceId_s like 'microsoft.compute/disks/'
-    | extend BillingInstanceId = InstanceId_s
-    | summarize DisksCosts = sum(todouble(Cost_s)) by BillingInstanceId;
-    $vmsTableName
-    | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
-    | where InstanceId_s !in (RunningVMs)
-    | join kind=leftouter (BilledVMs) on InstanceId_s
-    | where isempty(InstanceId_s1)
-    | project InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s 
-    | join kind=leftouter (
-        $disksTableName 
-        | where TimeGenerated > ago(1d)
-        | project DiskInstanceId = InstanceId_s, SKU_s, OwnerVMId_s
-    ) on `$left.InstanceId_s == `$right.OwnerVMId_s
-    | join kind=leftouter (
-        BilledDisks
-    ) on `$left.DiskInstanceId == `$right.BillingInstanceId
-    | summarize TotalDisksCosts = sum(DisksCosts) by InstanceId_s, VMName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, Cloud_s, Tags_s
-    | join kind=leftouter ( 
-        $subscriptionsTableName
-        | where TimeGenerated > ago(1d) 
-        | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-        | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-    ) on SubscriptionGuid_g
+let interval = $($growthLookbackDays)d; // observation window
+let etime = endofday(todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))));
+let etime_subs = endofday(todatetime(toscalar($subscriptionsTableName | summarize max(TimeGenerated))));
+let stime = endofday(etime-interval);
+let lastday_stime = endofday(etime-1d);
+let lastday_stime_subs = endofday(etime_subs-1d);
+let costThreshold = $dailyCostThreshold; // minimum daily cost threshold
+let growthPercentageThreshold = $growthPercentageThreshold; 
+let StorageAccountsWithLastTags = $consumptionTableName
+| where UsageDate_t between (lastday_stime..etime)
+| where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
+| distinct InstanceId_s, Tags_s;
+$consumptionTableName
+| where UsageDate_t between (stime..etime)
+| where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
+| make-series CostSum=sum(todouble(Cost_s)) default=0.0 on UsageDate_t from stime to etime step 1d by InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g
+| extend InitialDailyCost = todouble(CostSum[0]), CurrentDailyCost = todouble(CostSum[array_length(CostSum)-1])
+| extend GrowthPercentage = round((CurrentDailyCost-InitialDailyCost)/InitialDailyCost*100)
+| where InitialDailyCost > 0 and CurrentDailyCost > costThreshold and GrowthPercentage > growthPercentageThreshold 
+| project InstanceId_s, InitialDailyCost, CurrentDailyCost, GrowthPercentage, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g
+| join kind=leftouter (StorageAccountsWithLastTags) on InstanceId_s
+| join kind=leftouter ( 
+    $subscriptionsTableName
+    | where TimeGenerated > lastday_stime_subs
+    | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
+    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+) on SubscriptionGuid_g
 "@
 
-try 
+try
 {
     $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days $recommendationSearchTimeSpan) -Wait 600 -IncludeStatistics
     if ($queryResults)
     {
-        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+        $results = [System.Linq.Enumerable]::ToArray($queryResults.Results)        
     }
 }
 catch
@@ -204,28 +199,14 @@ foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
     $queryText = @"
-        let offlineInterval = $($offlineInterval)d;
-        $consumptionTableName
-        | where InstanceId_s == '$queryInstanceId'
-        | join kind=inner (
-            $disksTableName
-            | extend DiskInstanceId = InstanceId_s
-        )
-        on `$left.InstanceId_s == `$right.OwnerVMId_s
-        | summarize DeallocatedSince = max(UsageDate_t) by DiskName_s, DiskSizeGB_s, SKU_s, DiskInstanceId 
-        | join kind=inner
-        (
-            $consumptionTableName
-            | where UsageDate_t > ago(offlineInterval)
-            | extend DiskInstanceId = InstanceId_s
-            | summarize DiskCosts = sum(todouble(Cost_s)) by DiskInstanceId
-        )
-        on DiskInstanceId
-        | project DeallocatedSince, DiskName_s, DiskSizeGB_s, SKU_s, MonthlyCosts = DiskCosts
+    $consumptionTableName 
+    | where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
+    | extend InstanceId = tolower(InstanceId_s)
+    | where InstanceId_s == '$queryInstanceId' 
+    | summarize DailyCosts = sum(todouble(Cost_s)) by bin(UsageDate_t, 1d)
+    | render timechart
 "@
-    $encodedQuery = [System.Uri]::EscapeDataString($queryText)
-    $detailsQueryStart = $deploymentDate
-    $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
+
     switch ($cloudEnvironment)
     {
         "AzureCloud" { $azureTld = "com" }
@@ -233,15 +214,25 @@ foreach ($result in $results)
         "AzureUSGovernment" { $azureTld = "us" }
         default { $azureTld = "com" }
     }
+
+    $encodedQuery = [System.Uri]::EscapeDataString($queryText)
+    $detailsQueryStart = $datetime.AddDays(-1 * $recommendationSearchTimeSpan).ToString("yyyy-MM-dd")
+    $detailsQueryEnd = $datetime.AddDays(8).ToString("yyyy-MM-dd")
     $detailsURL = "https://portal.azure.$azureTld#@$workspaceTenantId/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F$workspaceSubscriptionId%2Fresourcegroups%2F$workspaceRG%2Fproviders%2Fmicrosoft.operationalinsights%2Fworkspaces%2F$workspaceName/source/LogsBlade.AnalyticsShareLinkToQuery/query/$encodedQuery/timespan/$($detailsQueryStart)T00%3A00%3A00.000Z%2F$($detailsQueryEnd)T00%3A00%3A00.000Z"
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["LongDeallocatedThreshold"] = $deallocatedIntervalDays
-    $additionalInfoDictionary["CostsAmount"] = [double] $result.TotalDisksCosts 
-    $additionalInfoDictionary["savingsAmount"] = [double] $result.TotalDisksCosts 
+    $costsAmount = ([double] $result.InitialDailyCost + [double] $result.CurrentDailyCost) / 2 * 30
 
-    $fitScore = 5
+    $additionalInfoDictionary["InitialDailyCost"] = $result.InitialDailyCost
+    $additionalInfoDictionary["CurrentDailyCost"] = $result.CurrentDailyCost
+    $additionalInfoDictionary["GrowthPercentage"] = $result.GrowthPercentage
+    $additionalInfoDictionary["CostsAmount"] = $costsAmount
+    $additionalInfoDictionary["savingsAmount"] = $costsAmount * 0.25 # estimated 25% savings
+
+    $fitScore = 4 # savings are estimated with a significant error margin
+    
+    $fitScore = [Math]::max(0.0, $fitScore)
 
     $tags = @{}
 
@@ -258,38 +249,40 @@ foreach ($result in $results)
                 $tags[$tagName] = $tagValue    
             }
         }
-    }
+    }            
 
     $recommendation = New-Object PSObject -Property @{
-        Timestamp = $timestamp
-        Cloud = $result.Cloud_s
-        Category = "Cost"
-        ImpactedArea = "Microsoft.Compute/virtualMachines"
-        Impact = "Medium"
-        RecommendationType = "Saving"
-        RecommendationSubType = "LongDeallocatedVms"
-        RecommendationSubTypeId = "c320b790-2e58-452a-aa63-7b62c383ad8a"
-        RecommendationDescription = "Virtual Machine has been deallocated for long with disks still incurring costs"
-        RecommendationAction = "Delete Virtual Machine or downgrade its disks to Standard HDD SKU"
-        InstanceId = $result.InstanceId_s
-        InstanceName = $result.VMName_s
-        AdditionalInfo = $additionalInfoDictionary
-        ResourceGroup = $result.ResourceGroupName_s
-        SubscriptionGuid = $result.SubscriptionGuid_g
-        SubscriptionName = $result.SubscriptionName
-        TenantGuid = $result.TenantGuid_g
-        FitScore = $fitScore
-        Tags = $tags
-        DetailsURL = $detailsURL
+        Timestamp                   = $timestamp
+        Cloud                       = $result.Cloud_s
+        Category                    = "Cost"
+        ImpactedArea                = "Microsoft.Storage/storageAccounts"
+        Impact                      = "Medium"
+        RecommendationType          = "Saving"
+        RecommendationSubType       = "StorageAccountsGrowing"
+        RecommendationSubTypeId     = "08e049ca-18b0-4d22-b174-131a91d0381c"
+        RecommendationDescription   = "Storage Account without retention policy in place"
+        RecommendationAction        = "Review whether the Storage Account has a retention policy for example via Lifecycle Management"
+        InstanceId                  = $result.InstanceId_s
+        InstanceName                = $result.InstanceName_s
+        AdditionalInfo              = $additionalInfoDictionary
+        ResourceGroup               = $result.ResourceGroupName_s
+        SubscriptionGuid            = $result.SubscriptionGuid_g
+        SubscriptionName            = $result.SubscriptionName
+        TenantGuid                  = $result.TenantGuid_g
+        FitScore                    = $fitScore
+        Tags                        = $tags
+        DetailsURL                  = $detailsURL
     }
 
-    $recommendations += $recommendation
+    $recommendations += $recommendation        
 }
 
 # Export the recommendations as JSON to blob storage
 
+Write-Output "Exporting final $($recommendations.Count) results as a JSON file..."
+
 $fileDate = $datetime.ToString("yyyy-MM-dd")
-$jsonExportPath = "longdeallocatedvms-$fileDate.json"
+$jsonExportPath = "storageaccounts-costsgrowing-$fileDate.json"
 $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 
 $jsonBlobName = $jsonExportPath

@@ -96,7 +96,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGSqlDatabase','AzMonitorMetrics','AzureConsumption','ARGResourceContainers')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGSqlDb','MonitorMetrics','AzureConsumption','ARGResourceContainers')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -116,8 +116,8 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$sqlDbsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGSqlDatabase' }).LogAnalyticsSuffix + "_CL"
-$metricsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzMonitorMetrics' }).LogAnalyticsSuffix + "_CL"
+$sqlDbsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGSqlDb' }).LogAnalyticsSuffix + "_CL"
+$metricsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'MonitorMetrics' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
@@ -148,7 +148,7 @@ $baseQuery = @"
     let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
     let stime = etime-BillingInterval; 
     let CandidateDatabaseIds = $sqlDbsTableName
-    | where todatetime(StatusDate_s) > ago(1d) and SkuTier_s in ('Standard','Premium')
+    | where TimeGenerated > ago(1d) and SkuName_s in ('Standard','Premium')
     | distinct InstanceId_s;
     $metricsTableName
     | where TimeGenerated > ago(MetricsInterval)
@@ -157,8 +157,8 @@ $baseQuery = @"
     | where P99DTUPercentage < DTUPercentageThreshold
     | join (
         $sqlDbsTableName
-        | where todatetime(StatusDate_s) > ago(1d)
-        | project ResourceId = InstanceId_s, DBName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, SkuName_s, Tags_s, Cloud_s
+        | where TimeGenerated > ago(1d)
+        | project ResourceId = InstanceId_s, DBName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s
     ) on ResourceId
     | join kind=leftouter (
         $consumptionTableName
@@ -166,7 +166,7 @@ $baseQuery = @"
         | extend ResourceId = InstanceId_s
         | project ResourceId, Cost_s, UsageDate_t
     ) on ResourceId
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s, P99DTUPercentage
+    | summarize Last30DaysCost=sum(todouble(Cost_s)) by DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s, P99DTUPercentage
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d)
@@ -186,6 +186,8 @@ try
 catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
+    throw "Execution aborted"
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -222,7 +224,7 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
-    $additionalInfoDictionary["currentSku"] = $result.SkuName_s
+    $additionalInfoDictionary["currentSku"] = "$($result.SkuName_s) $($result.ServiceObjectiveName_s)"
     $additionalInfoDictionary["DTUPercentage"] = [int] $result.P99DTUPercentage 
     $additionalInfoDictionary["CostsAmount"] = [double] $result.Last30DaysCost 
     $additionalInfoDictionary["savingsAmount"] = ([double] $result.Last30DaysCost / 2)
@@ -281,3 +283,11 @@ $recommendations | ConvertTo-Json | Out-File $jsonExportPath
 $jsonBlobName = $jsonExportPath
 $jsonProperties = @{"ContentType" = "application/json"};
 Set-AzStorageBlobContent -File $jsonExportPath -Container $storageAccountSinkContainer -Properties $jsonProperties -Blob $jsonBlobName -Context $sa.Context -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $jsonBlobName to Blob Storage..."
+
+Remove-Item -Path $jsonExportPath -Force
+
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $jsonExportPath from local disk..."
