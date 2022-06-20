@@ -200,6 +200,9 @@ if ($controlRows.Count -eq 0 -or -not($controlRows[0].LastProcessedDateTime))
 $controlRow = $controlRows[0]
 $lastProcessedLine = $controlRow.LastProcessedLine
 $lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+
+Write-Output "Processing blobs modified after $lastProcessedDateTime (line $lastProcessedLine)..."
+
 $logname = $lognamePrefix + $controlRow.LogAnalyticsSuffix
 
 $newProcessedTime = $null
@@ -298,3 +301,5 @@ foreach ($blob in $unprocessedBlobs) {
 
     Remove-Item -Path $blob.Name -Force
 }
+
+Write-Output "DONE"
