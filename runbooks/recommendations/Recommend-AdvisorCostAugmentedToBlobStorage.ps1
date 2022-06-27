@@ -600,7 +600,7 @@ foreach ($result in $results) {
     $fitScore = 5
     $hasCpuRamPerfMetrics = $false
 
-    if ($additionalInfoDictionary.targetSku) {
+    if ($additionalInfoDictionary.targetSku -and $result.RecommendationTypeId_g -eq $rightSizeRecommendationId) {
         $additionalInfoDictionary["SupportsDataDisksCount"] = "true"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["SupportsNICCount"] = "true"
@@ -791,7 +791,14 @@ foreach ($result in $results) {
         }
         else
         {
-            $savingsMonthly = [double] $result.Last30DaysCost 
+            if ($result.RecommendationTypeId_g -eq $rightSizeRecommendationId)
+            {
+                $savingsMonthly = [double] $result.Last30DaysCost 
+            }
+            else
+            {
+                $savingsMonthly = 0 # unknown
+            }
         }            
     }
 
