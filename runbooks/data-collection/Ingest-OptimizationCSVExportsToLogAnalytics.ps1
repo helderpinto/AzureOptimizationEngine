@@ -199,7 +199,7 @@ if ($controlRows.Count -eq 0 -or -not($controlRows[0].LastProcessedDateTime))
 
 $controlRow = $controlRows[0]
 $lastProcessedLine = $controlRow.LastProcessedLine
-$lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+$lastProcessedDateTime = $controlRow.LastProcessedDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 $LogAnalyticsSuffix = $controlRow.LogAnalyticsSuffix
 $logname = $lognamePrefix + $LogAnalyticsSuffix
 
@@ -210,8 +210,10 @@ $newProcessedTime = $null
 $unprocessedBlobs = @()
 
 foreach ($blob in $allblobs) {
-    if ($lastProcessedDateTime -lt $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'") -or `
-        ($lastProcessedDateTime -eq $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'") -and $lastProcessedLine -gt 0)) {
+	$blobLastModified = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    if ($lastProcessedDateTime -lt $blobLastModified -or `
+        ($lastProcessedDateTime -eq $blobLastModified -and $lastProcessedLine -gt 0)) {
+		Write-Output "$($blob.Name) found (modified on $blobLastModified)"
         $unprocessedBlobs += $blob
     }
 }
@@ -221,7 +223,7 @@ $unprocessedBlobs = $unprocessedBlobs | Sort-Object -Property LastModified
 Write-Output "Found $($unprocessedBlobs.Count) new blobs to process..."
 
 foreach ($blob in $unprocessedBlobs) {
-    $newProcessedTime = $blob.LastModified.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    $newProcessedTime = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     Write-Output "About to process $($blob.Name)..."
     Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
     $csvObject = Import-Csv $blob.Name
