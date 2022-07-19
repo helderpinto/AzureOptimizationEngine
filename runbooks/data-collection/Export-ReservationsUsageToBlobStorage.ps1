@@ -41,7 +41,7 @@ $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimiza
 $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ReservationsContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
-    $storageAccountSinkContainer = "reservationexports"
+    $storageAccountSinkContainer = "reservationsexports"
 }
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
@@ -142,11 +142,6 @@ foreach ($usage in $reservationsUsage)
 {
     $reservationResourceId = "/providers/microsoft.capacity/reservationorders/$($usage.properties.reservationOrderId)/reservations/$($usage.properties.reservationId)"
     $reservationDetail = $reservationsDetails | Where-Object { $_.id -eq $reservationResourceId }
-    $purchaseDate = $null
-    if ($reservationDetail)
-    {
-        $purchaseDate = $reservationDetail.properties.purchaseDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-    }
     $reservationEntry = New-Object PSObject -Property @{
         ReservationResourceId = $reservationResourceId
         ReservationOrderId = $usage.properties.reservationOrderId
@@ -159,12 +154,12 @@ foreach ($usage in $reservationsUsage)
         Term = $reservationDetail.properties.term
         ProvisioningState = $reservationDetail.properties.displayProvisioningState
         RenewState = $reservationDetail.properties.userFriendlyRenewState
-        PurchaseDate = $purchaseDate
+        PurchaseDate = $reservationDetail.properties.purchaseDate
         ExpiryDate = $reservationDetail.properties.expiryDate
         Archived = $reservationDetail.properties.archived
         ReservedHours = $usage.properties.reservedHours
         UsedHours = $usage.properties.usedHours
-        UsageDate = $usage.properties.usageDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        UsageDate = $usage.properties.usageDate
         MinUtilPercentage = $usage.properties.minUtilizationPercentage
         AvgUtilPercentage = $usage.properties.avgUtilizationPercentage
         MaxUtilPercentage = $usage.properties.maxUtilizationPercentage
