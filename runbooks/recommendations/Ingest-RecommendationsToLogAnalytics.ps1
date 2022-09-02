@@ -253,8 +253,8 @@ foreach ($blob in $unprocessedBlobs) {
 
     if ($recCount -gt 1)
     {
-        for ($i = 0; $i -lt $recCount; $i += $ChunkSize) {
-            $jsonObjectSplitted += , @($jsonObject[$i..($i + ($ChunkSize - 1))]);
+        for ($i = 0; $i -lt $recCount; $i += $LogAnalyticsChunkSize) {
+            $jsonObjectSplitted += , @($jsonObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
         }
     }
     else
@@ -275,6 +275,8 @@ foreach ($blob in $unprocessedBlobs) {
                 {
                     $jsonObjectSplitted[$j][$i].RecommendationDescription = $jsonObjectSplitted[$j][$i].RecommendationDescription.Replace("'", "")
                     $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
+                    $jsonObjectSplitted[$j][$i].AdditionalInfo = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json
+                    $jsonObjectSplitted[$j][$i].Tags = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json
                 }
                     
                 $jsonObject = ConvertTo-Json -InputObject $jsonObjectSplitted[$j]                
@@ -282,7 +284,7 @@ foreach ($blob in $unprocessedBlobs) {
                 If ($res -ge 200 -and $res -lt 300) {
                     Write-Output "Succesfully uploaded $currentObjectLines $LogAnalyticsSuffix rows to Log Analytics"    
                     $linesProcessed += $currentObjectLines
-                    if ($i -eq ($csvObjectSplitted.Count - 1)) {
+                    if ($j -eq ($jsonObjectSplitted.Count - 1)) {
                         $lastProcessedLine = -1    
                     }
                     else {
@@ -291,7 +293,7 @@ foreach ($blob in $unprocessedBlobs) {
                     
                     $updatedLastProcessedLine = $lastProcessedLine
                     $updatedLastProcessedDateTime = $lastProcessedDateTime
-                    if ($i -eq ($csvObjectSplitted.Count - 1)) {
+                    if ($j -eq ($jsonObjectSplitted.Count - 1)) {
                         $updatedLastProcessedDateTime = $newProcessedTime
                     }
                     $lastProcessedDateTime = $updatedLastProcessedDateTime
