@@ -234,6 +234,10 @@
             "source": "recommendations"
         },
         {
+            "runbook": "runbooks/recommendations/Ingest-RecommendationsToLogAnalytics.ps1",
+            "source": "recommendations"
+        },
+        {
             "runbook": "runbooks/maintenance/CleanUp-OlderRecommendationsFromSqlServer.ps1",
             "source": "maintenance"
         }
