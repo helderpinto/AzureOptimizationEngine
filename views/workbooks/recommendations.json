@@ -1,0 +1,286 @@
+{
+    "version": "Notebook/1.0",
+    "items": [
+      {
+        "type": 9,
+        "content": {
+          "version": "KqlParameterItem/1.0",
+          "parameters": [
+            {
+              "id": "f0273bce-7653-4934-92bf-9f1d89832330",
+              "version": "KqlParameterItem/1.0",
+              "name": "LastRecommendationDateTime",
+              "label": "Last Recommendation Date",
+              "type": 1,
+              "isRequired": true,
+              "query": "AzureOptimizationRecommendationsV1_CL\r\n| where TimeGenerated > ago(90d)\r\n| summarize max(TimeGenerated)",
+              "isHiddenWhenLocked": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            {
+              "id": "6c0914fd-7e3b-4ab3-8964-7c2d6c5efb45",
+              "version": "KqlParameterItem/1.0",
+              "name": "Currency",
+              "type": 1,
+              "value": "EUR"
+            }
+          ],
+          "style": "pills",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces"
+        },
+        "name": "parameters - 1"
+      },
+      {
+        "type": 1,
+        "content": {
+          "json": "# Latest Recommendations\r\nGenerated on **{LastRecommendationDateTime}**. If recommendations generation date is *unset*, review the latest Automation Account runbooks status and fix accordingly."
+        },
+        "name": "titleText"
+      },
+      {
+        "type": 11,
+        "content": {
+          "version": "LinkItem/1.0",
+          "style": "tabs",
+          "links": [
+            {
+              "id": "550ca300-c6e8-4d5e-a4bf-ce30d5032dd5",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "Overview",
+              "subTarget": "Overview",
+              "style": "link"
+            },
+            {
+              "id": "e38a5bd0-19c3-48ae-b299-d1eebe76f02a",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "Cost",
+              "subTarget": "Cost",
+              "style": "link"
+            },
+            {
+              "id": "27c86ef8-c64d-43be-af08-dd73bd44c0bc",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "Security",
+              "subTarget": "Security",
+              "style": "link"
+            },
+            {
+              "id": "1636acc7-3a5c-4553-8a58-16636461d65e",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "Operational Excellence",
+              "subTarget": "OperationalExcellence",
+              "style": "link"
+            },
+            {
+              "id": "5c94d48d-e48b-443b-b9d6-76cc1d2c4b51",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "High Availability",
+              "subTarget": "HighAvailability",
+              "style": "link"
+            },
+            {
+              "id": "12182804-33fe-48a3-aca2-7aaeb2367d23",
+              "cellValue": "selectedTab",
+              "linkTarget": "parameter",
+              "linkLabel": "Performance",
+              "subTarget": "Performance",
+              "style": "link"
+            }
+          ]
+        },
+        "name": "links - 4"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "AzureOptimizationRecommendationsV1_CL\r\n| where TimeGenerated > todatetime('{LastRecommendationDateTime}')-7d\r\n| summarize count() by Category\r\n",
+          "size": 4,
+          "title": "Recommendations # by category",
+          "noDataMessage": "No recommendations available. Review the latest Automation Account runbooks status and fix accordingly.",
+          "noDataMessageStyle": 4,
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces",
+          "visualization": "piechart"
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "Overview"
+        },
+        "customWidth": "50",
+        "showPin": true,
+        "name": "categoriesSummary"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "AzureOptimizationRecommendationsV1_CL\r\n| where TimeGenerated > todatetime('{LastRecommendationDateTime}')-7d\r\n| where Category == 'Cost'\r\n| extend SavingsAmount = todouble(parse_json(AdditionalInfo_s).savingsAmount)\r\n| summarize sum(SavingsAmount)\r\n\r\n",
+          "size": 4,
+          "title": "Potential cost savings (in {Currency})",
+          "noDataMessage": "No recommendations available. Review the latest Automation Account runbooks status and fix accordingly.",
+          "noDataMessageStyle": 4,
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces",
+          "visualization": "tiles",
+          "tileSettings": {
+            "titleContent": {
+              "columnMatch": "Category",
+              "formatter": 1
+            },
+            "leftContent": {
+              "columnMatch": "sum_SavingsAmount",
+              "formatter": 12,
+              "formatOptions": {
+                "palette": "auto"
+              },
+              "numberFormat": {
+                "unit": 17,
+                "options": {
+                  "style": "decimal",
+                  "maximumFractionDigits": 2,
+                  "maximumSignificantDigits": 3
+                }
+              }
+            },
+            "showBorder": false
+          },
+          "textSettings": {
+            "style": "bignumber"
+          }
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "Overview"
+        },
+        "customWidth": "50",
+        "showPin": true,
+        "name": "costSavingsSummary"
+      },
+      {
+        "type": 3,
+        "content": {
+          "version": "KqlItem/1.0",
+          "query": "AzureOptimizationRecommendationsV1_CL\r\n| where TimeGenerated > todatetime('{LastRecommendationDateTime}')-7d\r\n| where Category == 'Cost'\r\n| extend SavingsAmount = todouble(parse_json(AdditionalInfo_s).savingsAmount)\r\n| project Recommendation=RecommendationDescription_s, Instance=InstanceName_s, ['Resource Group']=ResourceGroup, Subscription=SubscriptionName_s, Impact=Impact_s, ['Fit Score']=FitScore_d, ['Savings ({Currency})']=SavingsAmount, Details=DetailsURL_s",
+          "size": 2,
+          "noDataMessage": "No Cost recommendations available",
+          "queryType": 0,
+          "resourceType": "microsoft.operationalinsights/workspaces",
+          "gridSettings": {
+            "formatters": [
+              {
+                "columnMatch": "Recommendation",
+                "formatter": 1,
+                "formatOptions": {
+                  "customColumnWidthSetting": "40ch"
+                }
+              },
+              {
+                "columnMatch": "Instance",
+                "formatter": 1,
+                "formatOptions": {
+                  "customColumnWidthSetting": "30ch"
+                }
+              },
+              {
+                "columnMatch": "Resource Group",
+                "formatter": 1,
+                "formatOptions": {
+                  "customColumnWidthSetting": "30ch"
+                }
+              },
+              {
+                "columnMatch": "Subscription",
+                "formatter": 1,
+                "formatOptions": {
+                  "customColumnWidthSetting": "25ch"
+                }
+              },
+              {
+                "columnMatch": "Impact",
+                "formatter": 18,
+                "formatOptions": {
+                  "thresholdsOptions": "icons",
+                  "thresholdsGrid": [
+                    {
+                      "operator": "==",
+                      "thresholdValue": "High",
+                      "representation": "Sev1",
+                      "text": "{0}{1}"
+                    },
+                    {
+                      "operator": "==",
+                      "thresholdValue": "Medium",
+                      "representation": "Sev2",
+                      "text": "{0}{1}"
+                    },
+                    {
+                      "operator": "==",
+                      "thresholdValue": "Low",
+                      "representation": "Sev3",
+                      "text": "{0}{1}"
+                    },
+                    {
+                      "operator": "Default",
+                      "thresholdValue": null,
+                      "representation": "more",
+                      "text": "{0}{1}"
+                    }
+                  ]
+                }
+              },
+              {
+                "columnMatch": "Fit Score",
+                "formatter": 8,
+                "formatOptions": {
+                  "min": 0,
+                  "max": 5,
+                  "palette": "redGreen"
+                }
+              },
+              {
+                "columnMatch": "Savings",
+                "formatter": 2,
+                "formatOptions": {
+                  "aggregation": "Sum"
+                },
+                "numberFormat": {
+                  "unit": 0,
+                  "options": {
+                    "style": "decimal",
+                    "minimumFractionDigits": 2,
+                    "maximumFractionDigits": 2
+                  }
+                }
+              },
+              {
+                "columnMatch": "Details",
+                "formatter": 7,
+                "formatOptions": {
+                  "linkTarget": "Url",
+                  "linkLabel": "Link"
+                }
+              }
+            ],
+            "rowLimit": 10000
+          }
+        },
+        "conditionalVisibility": {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "Cost"
+        },
+        "name": "costRecommendationsList"
+      }
+    ],
+    "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+  }
