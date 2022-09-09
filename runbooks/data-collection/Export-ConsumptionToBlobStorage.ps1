@@ -101,7 +101,7 @@ else
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
-$CostDetailsSupportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','CSP_2015-05-01')
+$CostDetailsSupportedQuotaIDs = @('EnterpriseAgreement_2014-09-01')
 $ConsumptionSupportedQuotaIDs = @('PayAsYouGo_2014-09-01','MSDN_2014-09-01')
 
 foreach ($subscription in $subscriptions)
@@ -141,51 +141,29 @@ foreach ($subscription in $subscriptions)
     
             foreach ($consumptionLine in $consumption.value)
             {
-                $additionalInfo = $null
-                if (-not([string]::IsNullOrEmpty($consumptionLine.properties.additionalInfo)))
+                if ($consumptionLine.tags)
                 {
-                    try {
-                        $additionalInfo = ConvertFrom-Json $consumptionLine.properties.additionalInfo   
-                    }
-                    catch {
-                        # do nothing
-                    }
+                    $tags = $consumptionLine.tags | ConvertTo-Json
                 }
-    
-                $instanceId = $null
-                if ($null -ne $consumptionLine.properties.resourceId)
+                else
                 {
-                    $instanceId = $consumptionLine.properties.resourceId.ToLower()
+                    $tags = $null
                 }
-    
-                $instanceName = $null
-                if ($null -ne $consumptionLine.properties.resourceName)
-                {
-                    $instanceName = $consumptionLine.properties.resourceName.ToLower()
-                }
-    
-                $rgName = $null
-                if ($null -ne $consumptionLine.properties.resourceGroup)
-                {
-                    $rgName = $consumptionLine.properties.resourceGroup.ToLower()
-                }
-    
+
                 $billingEntry = New-Object PSObject -Property @{
-                    Timestamp = $consumptionLine.properties.date
-                    CollectedDate = $timestamp
-                    Cloud = $cloudEnvironment
-                    SubscriptionGuid = $consumptionLine.properties.subscriptionId
-                    TenantGuid = $tenantId
-                    ResourceGroupName = $rgName
-                    InstanceName = $instanceName
-                    InstanceId = $instanceId
-                    UsageDate = $consumptionLine.properties.date
-                    Tags = $consumptionLine.tags
-                    AdditionalInfo = $additionalInfo
-                    BillingCurrency = $consumptionLine.properties.billingCurrency
+                    Timestamp = $timestamp
+                    SubscriptionId = $consumptionLine.properties.subscriptionId
+                    SubscriptionName = $consumptionLine.properties.subscriptionName
+                    ResourceGroup = $consumptionLine.properties.resourceGroup
+                    ResourceName = $consumptionLine.properties.resourceName
+                    ResourceId = $consumptionLine.properties.resourceId
+                    Date = $consumptionLine.properties.date
+                    Tags = $tags
+                    AdditionalInfo = $consumptionLine.properties.additionalInfo
+                    BillingCurrencyCode = $consumptionLine.properties.billingCurrency
                     ChargeType = $consumptionLine.properties.chargeType
                     ConsumedService = $consumptionLine.properties.consumedService
-                    Cost = $consumptionLine.properties.cost
+                    CostInBilingCurrency = $consumptionLine.properties.cost
                     EffectivePrice = $consumptionLine.properties.effectivePrice
                     Frequency = $consumptionLine.properties.frequency
                     MeterCategory = $consumptionLine.properties.meterDetails.meterCategory
@@ -194,21 +172,23 @@ foreach ($subscription in $subscriptions)
                     MeterSubCategory = $consumptionLine.properties.meterDetails.meterSubCategory
                     ServiceFamily = $consumptionLine.properties.meterDetails.serviceFamily
                     PartNumber = $consumptionLine.properties.partNumber
-                    Product = $consumptionLine.properties.product
+                    ProductName = $consumptionLine.properties.product
                     Quantity = $consumptionLine.properties.quantity
                     UnitOfMeasure = $consumptionLine.properties.meterDetails.unitOfMeasure
                     UnitPrice = $consumptionLine.properties.unitPrice
-                    Location = $consumptionLine.properties.resourceLocation
+                    ResourceLocation = $consumptionLine.properties.resourceLocation
                     ReservationId = $consumptionLine.properties.reservationId
                     ReservationName = $consumptionLine.properties.reservationName
-                    UsageId = $consumptionLine.id
-                    UsageName = $consumptionLine.name
                     PublisherType = $consumptionLine.properties.publisherType
                     PublisherName = $consumptionLine.properties.publisherName
                     PlanName = $consumptionLine.properties.planName
                     AccountOwnerId = $consumptionLine.properties.accountOwnerId
+                    AccountName = $consumptionLine.properties.accountName
                     BillingAccountId = $consumptionLine.properties.billingAccountId
                     BillingProfileId = $consumptionLine.properties.billingProfileId
+                    BillingProfileName= $consumptionLine.properties.billingProfileName
+                    BillingPeriodStartDate= $consumptionLine.properties.billingPeriodStartDate
+                    BillingPeriodEndDate= $consumptionLine.properties.billingPeriodEndDate
                 }            
                 $billingEntries += $billingEntry
             }    
