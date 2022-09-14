@@ -30,7 +30,7 @@ $sharedKey = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorksp
 $LogAnalyticsChunkSize = [int] (Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsChunkSize" -ErrorAction SilentlyContinue)
 if (-not($LogAnalyticsChunkSize -gt 0))
 {
-    $LogAnalyticsChunkSize = 8000
+    $LogAnalyticsChunkSize = 6000
 }
 $lognamePrefix = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsLogPrefix" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($lognamePrefix))
