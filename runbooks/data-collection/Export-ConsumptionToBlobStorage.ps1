@@ -238,12 +238,20 @@ foreach ($subscription in $subscriptions)
 
             Write-Output "Obtained cost detail results endpoint: $requestResultPath..."
 
+            Write-Output "Was told to wait $($result.Headers.RetryAfter.Delta.TotalSeconds) seconds."
+
+            $sleepSeconds = 60
+            if ($result.Headers.RetryAfter.Delta.TotalSeconds -gt 0)
+            {
+                $sleepSeconds = $result.Headers.RetryAfter.Delta.TotalSeconds
+            }
+
             do
             {
                 $tries++
                 Write-Output "Checking whether export is ready (try $tries)..."
-
-                Start-Sleep -Seconds 60
+                
+                Start-Sleep -Seconds $sleepSeconds
                 $downloadResult = Invoke-AzRestMethod -Method GET -Path $requestResultPath
 
                 if ($downloadResult.StatusCode -eq 200)
@@ -280,6 +288,20 @@ foreach ($subscription in $subscriptions)
                     }
 
                     $requestSuccess = $true
+                }
+                elseif ($downloadResult.StatusCode -eq 202)
+                {
+                    Write-Output "Was told to wait a bit more... $($downloadResult.Headers.RetryAfter.Delta.TotalSeconds) seconds."
+
+                    $sleepSeconds = 60
+                    if ($downloadResult.Headers.RetryAfter.Delta.TotalSeconds -gt 0)
+                    {
+                        $sleepSeconds = $downloadResult.Headers.RetryAfter.Delta.TotalSeconds
+                    }
+                }
+                else
+                {
+                    Write-Output "Got an unexpected response code: $($downloadResult.StatusCode)"
                 }
             } 
             while (-not($requestSuccess) -and $tries -lt 5)
