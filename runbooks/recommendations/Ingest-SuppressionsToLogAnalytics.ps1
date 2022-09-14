@@ -145,6 +145,20 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 $filterObjects = @()
 
+$filterObject = New-Object PSObject -Property @{
+    Timestamp = $timestamp
+    FilterId = (New-Guid).Guid
+    RecommendationSubTypeId = [System.Guid]::empty.Guid
+    FilterType = "Dummy"
+    InstanceId = [System.Guid]::empty.Guid
+    InstanceName = "Dummy"
+    FilterStartDate = "2019-01-01T00:00:00.000Z"
+    FilterEndDate = "2199-12-31T23:59:59.000Z"
+    Author = "AOE"
+    Notes = "This is a dummy suppression required to build the full suppressions schema in Log Analytics"
+}
+$filterObjects += $filterObject
+
 foreach ($filter in $filters)
 {
     $filterEndDate = $null
@@ -168,12 +182,25 @@ foreach ($filter in $filters)
         $filterStartDate = "2019-01-01T00:00:00.000Z"
     }
 
+    $instanceId = $null
+    $instanceName = $null
+    $ObjectGuid = [System.Guid]::empty       
+    if ([System.Guid]::TryParse($filter.InstanceId, [System.Management.Automation.PSReference]$ObjectGuid))
+    {
+        $instanceId = $filter.InstanceId
+    }
+    else
+    {
+        $instanceName = $filter.InstanceId
+    }
+
     $filterObject = New-Object PSObject -Property @{
         Timestamp = $timestamp
         FilterId = $filter.FilterId
         RecommendationSubTypeId = $filter.RecommendationSubTypeId
         FilterType = $filter.FilterType
-        InstanceId = $filter.InstanceId
+        InstanceId = $instanceId
+        InstanceName = $instanceName
         FilterStartDate = $filterStartDate
         FilterEndDate = $filterEndDate
         Author = $filter.Author

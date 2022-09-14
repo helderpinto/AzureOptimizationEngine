@@ -189,6 +189,11 @@
             "frequency": "Week"
         },
         {
+            "name": "AzureOptimization_IngestSuppressionsWeekly",
+            "offset": "PT3H00M",
+            "frequency": "Week"
+        },
+        {
             "name": "AzureOptimization_IngestRemediationLogsDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
@@ -235,6 +240,10 @@
         },
         {
             "runbook": "runbooks/recommendations/Ingest-RecommendationsToLogAnalytics.ps1",
+            "source": "recommendations"
+        },
+        {
+            "runbook": "runbooks/recommendations/Ingest-SuppressionsToLogAnalytics.ps1",
             "source": "recommendations"
         },
         {
