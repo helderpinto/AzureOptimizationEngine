@@ -79,7 +79,7 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 }
 else
 {
-    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and ($_.ExtendedProperties['SubscriptionPolices'] | ConvertFrom-Json).quotaId -ne "AAD_2015-09-01" } | ForEach-Object { "$($_.Id)"}
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" } | ForEach-Object { "$($_.Id)"}
 }
 
 $tenantId = (Get-AzContext).Tenant.Id

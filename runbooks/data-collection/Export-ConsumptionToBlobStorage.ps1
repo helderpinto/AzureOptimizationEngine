@@ -113,7 +113,7 @@ $ConsumptionSupportedQuotaIDs = @('PayAsYouGo_2014-09-01','MSDN_2014-09-01')
 
 foreach ($subscription in $subscriptions)
 {
-    $subscriptionQuotaID = ($subscription.ExtendedProperties["SubscriptionPolices"] | ConvertFrom-Json).quotaId
+    $subscriptionQuotaID = $subscription.SubscriptionPolicies.QuotaId
 
     if ($subscriptionQuotaID -in $ConsumptionSupportedQuotaIDs)
     {
