@@ -20,6 +20,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Authenticate-AzureWithOption {
+    param (
+        [string] $authOption = "ManagedIdentity",
+        [string] $cloudEnv = "AzureCloud"
+    )
+
+    switch ($authOption) {
+        "RunAsAccount" { 
+            $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
+            Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnv -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+            break
+        }
+        "ManagedIdentity" { 
+            Connect-AzAccount -Identity -EnvironmentName $cloudEnv
+            break
+        }
+        Default {
+            $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
+            Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnv -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+            break
+        }
+    }        
+}
+
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
 if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
@@ -50,22 +74,7 @@ $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization
 
 Write-Output "Logging in to Azure with $authenticationOption..."
 
-switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
-        break
-    }
-    "ManagedIdentity" { 
-        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
-        break
-    }
-}
+Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
 
 # get reference to storage sink
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
@@ -76,8 +85,6 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
     $cloudEnvironment = $externalCloudEnvironment   
 }
-
-$tenantId = (Get-AzContext).Tenant.Id
 
 # compute start+end dates
 
@@ -227,6 +234,8 @@ foreach ($subscription in $subscriptions)
     {
         Write-Output "Starting cost details export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
 
+        $MaxTries = 9 # The typical Retry-After is set to 20 seconds. We'll give 3 minutes overall to download the cost details report
+
         $CostDetailsApiPath = "/subscriptions/$($subscription.Id)/providers/Microsoft.CostManagement/generateCostDetailsReport?api-version=2022-05-01"
         $body = "{ `"metric`": `"ActualCost`", `"timePeriod`": { `"start`": `"$targetStartDate`", `"end`": `"$targetEndDate`" } }"
         $result = Invoke-AzRestMethod -Path $CostDetailsApiPath -Method POST -Payload $body
@@ -299,12 +308,20 @@ foreach ($subscription in $subscriptions)
                         $sleepSeconds = $downloadResult.Headers.RetryAfter.Delta.TotalSeconds
                     }
                 }
+                elseif ($downloadResult.StatusCode -eq 401)
+                {
+                    Write-Output "Had an authentication issue. Will login again and sleep just a couple of seconds."
+
+                    Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
+
+                    $sleepSeconds = 2
+                }
                 else
                 {
                     Write-Output "Got an unexpected response code: $($downloadResult.StatusCode)"
                 }
             } 
-            while (-not($requestSuccess) -and $tries -lt 5)
+            while (-not($requestSuccess) -and $tries -lt $MaxTries)
 
             if (-not($requestSuccess))
             {
