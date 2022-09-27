@@ -137,7 +137,7 @@ $baseQuery = @"
     let billingInterval = $($billingInterval)d;
     let billingWindowIntervalEnd = $($consumptionOffsetDays)d; 
     let billingWindowIntervalStart = $($consumptionOffsetDaysStart)d; 
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
     let stime = etime-offlineInterval;
     let BilledVMs = $consumptionTableName 
     | where UsageDate_t between (stime..etime)
@@ -207,6 +207,7 @@ foreach ($result in $results)
         let offlineInterval = $($offlineInterval)d;
         $consumptionTableName
         | where InstanceId_s == '$queryInstanceId'
+        | where UsageDate_t < now()
         | join kind=inner (
             $disksTableName
             | extend DiskInstanceId = InstanceId_s

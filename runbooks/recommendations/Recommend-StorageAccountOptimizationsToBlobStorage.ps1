@@ -142,7 +142,7 @@ $dailyCostThreshold = [Math]::Round($monthlyCostThreshold / 30)
 
 $baseQuery = @"
 let interval = $($growthLookbackDays)d; // observation window
-let etime = endofday(todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))));
+let etime = endofday(todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))));
 let etime_subs = endofday(todatetime(toscalar($subscriptionsTableName | summarize max(TimeGenerated))));
 let stime = endofday(etime-interval);
 let lastday_stime = endofday(etime-1d);

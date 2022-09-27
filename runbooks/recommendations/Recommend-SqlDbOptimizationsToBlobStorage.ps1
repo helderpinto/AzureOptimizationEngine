@@ -145,7 +145,7 @@ $baseQuery = @"
     let MetricsInterval = $($perfDaysBackwards)d;
     let BillingInterval = 30d;
     let dtuPercentPercentile = $dtuPercentile;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
     let stime = etime-BillingInterval; 
     let CandidateDatabaseIds = $sqlDbsTableName
     | where TimeGenerated > ago(1d) and SkuName_s in ('Standard','Premium')

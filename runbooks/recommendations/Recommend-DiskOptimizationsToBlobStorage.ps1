@@ -234,7 +234,7 @@ Write-Output "Looking for underutilized Disks, with less than $iopsPercentageThr
 $baseQuery = @"
     let billingInterval = 30d;
     let perfInterval = $($perfDaysBackwards)d; 
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
     let stime = etime-billingInterval; 
 
     let BilledDisks = $consumptionTableName

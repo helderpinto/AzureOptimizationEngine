@@ -317,7 +317,7 @@ $baseQuery = @"
     let perfInterval = $($perfDaysBackwards)d; 
     let cpuPercentileValue = $cpuPercentile;
     let memoryPercentileValue = $memoryPercentile;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
     let stime = etime-billingInterval; 
 
     let BilledVMs = $consumptionTableName 

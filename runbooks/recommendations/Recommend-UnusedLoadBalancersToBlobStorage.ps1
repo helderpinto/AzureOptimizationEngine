@@ -130,7 +130,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 
 $baseQuery = @"
     let interval = 30d;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
     let stime = etime-interval; 
     $lbsTableName
     | where TimeGenerated > ago(1d)

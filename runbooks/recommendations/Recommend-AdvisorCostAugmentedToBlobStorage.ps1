@@ -435,7 +435,7 @@ let networkPercentileValue = $networkPercentile;
 let diskPercentileValue = $diskPercentile;
 let rightSizeRecommendationId = '$rightSizeRecommendationId';
 let billingInterval = 30d;
-let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
 let stime = etime-billingInterval; 
 let RightSizeInstanceIds = materialize($advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost' and RecommendationTypeId_g == rightSizeRecommendationId

@@ -1181,7 +1181,7 @@ Write-Output "Looking for orphaned Public IPs..."
 
 $baseQuery = @"
     let interval = 30d;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
     let stime = etime-interval;     
     $publicIpsTableName
     | where TimeGenerated > ago(1d) and isempty(AssociatedResourceId_s)
