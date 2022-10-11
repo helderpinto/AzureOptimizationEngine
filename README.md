@@ -88,7 +88,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 * 06/2022
     * New Cost recommendations added
-        * Underutilized SQL Dabases (DTU-based SKUs only)
+        * Underutilized SQL Databases (DTU-based SKUs only)
         * Storage Accounts without retention policy in place
     * New workbooks
         * Policy Compliance
