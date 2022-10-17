@@ -317,7 +317,7 @@ else {
 
 Write-Host "...for the Azure SQL Server..." -ForegroundColor Green
 $sql = Get-AzSqlServer -ResourceGroupName $resourceGroupName -Name $sqlServerName -ErrorAction SilentlyContinue
-if ($null -eq $sql) {
+if ($null -eq $sql -and -not($sqlServerName -like "*.database.*") -and -not($IgnoreNamingAvailabilityErrors)) {
 
     $SqlServerNameAvailabilityUriPath = "/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
     $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
