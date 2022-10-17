@@ -141,13 +141,13 @@ Write-Output "Looking for ever growing Storage Accounts, with more than $monthly
 $dailyCostThreshold = [Math]::Round($monthlyCostThreshold / 30)
 
 $baseQuery = @"
-let interval = $($growthLookbackDays)d; // observation window
+let interval = $($growthLookbackDays)d;
 let etime = endofday(todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))));
 let etime_subs = endofday(todatetime(toscalar($subscriptionsTableName | summarize max(TimeGenerated))));
 let stime = endofday(etime-interval);
 let lastday_stime = endofday(etime-1d);
 let lastday_stime_subs = endofday(etime_subs-1d);
-let costThreshold = $dailyCostThreshold; // minimum daily cost threshold
+let costThreshold = $dailyCostThreshold;
 let growthPercentageThreshold = $growthPercentageThreshold; 
 let StorageAccountsWithLastTags = $consumptionTableName
 | where UsageDate_t between (lastday_stime..etime)
