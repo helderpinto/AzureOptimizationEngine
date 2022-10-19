@@ -84,8 +84,6 @@ else
 
 $tenantId = (Get-AzContext).Tenant.Id
 
-$recommendations = @()
-
 <#
    Getting Advisor recommendations for each subscription and building CSV entries
 #>
@@ -95,6 +93,8 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($subscription in $subscriptions)
 {
+    $recommendations = @()
+
     Select-AzSubscription -SubscriptionId $subscription
 
     switch ($advisorFilter)
@@ -172,7 +172,7 @@ foreach ($subscription in $subscriptions)
         $recommendations += $recommendation    
     }
 
-    Write-Output "Found $($recommendations.Count) recommendations ($advisorFilter) for $subscription subscription"
+    Write-Output "Processed $($recommendations.Count) recommendations ($advisorFilter)"
 
     <#
     Actually exporting CSV to Azure Storage
