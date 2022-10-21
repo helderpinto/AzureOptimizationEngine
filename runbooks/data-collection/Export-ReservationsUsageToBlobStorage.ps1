@@ -44,6 +44,8 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
     $storageAccountSinkContainer = "reservationsexports"
 }
 
+$BillingAccountIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID" -ErrorAction SilentlyContinue
+
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
     $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
@@ -96,6 +98,10 @@ if (-not([string]::IsNullOrEmpty($TargetScope)))
 }
 else
 {
+    if (-not([string]::IsNullOrEmpty($BillingAccountIDVar)))
+    {
+        $BillingAccountID = $BillingAccountIDVar
+    }
     $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID"
 }
 
@@ -106,7 +112,7 @@ Write-Output "[$now] Starting reservations export process from $targetStartDate 
 
 $reservationsDetailsResponse = $null
 $reservationsDetails = @()
-$reservationsDetailsPath = "/providers/Microsoft.Billing/billingAccounts/$BillingAccountID/reservations?api-version=2020-05-01&&refreshSummary=true"
+$reservationsDetailsPath = "$scope/reservations?api-version=2020-05-01&&refreshSummary=true"
 
 do
 {
