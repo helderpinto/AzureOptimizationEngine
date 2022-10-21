@@ -123,3 +123,9 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('recommendationsexports', '1901-01-01T00:00:00Z', -1, 'RecommendationsV1', 'Recommendations')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'reservationsexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('reservationsexports', '1901-01-01T00:00:00Z', -1, 'ReservationsUsageV1', 'ReservationsUsage')
+END
