@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $false)]
     [string] $TargetScope = $null,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string] $BillingAccountID,
 
     [Parameter(Mandatory = $false)]

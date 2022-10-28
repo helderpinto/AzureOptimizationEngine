@@ -376,6 +376,13 @@
                                 "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
                             }
                         },
+                        "argAppServicePlanExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the ARG App Service Plan Export job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "argDiskIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -514,6 +521,13 @@
                             "defaultValue": "[newGuid()]",
                             "metadata": {
                                 "description": "GUID for the Azure Monitor Metrics Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "argAppServicePlanIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the ARG App Service Plan Ingest job schedule creation - create a unique before deploy"
                             }
                         },
                         "unattachedDisksRecommendationJobId": {
@@ -657,6 +671,7 @@
                         "argSqlDbExportsRunbookName": "Export-ARGSqlDatabasePropertiesToBlobStorage",
                         "policyStateExportsRunbookName": "Export-PolicyComplianceToBlobStorage",
                         "monitorExportsRunbookName": "Export-AzMonitorMetricsToBlobStorage",
+                        "argAppServicePlanExportsRunbookName": "Export-ARGAppServicePlanPropertiesToBlobStorage",
                         // CSV exports schedules
                         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
                         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
@@ -995,6 +1010,20 @@
                                 "ingestFrequency": "Hour",
                                 "ingestJobId": "[parameters('monitorIngestJobId')]",
                                 "exportJobId": "dummy"
+                            },
+                            {
+                                "runbookName": "[variables('argAppServicePlanExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "argappserviceplanexports",
+                                "variableName": "AzureOptimization_ARGAppServicePlanContainer",
+                                "variableDescription": "The Storage Account container where Azure Resource Graph App Service Plan exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestARGAppServicePlanDaily",
+                                "ingestDescription": "Daily Azure Resource Graph App Service Plan ingests",
+                                "ingestTimeOffset": "PT1H30M",
+                                "ingestFrequency": "Day",
+                                "ingestJobId": "[parameters('argAppServicePlanIngestJobId')]",
+                                "exportSchedule": "[variables('argExportsScheduleName')]",
+                                "exportJobId": "[parameters('argAppServicePlanExportJobId')]"
                             }
                         ],
                         "csvParameterizedExports": [
@@ -1324,6 +1353,13 @@
                                 "description": "Exports Azure Monitor metrics to Blob Storage",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('monitorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('argAppServicePlanExportsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Exports App Service Plan properties to Blob Storage using Azure Resource Graph",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argAppServicePlanExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('csvIngestRunbookName')]",

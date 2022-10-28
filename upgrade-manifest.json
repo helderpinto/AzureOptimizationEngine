@@ -149,6 +149,11 @@
             "frequency": "Day"
         },
         {
+            "name": "AzureOptimization_IngestARGAppServicePlanDaily",
+            "offset": "PT1H30M",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_IngestPolicyStateDaily",
             "offset": "PT1H30M",
             "frequency": "Day"
@@ -363,6 +368,14 @@
             ],
             "exportSchedule": "AzureOptimization_ExportARGDaily",
             "ingestSchedule": "AzureOptimization_IngestARGSqlDbDaily"
+        },
+        {
+            "runbook": "runbooks/data-collection/Export-ARGAppServicePlanPropertiesToBlobStorage.ps1",
+            "container": "argappserviceplanexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportARGDaily",
+            "ingestSchedule": "AzureOptimization_IngestARGAppServicePlanDaily"
         },
         {
             "runbook": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
