@@ -119,7 +119,7 @@ do
     {
         $dbs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
     }
-    if ($dbs.GetType().Name -eq "PSResourceGraphResponse")
+    if ($dbs -and $dbs.GetType().Name -eq "PSResourceGraphResponse")
     {
         $dbs = $dbs.Data
     }

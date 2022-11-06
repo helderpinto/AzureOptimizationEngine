@@ -120,7 +120,7 @@ do
     {
         $asp = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
     }
-    if ($asp.GetType().Name -eq "PSResourceGraphResponse")
+    if ($asp -and $asp.GetType().Name -eq "PSResourceGraphResponse")
     {
         $asp = $asp.Data
     }
