@@ -170,7 +170,7 @@ foreach ($subscription in $subscriptions)
                     BillingCurrencyCode = $consumptionLine.properties.billingCurrency
                     ChargeType = $consumptionLine.properties.chargeType
                     ConsumedService = $consumptionLine.properties.consumedService
-                    CostInBilingCurrency = $consumptionLine.properties.cost
+                    CostInBillingCurrency = $consumptionLine.properties.cost
                     EffectivePrice = $consumptionLine.properties.effectivePrice
                     Frequency = $consumptionLine.properties.frequency
                     MeterCategory = $consumptionLine.properties.meterDetails.meterCategory
