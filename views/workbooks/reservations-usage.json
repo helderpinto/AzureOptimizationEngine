@@ -119,6 +119,20 @@
       "name": "parameters - 0"
     },
     {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureOptimizationConsumptionV1_CL\r\n| where CollectedDate_t > todatetime('{LookbackPeriod:startISO}') and CollectedDate_t < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| extend PricingModel = iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', 'OnDemand'))\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize FullCost=sum(FullCost) by PricingModel, bin(UsageDate_t, 1d)",
+        "size": 1,
+        "title": "Pricing Model Consumption over time",
+        "timeContextFromParameter": "LookbackPeriod",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart"
+      },
+      "name": "pricingModelOverTime"
+    },
+    {
       "type": 11,
       "content": {
         "version": "LinkItem/1.0",
