@@ -234,15 +234,14 @@ Write-Output "Looking for underutilized Disks, with less than $iopsPercentageThr
 $baseQuery = @"
     let billingInterval = 30d;
     let perfInterval = $($perfDaysBackwards)d; 
-    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(billingInterval) | summarize max(todatetime(Date_s)))); 
     let stime = etime-billingInterval; 
 
     let BilledDisks = $consumptionTableName
-    | where UsageDate_t between (stime..etime) and InstanceId_s contains '/disks/' and MeterCategory_s == 'Storage' and MeterSubCategory_s has 'Premium' and MeterName_s has 'Disks'
+    | where todatetime(Date_s) between (stime..etime) and ResourceId contains '/disks/' and MeterCategory_s == 'Storage' and MeterSubCategory_s has 'Premium' and MeterName_s has 'Disks'
     | extend DiskConsumedQuantity = todouble(Quantity_s)
     | extend DiskPrice = todouble(UnitPrice_s)
     | extend FinalCost = DiskPrice * DiskConsumedQuantity
-    | extend ResourceId = InstanceId_s
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(DiskConsumedQuantity) by ResourceId;
 
     $metricsTableName

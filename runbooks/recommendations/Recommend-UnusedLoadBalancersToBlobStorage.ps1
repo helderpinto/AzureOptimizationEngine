@@ -130,7 +130,7 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
 
 $baseQuery = @"
     let interval = 30d;
-    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(interval) | summarize max(todatetime(Date_s)))); 
     let stime = etime-interval; 
     $lbsTableName
     | where TimeGenerated > ago(1d)
@@ -140,10 +140,10 @@ $baseQuery = @"
     | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
     | join kind=leftouter (
         $consumptionTableName
-        | where UsageDate_t between (stime..etime)
-        | project InstanceId_s, Cost_s, UsageDate_t
+        | where todatetime(Date_s) between (stime..etime)
+        | project InstanceId_s=ResourceId, CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s    
+    | summarize Last30DaysCost=sum(todouble(CostInBillingCurrency_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s    
     | join kind=leftouter ( 
         $subscriptionsTableName 
         | where TimeGenerated > ago(1d)
@@ -190,10 +190,10 @@ foreach ($result in $results)
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s, SkuName_s
     | join kind=inner (
         $consumptionTableName
-        | project InstanceId_s, Cost_s, UsageDate_t
+        | project InstanceId_s=ResourceId, CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where UsageDate_t > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(Cost_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
+    | where todatetime(Date_s) > FirstUnusedDate
+    | summarize CostsSinceUnused = sum(todouble(CostInBillingCurrency_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate

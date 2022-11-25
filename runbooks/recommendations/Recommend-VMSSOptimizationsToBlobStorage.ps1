@@ -317,14 +317,15 @@ $baseQuery = @"
     let perfInterval = $($perfDaysBackwards)d; 
     let cpuPercentileValue = $cpuPercentile;
     let memoryPercentileValue = $memoryPercentile;
-    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(30d) | summarize max(todatetime(Date_s)))); 
     let stime = etime-billingInterval; 
 
     let BilledVMs = $consumptionTableName 
-    | where UsageDate_t between (stime..etime) and InstanceId_s contains 'virtualmachinescalesets'
-    | extend VMConsumedQuantity = iif(InstanceId_s contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
-    | extend VMPrice = iif(InstanceId_s contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
+    | where todatetime(Date_s) between (stime..etime) and ResourceId contains 'virtualmachinescalesets'
+    | extend VMConsumedQuantity = iif(ResourceId contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
+    | extend VMPrice = iif(ResourceId contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
     | extend FinalCost = VMPrice * VMConsumedQuantity
+    | extend InstanceId_s = ResourceId
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(VMConsumedQuantity) by InstanceId_s;
 
     let MemoryPerf = $metricsTableName 

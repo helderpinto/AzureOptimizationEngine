@@ -145,7 +145,7 @@ $baseQuery = @"
     let MetricsInterval = $($perfDaysBackwards)d;
     let BillingInterval = 30d;
     let dtuPercentPercentile = $dtuPercentile;
-    let etime = todatetime(toscalar($consumptionTableName | where UsageDate_t < now() | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(BillingInterval) | summarize max(todatetime(Date_s)))); 
     let stime = etime-BillingInterval; 
     let CandidateDatabaseIds = $sqlDbsTableName
     | where TimeGenerated > ago(1d) and SkuName_s in ('Standard','Premium')
@@ -162,11 +162,10 @@ $baseQuery = @"
     ) on ResourceId
     | join kind=leftouter (
         $consumptionTableName
-        | where UsageDate_t between (stime..etime)
-        | extend ResourceId = InstanceId_s
-        | project ResourceId, Cost_s, UsageDate_t
+        | where todatetime(Date_s) between (stime..etime)
+        | project ResourceId, CostInBillingCurrency_s, Date_s
     ) on ResourceId
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s, P99DTUPercentage
+    | summarize Last30DaysCost=sum(todouble(CostInBillingCurrency_s)) by DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s, P99DTUPercentage
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d)

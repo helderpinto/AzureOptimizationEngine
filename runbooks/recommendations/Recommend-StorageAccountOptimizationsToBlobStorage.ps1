@@ -84,6 +84,8 @@ switch ($authenticationOption) {
     }
 }
 
+$tenantId = (Get-AzContext).Tenant.Id
+
 Write-Output "Finding tables where recommendations will be generated from..."
 
 $tries = 0
@@ -142,7 +144,7 @@ $dailyCostThreshold = [Math]::Round($monthlyCostThreshold / 30)
 
 $baseQuery = @"
 let interval = $($growthLookbackDays)d;
-let etime = endofday(todatetime(toscalar($consumptionTableName | where UsageDate_t > ago(interval) and UsageDate_t < now() | summarize max(UsageDate_t))));
+let etime = endofday(todatetime(toscalar($consumptionTableName | where todatetime(Date_s) > ago(interval) and todatetime(Date_s) < now() | summarize max(todatetime(Date_s)))));
 let etime_subs = endofday(todatetime(toscalar($subscriptionsTableName | where TimeGenerated > ago(interval) | summarize max(TimeGenerated))));
 let stime = endofday(etime-interval);
 let lastday_stime = endofday(etime-1d);
@@ -150,24 +152,24 @@ let lastday_stime_subs = endofday(etime_subs-1d);
 let costThreshold = $dailyCostThreshold;
 let growthPercentageThreshold = $growthPercentageThreshold; 
 let StorageAccountsWithLastTags = $consumptionTableName
-| where UsageDate_t between (lastday_stime..etime)
+| where todatetime(Date_s) between (lastday_stime..etime)
 | where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
-| distinct InstanceId_s, Tags_s;
+| distinct ResourceId, Tags_s;
 $consumptionTableName
-| where UsageDate_t between (stime..etime)
+| where todatetime(Date_s) between (stime..etime)
 | where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
-| make-series CostSum=sum(todouble(Cost_s)) default=0.0 on UsageDate_t from stime to etime step 1d by InstanceId_s, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g
+| make-series CostSum=sum(todouble(CostInBillingCurrency_s)) default=0.0 on todatetime(Date_s) from stime to etime step 1d by ResourceId, ResourceName, ResourceGroup, SubscriptionId
 | extend InitialDailyCost = todouble(CostSum[0]), CurrentDailyCost = todouble(CostSum[array_length(CostSum)-1])
 | extend GrowthPercentage = round((CurrentDailyCost-InitialDailyCost)/InitialDailyCost*100)
 | where InitialDailyCost > 0 and CurrentDailyCost > costThreshold and GrowthPercentage > growthPercentageThreshold 
-| project InstanceId_s, InitialDailyCost, CurrentDailyCost, GrowthPercentage, InstanceName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g
-| join kind=leftouter (StorageAccountsWithLastTags) on InstanceId_s
+| project ResourceId, InitialDailyCost, CurrentDailyCost, GrowthPercentage, ResourceName, ResourceGroup, SubscriptionId
+| join kind=leftouter (StorageAccountsWithLastTags) on ResourceId
 | join kind=leftouter ( 
     $subscriptionsTableName
     | where TimeGenerated > lastday_stime_subs
     | where ContainerType_s =~ 'microsoft.resources/subscriptions' 
-    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s 
-) on SubscriptionGuid_g
+    | project SubscriptionId=SubscriptionGuid_g, SubscriptionName = ContainerName_s 
+) on SubscriptionId
 "@
 
 try
@@ -201,9 +203,9 @@ foreach ($result in $results)
     $queryText = @"
     $consumptionTableName 
     | where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
-    | extend InstanceId = tolower(InstanceId_s)
-    | where InstanceId_s == '$queryInstanceId' 
-    | summarize DailyCosts = sum(todouble(Cost_s)) by bin(UsageDate_t, 1d)
+    | extend ResourceId = tolower(ResourceId)
+    | where ResourceId == '$queryInstanceId' 
+    | summarize DailyCosts = sum(todouble(CostInBillingCurrency_s)) by bin(todatetime(Date_s), 1d)
     | render timechart
 "@
 
@@ -253,7 +255,7 @@ foreach ($result in $results)
 
     $recommendation = New-Object PSObject -Property @{
         Timestamp                   = $timestamp
-        Cloud                       = $result.Cloud_s
+        Cloud                       = $cloudEnvironment
         Category                    = "Cost"
         ImpactedArea                = "Microsoft.Storage/storageAccounts"
         Impact                      = "Medium"
@@ -262,13 +264,13 @@ foreach ($result in $results)
         RecommendationSubTypeId     = "08e049ca-18b0-4d22-b174-131a91d0381c"
         RecommendationDescription   = "Storage Account without retention policy in place"
         RecommendationAction        = "Review whether the Storage Account has a retention policy for example via Lifecycle Management"
-        InstanceId                  = $result.InstanceId_s
-        InstanceName                = $result.InstanceName_s
+        InstanceId                  = $result.ResourceId
+        InstanceName                = $result.ResourceName
         AdditionalInfo              = $additionalInfoDictionary
-        ResourceGroup               = $result.ResourceGroupName_s
-        SubscriptionGuid            = $result.SubscriptionGuid_g
+        ResourceGroup               = $result.ResourceGroup
+        SubscriptionGuid            = $result.SubscriptionId
         SubscriptionName            = $result.SubscriptionName
-        TenantGuid                  = $result.TenantGuid_g
+        TenantGuid                  = $tenantId
         FitScore                    = $fitScore
         Tags                        = $tags
         DetailsURL                  = $detailsURL
