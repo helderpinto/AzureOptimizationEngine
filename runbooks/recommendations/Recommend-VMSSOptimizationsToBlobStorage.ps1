@@ -399,6 +399,7 @@ foreach ($result in $results)
     $memoryNeeded = [double]($currentSku.Capabilities | Where-Object { $_.Name -eq 'MemoryGB' }).Value * ([double] $result.PMemoryPercentage / 100)
     $cpuNeeded = [double]$currentSkuvCPUs * ([double] $result.PCPUPercentage / 100)
     $currentPremiumIO = [bool] ($currentSku.Capabilities | Where-Object { $_.Name -eq 'PremiumIO' }).Value
+    $currentCpuArch = ($currentSku.Capabilities | Where-Object { $_.Name -eq 'CpuArchitectureType' }).Value
 
     if ($null -eq $skuPricesFound[$currentSku.Name])
     {
@@ -416,10 +417,11 @@ foreach ($result in $results)
         $skuMaxDataDisks = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxDataDiskCount' }).Value
         $skuMaxNICs = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxNetworkInterfaces' }).Value
         $skuPremiumIO = [bool] ($sku.Capabilities | Where-Object { $_.Name -eq 'PremiumIO' }).Value
+        $skuCpuArch = ($sku.Capabilities | Where-Object { $_.Name -eq 'CpuArchitectureType' }).Value
 
         if ($currentSku.Name -ne $sku.Name -and -not($sku.Name -like "*Promo*") -and [double]$skuCPUs -ge $cpuNeeded -and [double]$skuMemory -ge $memoryNeeded `
                 -and $skuMaxDataDisks -ge [int] $result.DataDiskCount_s -and $skuMaxNICs -ge [int] $result.NicCount_s `
-                -and ($currentPremiumIO -eq $false -or $skuPremiumIO -eq $currentPremiumIO))
+                -and ($currentPremiumIO -eq $false -or $skuPremiumIO -eq $currentPremiumIO) -and $skuCpuArch -eq $currentCpuArch)
         {
             if ($null -eq $skuPricesFound[$sku.Name])
             {
