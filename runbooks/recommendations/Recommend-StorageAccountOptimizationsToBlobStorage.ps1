@@ -158,11 +158,11 @@ let StorageAccountsWithLastTags = $consumptionTableName
 $consumptionTableName
 | where todatetime(Date_s) between (stime..etime)
 | where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
-| make-series CostSum=sum(todouble(CostInBillingCurrency_s)) default=0.0 on todatetime(Date_s) from stime to etime step 1d by ResourceId, ResourceName, ResourceGroup, SubscriptionId
+| make-series CostSum=sum(todouble(CostInBillingCurrency_s)) default=0.0 on todatetime(Date_s) from stime to etime step 1d by ResourceId, ResourceName_s, ResourceGroup, SubscriptionId
 | extend InitialDailyCost = todouble(CostSum[0]), CurrentDailyCost = todouble(CostSum[array_length(CostSum)-1])
 | extend GrowthPercentage = round((CurrentDailyCost-InitialDailyCost)/InitialDailyCost*100)
 | where InitialDailyCost > 0 and CurrentDailyCost > costThreshold and GrowthPercentage > growthPercentageThreshold 
-| project ResourceId, InitialDailyCost, CurrentDailyCost, GrowthPercentage, ResourceName, ResourceGroup, SubscriptionId
+| project ResourceId, InitialDailyCost, CurrentDailyCost, GrowthPercentage, ResourceName_s, ResourceGroup, SubscriptionId
 | join kind=leftouter (StorageAccountsWithLastTags) on ResourceId
 | join kind=leftouter ( 
     $subscriptionsTableName
@@ -265,7 +265,7 @@ foreach ($result in $results)
         RecommendationDescription   = "Storage Account without retention policy in place"
         RecommendationAction        = "Review whether the Storage Account has a retention policy for example via Lifecycle Management"
         InstanceId                  = $result.ResourceId
-        InstanceName                = $result.ResourceName
+        InstanceName                = $result.ResourceName_s
         AdditionalInfo              = $additionalInfoDictionary
         ResourceGroup               = $result.ResourceGroup
         SubscriptionGuid            = $result.SubscriptionId

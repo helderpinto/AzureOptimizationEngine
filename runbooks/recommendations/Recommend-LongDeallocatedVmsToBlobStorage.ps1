@@ -152,7 +152,7 @@ $baseQuery = @"
     | where todatetime(Date_s) between (stime..etime)
     | where ResourceId like 'microsoft.compute/disks/'
     | extend BillingInstanceId = ResourceId
-    | summarize DisksCosts = sum(todouble(Cost_s)) by BillingInstanceId;
+    | summarize DisksCosts = sum(todouble(CostInBillingCurrency_s)) by BillingInstanceId;
     $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
     | where InstanceId_s !in (RunningVMs)
