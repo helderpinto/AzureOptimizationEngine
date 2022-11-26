@@ -164,7 +164,7 @@ foreach ($subscription in $subscriptions)
                     ResourceGroup = $consumptionLine.properties.resourceGroup
                     ResourceName = $consumptionLine.properties.resourceName
                     ResourceId = $consumptionLine.properties.resourceId
-                    Date = $consumptionLine.properties.date.ToString("MM/dd/yyyy")
+                    Date = (Get-Date $consumptionLine.properties.date).ToString("MM/dd/yyyy")
                     Tags = $tags
                     AdditionalInfo = $consumptionLine.properties.additionalInfo
                     BillingCurrencyCode = $consumptionLine.properties.billingCurrency
