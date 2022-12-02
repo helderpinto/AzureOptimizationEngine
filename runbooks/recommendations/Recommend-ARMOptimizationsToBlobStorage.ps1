@@ -169,6 +169,8 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
+$recommendationsErrors = 0
+
 $assignmentsThreshold = $assignmentsSubscriptionsLimit * ($assignmentsPercentageThreshold / 100)
 
 Write-Output "Looking for subscriptions with more than $assignmentsPercentageThreshold% of the $assignmentsSubscriptionsLimit RBAC assignments limit..."
@@ -199,7 +201,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -315,7 +317,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -417,7 +419,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -509,3 +511,7 @@ Remove-Item -Path $jsonExportPath -Force
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
 
+if ($recommendationsErrors -gt 0)
+{
+    throw "Some of the recommendations queries failed. Please, review the job logs for additional information."
+}

@@ -798,7 +798,7 @@ foreach ($result in $results) {
             }
             else
             {
-                $savingsMonthly = 0 # unknown
+                $savingsMonthly = 0.0 # unknown
             }
         }            
     }

@@ -166,6 +166,8 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
+$recommendationsErrors = 0
+
 Write-Output "Looking for subnets with free IP space less than $subnetMaxUsedThreshold%, excluding $subnetFreeExclusions..."
 
 $baseQuery = @"
@@ -195,7 +197,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -321,7 +323,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -444,7 +446,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -566,7 +568,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -723,7 +725,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -910,7 +912,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -1081,7 +1083,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -1212,7 +1214,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -1322,3 +1324,7 @@ Remove-Item -Path $jsonExportPath -Force
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
 
+if ($recommendationsErrors -gt 0)
+{
+    throw "Some of the recommendations queries failed. Please, review the job logs for additional information."
+}
