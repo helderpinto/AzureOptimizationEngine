@@ -376,6 +376,41 @@
                                 "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
                             }
                         },
+                        "monitorSqlDbDtuAvgExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "monitorAppServiceCpuMaxExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "monitorAppServiceCpuAvgExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "monitorAppServiceMemoryMaxExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "monitorAppServiceMemoryAvgExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "argAppServicePlanExportJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -683,6 +718,11 @@
                         "monitorVmssCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorVmssCpuAvgHourly",
                         "monitorVmssMemoryMinExportsScheduleName": "AzureOptimization_ExportMonitorVmssMemoryMinHourly",
                         "monitorSqlDbDtuMaxExportsScheduleName": "AzureOptimization_ExportMonitorSqlDbDtuMaxHourly",
+                        "monitorSqlDbDtuAvgExportsScheduleName": "AzureOptimization_ExportMonitorSqlDbDtuAvgHourly",
+                        "monitorAppServiceCpuMaxExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceCpuMaxHourly",
+                        "monitorAppServiceCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
+                        "monitorAppServiceMemoryMaxExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
+                        "monitorAppServiceMemoryAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
                         "csvExportsSchedules": [
                             {
                                 "exportSchedule": "[variables('argExportsScheduleName')]",
@@ -741,6 +781,36 @@
                             {
                                 "exportSchedule": "[variables('monitorSqlDbDtuMaxExportsScheduleName')]",
                                 "exportDescription": "Hourly Azure Monitor metrics exports for SQL Database Percentage DTU (Max.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorSqlDbDtuAvgExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for SQL Database Percentage DTU (Avg.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorAppServiceCpuAvgExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for App Service Percentage CPU (Avg.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorAppServiceCpuMaxExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for App Service Percentage CPU (Max.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorAppServiceMemoryAvgExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for App Service Percentage RAM (Avg.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorAppServiceMemoryMaxExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for App Service Percentage RAM (Max.)",
                                 "exportTimeOffset": "PT1H15M",
                                 "exportFrequency": "Hour"
                             }
@@ -1075,6 +1145,74 @@
                                     "MetricNames": "dtu_consumption_percent",
                                     "TimeGrain": "01:00:00"
                                 }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorSqlDbDtuAvgExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorSqlDbDtuAvgExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.sql/servers/databases",
+                                    "ARGFilter": "sku.tier in ('Standard','Premium')",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Average",
+                                    "AggregationOfType": "Maximum",
+                                    "MetricNames": "dtu_consumption_percent",
+                                    "TimeGrain": "00:01:00"
+                                }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorAppServiceCpuMaxExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorAppServiceCpuMaxExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.web/serverfarms",
+                                    "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Maximum",
+                                    "MetricNames": "CpuPercentage",
+                                    "TimeGrain": "01:00:00"
+                                }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorAppServiceCpuAvgExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorAppServiceCpuAvgExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.web/serverfarms",
+                                    "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Average",
+                                    "AggregationOfType": "Maximum",
+                                    "MetricNames": "CpuPercentage",
+                                    "TimeGrain": "00:01:00"
+                                }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorAppServiceMemoryMaxExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorAppServiceMemoryMaxExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.web/serverfarms",
+                                    "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Maximum",
+                                    "MetricNames": "MemoryPercentage",
+                                    "TimeGrain": "01:00:00"
+                                }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorAppServiceMemoryAvgExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorAppServiceMemoryAvgExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.web/serverfarms",
+                                    "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Average",
+                                    "AggregationOfType": "Maximum",
+                                    "MetricNames": "MemoryPercentage",
+                                    "TimeGrain": "00:01:00"
+                                }
                             }
                         ],
                         // recommendations runbooks
@@ -1342,7 +1480,7 @@
                             },
                             {
                                 "name": "[variables('policyStateExportsRunbookName')]",
-                                "version": "1.0.0.0",
+                                "version": "1.0.1.0",
                                 "description": "Exports Azure Policy State to Blob Storage",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('policyStateExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1447,7 +1585,7 @@
                             },
                             {
                                 "name": "[variables('sqldbOptimizationsRecommendationsRunbookName')]",
-                                "version": "1.0.1.0",
+                                "version": "1.1.0.0",
                                 "description": "Generates SQL DB optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('sqldbOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1679,6 +1817,11 @@
                                 "name": "AzureOptimization_PerfThresholdDtuPercentage",
                                 "description": "The DTU usage percentage threshold below which a SQL Database instance is considered underutilized",
                                 "value": 40
+                            },
+                            {
+                                "name": "AzureOptimization_PerfThresholdDtuDegradedPercentage",
+                                "description": "The DTU usage percentage threshold above which a SQL Database instance is considered performance degraded",
+                                "value": 70
                             },
                             {
                                 "name": "AzureOptimization_RemediateRightSizeMinFitScore",

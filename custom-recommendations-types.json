@@ -203,6 +203,12 @@
             "typeId": "20a40c62-e5c8-4cc3-9fc2-f4ac75013182",
             "impact": "Medium",
             "description": "VM Scale Set performance has been constrained by lack of resources"
+        },
+        {
+            "category": "Performance",
+            "typeId": "724ff2f5-8c83-4105-b00d-029c4560d774",
+            "impact": "Medium",
+            "description": "SQL Database performance has been constrained by lack of resources"
         }
     ]
 }

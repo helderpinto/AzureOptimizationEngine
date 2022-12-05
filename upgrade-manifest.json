@@ -224,6 +224,31 @@
             "frequency": "Hour"
         },
         {
+            "name": "AzureOptimization_ExportMonitorSqlDbDtuAvgHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorAppServiceCpuMaxHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
             "name": "AzureOptimization_IngestAzMonitorMetricsHourly",
             "offset": "PT2H",
             "frequency": "Hour"
@@ -455,6 +480,64 @@
                         "MetricNames": "dtu_consumption_percent",
                         "TimeGrain": "01:00:00"
                     }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorSqlDbDtuAvgHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.sql/servers/databases",
+                        "ARGFilter": "sku.tier in ('Standard','Premium')",
+                        "TimeSpan": "01:00:00",
+                        "AggregationOfType": "Maximum",
+                        "aggregationType": "Average",
+                        "MetricNames": "dtu_consumption_percent",
+                        "TimeGrain": "00:01:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorAppServiceCpuMaxHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.web/serverfarms",
+                        "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Maximum",
+                        "MetricNames": "CpuPercentage",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.web/serverfarms",
+                        "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Average",
+                        "AggregationOfType": "Maximum",
+                        "MetricNames": "CpuPercentage",
+                        "TimeGrain": "00:01:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.web/serverfarms",
+                        "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Maximum",
+                        "MetricNames": "MemoryPercentage",
+                        "TimeGrain": "01:00:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.web/serverfarms",
+                        "ARGFilter": "properties.computeMode == 'Dedicated' and sku.tier != 'Free'",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Average",
+                        "AggregationOfType": "Maximum",
+                        "MetricNames": "MemoryPercentage",
+                        "TimeGrain": "00:01:00"
+                    }
                 }
             ],
             "ingestSchedule": "AzureOptimization_IngestAzMonitorMetricsHourly"
@@ -601,6 +684,10 @@
                 {
                     "name": "AzureOptimization_PerfThresholdDtuPercentage",
                     "defaultValue": 40
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdDtuDegradedPercentage",
+                    "defaultValue": 70
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

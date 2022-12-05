@@ -187,8 +187,8 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| join kind=leftouter (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication\r\n\r\n\r\n",
-              "size": 1,
+              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| join kind=inner (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication\r\n\r\n\r\n",
+              "size": 4,
               "title": "Replication ({Currency:value})",
               "timeContextFromParameter": "LookbackPeriod",
               "queryType": 0,
@@ -279,23 +279,53 @@
               "resourceType": "microsoft.operationalinsights/workspaces",
               "visualization": "piechart"
             },
-            "customWidth": "33",
+            "customWidth": "25",
             "name": "fileStructure"
           },
           {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s !has 'Premium' and MeterSubCategory_s != 'General Block Blob'\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s !has 'Premium' and MeterSubCategory_s != 'General Block Blob'\r\n| join kind=leftouter (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication",
-              "size": 1,
+              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s !has 'Premium' and MeterSubCategory_s != 'General Block Blob'\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s !has 'Premium' and MeterSubCategory_s != 'General Block Blob'\r\n| join kind=inner (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication",
+              "size": 4,
               "title": "Replication ({Currency:value})",
               "timeContextFromParameter": "LookbackPeriod",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "visualization": "piechart"
             },
-            "customWidth": "33",
+            "customWidth": "25",
             "name": "replication"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s !has 'Premium' and MeterSubCategory_s != 'General Block Blob'\r\n| where MeterName_s has 'Data Stored' and (MeterName_s has 'Hot' or MeterName_s has 'Cool' or MeterName_s has 'Archive')\r\n| extend Tier = iif(MeterName_s has 'Hot', 'Hot', iif(MeterName_s has 'Cool', 'Cool', 'Archive'))\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Tier",
+              "size": 4,
+              "title": "Data Stored Tiering ({Currency:value})",
+              "timeContextFromParameter": "LookbackPeriod",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "piechart"
+            },
+            "customWidth": "25",
+            "name": "dataStoredTiering"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s !has 'Premium' and MeterSubCategory_s != 'General Block Blob'\r\n| where MeterName_s has 'Operations' and (MeterName_s has 'Hot' or MeterName_s has 'Cool' or MeterName_s has 'Archive')\r\n| extend Tier = iif(MeterName_s has 'Hot', 'Hot', iif(MeterName_s has 'Cool', 'Cool', 'Archive'))\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Tier",
+              "size": 4,
+              "title": "Transactions Tiering ({Currency:value})",
+              "timeContextFromParameter": "LookbackPeriod",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "piechart"
+            },
+            "customWidth": "25",
+            "name": "transactionsTiering"
           },
           {
             "type": 9,
@@ -509,7 +539,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s == 'General Block Blob'\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s == 'General Block Blob'\r\n| join kind=leftouter (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication\r\n\r\n\r\n",
+              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s == 'General Block Blob'\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s == 'General Block Blob'\r\n| join kind=inner (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication\r\n\r\n\r\n",
               "size": 1,
               "title": "Replication ({Currency:value})",
               "timeContextFromParameter": "LookbackPeriod",
@@ -608,7 +638,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s has 'Premium'\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s has 'Premium'\r\n| join kind=leftouter (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication",
+              "query": "let StorageReplication = AzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s has 'Premium'\r\n| where MeterName_s has 'Data Stored'\r\n| extend Replication = tostring(split(MeterName_s, ' ')[-3])\r\n| distinct InstanceId_s, Replication;\r\nAzureOptimizationConsumptionV1_CL\r\n| where UsageDate_t between (todatetime('{LookbackPeriod:startISO}')..todatetime('{LookbackPeriod:endISO}'))\r\n| where SubscriptionGuid_g in ({Subscriptions:value})\r\n| where MeterCategory_s == 'Storage' and (MeterSubCategory_s has 'Block Blob' or MeterSubCategory_s has 'Hierarchical Namespace')\r\n| where MeterSubCategory_s has 'Premium'\r\n| join kind=inner (StorageReplication) on InstanceId_s\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize Cost=sum(FullCost) by Replication",
               "size": 1,
               "title": "Replication ({Currency:value})",
               "timeContextFromParameter": "LookbackPeriod",
