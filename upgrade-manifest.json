@@ -709,6 +709,24 @@
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": "runbooks/recommendations/Recommend-AppServiceOptimizationsToBlobStorage.ps1",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_PerfThresholdCpuDegradedMaxPercentage",
+                    "defaultValue": 95
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage",
+                    "defaultValue": 70
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
+                    "defaultValue": 80
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
         }
     ],
     "remediations": [

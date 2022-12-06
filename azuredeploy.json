@@ -656,6 +656,13 @@
                                 "description": "GUID for the Storage Account Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
                             }
                         },
+                        "appServiceOptimizationsRecommendationJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the App Service Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "recommendationsIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -1229,6 +1236,7 @@
                         "vmssOptimizationsRecommendationsRunbookName": "Recommend-VMSSOptimizationsToBlobStorage",
                         "sqldbOptimizationsRecommendationsRunbookName": "Recommend-SqlDbOptimizationsToBlobStorage",
                         "storageOptimizationsRecommendationsRunbookName": "Recommend-StorageAccountOptimizationsToBlobStorage",
+                        "appServiceOptimizationsRecommendationsRunbookName": "Recommend-AppServiceOptimizationsToBlobStorage",
                         "cleanUpOlderRecommendationsRunbookName": "CleanUp-OlderRecommendationsFromSqlServer",
                         "recommendations": [
                             {
@@ -1282,6 +1290,10 @@
                             {
                                 "recommendationJobId": "[parameters('storageOptimizationsRecommendationJobId')]",
                                 "runbookName": "[variables('storageOptimizationsRecommendationsRunbookName')]"
+                            },
+                            {
+                                "recommendationJobId": "[parameters('appServiceOptimizationsRecommendationJobId')]",
+                                "runbookName": "[variables('appServiceOptimizationsRecommendationsRunbookName')]"
                             }
                         ],
                         "remediationLogsContainerName": "remediationlogs",
@@ -1557,7 +1569,7 @@
                             },
                             {
                                 "name": "[variables('unusedAppGWsRecommendationsRunbookName')]",
-                                "version": "1.2.6.0",
+                                "version": "1.2.7.0",
                                 "description": "Generates unused Application Gateways recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('unusedAppGWsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1578,7 +1590,7 @@
                             },
                             {
                                 "name": "[variables('vmssOptimizationsRecommendationsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.3.0",
                                 "description": "Generates VM Scale Set optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmssOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1596,6 +1608,13 @@
                                 "description": "Generates SQL DB optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('storageOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('appServiceOptimizationsRecommendationsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Generates App Service optimizations recommendations",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('appServiceOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('recommendationsIngestRunbookName')]",

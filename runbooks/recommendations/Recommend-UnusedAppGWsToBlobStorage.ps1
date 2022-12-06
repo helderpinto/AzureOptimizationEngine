@@ -234,7 +234,7 @@ foreach ($result in $results)
         Cloud = $result.Cloud_s
         Category = "Cost"
         ImpactedArea = "Microsoft.Network/applicationGateways"
-        Impact = "Medium"
+        Impact = "High"
         RecommendationType = "Saving"
         RecommendationSubType = "UnusedAppGateways"
         RecommendationSubTypeId = "dc3d2baa-26c8-435e-aa9d-edb2bfd6fff6"

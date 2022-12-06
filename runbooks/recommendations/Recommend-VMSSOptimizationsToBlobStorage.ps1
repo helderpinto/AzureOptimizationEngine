@@ -351,11 +351,11 @@ $baseQuery = @"
 
     $vmssTableName 
     | where TimeGenerated > ago(1d)
-    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Tags_s
+    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, Tags_s
     | join kind=inner ( BilledVMs ) on InstanceId_s 
     | join kind=leftouter ( MemoryPerf ) on InstanceId_s
     | join kind=leftouter ( ProcessorPerf ) on InstanceId_s
-    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, Tags_s, Last30DaysCost, Last30DaysQuantity
+    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, PMemoryPercentage, PCPUPercentage, Tags_s, Last30DaysCost, Last30DaysQuantity
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d)
@@ -499,6 +499,7 @@ foreach ($result in $results)
         $additionalInfoDictionary["BelowCPUThreshold"] = "true"
         $additionalInfoDictionary["BelowMemoryThreshold"] = "true"
         $additionalInfoDictionary["currentSku"] = "$($result.VMSSSize_s)"
+        $additionalInfoDictionary["InstanceCount"] = [int] $result.Capacity_s
         $additionalInfoDictionary["targetSku"] = "$($targetSku.Name)"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["NicCount"] = "$($result.NicCount_s)"
@@ -641,11 +642,11 @@ $baseQuery = @"
 
     $vmssTableName 
     | where TimeGenerated > ago(1d)
-    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Tags_s
+    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, Tags_s
     | join kind=leftouter ( MemoryPerf ) on InstanceId_s
     | join kind=leftouter ( ProcessorMaxPerf ) on InstanceId_s
     | join kind=leftouter ( ProcessorAvgPerf ) on InstanceId_s
-    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUMaxPercentage, PCPUAvgPercentage, Tags_s
+    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, PMemoryPercentage, PCPUMaxPercentage, PCPUAvgPercentage, Tags_s
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d)
@@ -684,7 +685,7 @@ foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
     $queryText = @"
-    let perfInterval = 7d; 
+    let perfInterval = $($perfDaysBackwards)d; 
     let armId = `'$queryInstanceId`';
     let gInt = $perfTimeGrain;
     let MemoryPerf = $metricsTableName 
@@ -736,6 +737,8 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
+    $additionalInfoDictionary["currentSku"] = "$($result.VMSSSize_s)"
+    $additionalInfoDictionary["InstanceCount"] = [int] $result.Capacity_s
     $additionalInfoDictionary["MetricCPUAvgPercentage"] = "$($result.PCPUAvgPercentage)"
     $additionalInfoDictionary["MetricCPUMaxPercentage"] = "$($result.PCPUMaxPercentage)"
     $additionalInfoDictionary["MetricMemoryPercentage"] = "$($result.PMemoryPercentage)"
