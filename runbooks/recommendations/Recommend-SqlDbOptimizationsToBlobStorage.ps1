@@ -58,7 +58,7 @@ if (-not($dtuPercentageThreshold -gt 0)) {
 }
 $dtuDegradedPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdDtuDegradedPercentage" -ErrorAction SilentlyContinue)
 if (-not($dtuDegradedPercentageThreshold -gt 0)) {
-    $dtuDegradedPercentageThreshold = 70
+    $dtuDegradedPercentageThreshold = 75
 }
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")

@@ -81,11 +81,11 @@ if (-not($cpuDegradedMaxPercentageThreshold -gt 0)) {
 }
 $cpuDegradedAvgPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage" -ErrorAction SilentlyContinue)
 if (-not($cpuDegradedAvgPercentageThreshold -gt 0)) {
-    $cpuDegradedAvgPercentageThreshold = 70
+    $cpuDegradedAvgPercentageThreshold = 75
 }
 $memoryDegradedPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdMemoryDegradedPercentage" -ErrorAction SilentlyContinue)
 if (-not($memoryDegradedPercentageThreshold -gt 0)) {
-    $memoryDegradedPercentageThreshold = 80
+    $memoryDegradedPercentageThreshold = 90
 }
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
@@ -477,8 +477,13 @@ MemoryPerf
     $additionalInfoDictionary["MetricCPUMaxPercentage"] = "$($result.PCPUMaxPercentage)"
     $additionalInfoDictionary["MetricMemoryPercentage"] = "$($result.PMemoryPercentage)"
 
-    $fitScore = 5
+    $fitScore = 3 # needs a more complete analysis to improve score
 
+    if ([double] $result.PCPUMaxPercentage -gt [double] $cpuDegradedMaxPercentageThreshold -and [double] $result.PCPUAvgPercentage -gt [double] $cpuDegradedAvgPercentageThreshold)
+    {
+        $fitScore = 4
+    }
+    
     $tags = @{}
 
     if (-not([string]::IsNullOrEmpty($result.Tags_s)))

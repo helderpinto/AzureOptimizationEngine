@@ -1805,12 +1805,12 @@
                             {
                                 "name": "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage",
                                 "description": "The average processor usage percentage threshold above which the instance is considered degraded",
-                                "value": 70
+                                "value": 75
                             },
                             {
                                 "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
                                 "description": "The memory usage percentage threshold above which the instance is considered degraded",
-                                "value": 80
+                                "value": 90
                             },
                             {
                                 "name": "AzureOptimization_PerfThresholdNetworkMbps",
@@ -1840,7 +1840,7 @@
                             {
                                 "name": "AzureOptimization_PerfThresholdDtuDegradedPercentage",
                                 "description": "The DTU usage percentage threshold above which a SQL Database instance is considered performance degraded",
-                                "value": 70
+                                "value": 75
                             },
                             {
                                 "name": "AzureOptimization_RemediateRightSizeMinFitScore",

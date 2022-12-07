@@ -665,11 +665,11 @@
                 },
                 {
                     "name": "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage",
-                    "defaultValue": 70
+                    "defaultValue": 75
                 },
                 {
                     "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
-                    "defaultValue": 80
+                    "defaultValue": 90
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
@@ -687,7 +687,7 @@
                 },
                 {
                     "name": "AzureOptimization_PerfThresholdDtuDegradedPercentage",
-                    "defaultValue": 70
+                    "defaultValue": 75
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
@@ -719,11 +719,11 @@
                 },
                 {
                     "name": "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage",
-                    "defaultValue": 70
+                    "defaultValue": 75
                 },
                 {
                     "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
-                    "defaultValue": 80
+                    "defaultValue": 90
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"
