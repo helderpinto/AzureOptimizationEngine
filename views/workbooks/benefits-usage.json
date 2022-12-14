@@ -13,9 +13,6 @@
             "label": "Lookback Period",
             "type": 4,
             "isRequired": true,
-            "value": {
-              "durationMs": 2592000000
-            },
             "typeSettings": {
               "selectableValues": [
                 {
@@ -33,10 +30,14 @@
                 {
                   "durationMs": 7776000000
                 }
-              ]
+              ],
+              "allowCustom": true
             },
             "timeContext": {
               "durationMs": 86400000
+            },
+            "value": {
+              "durationMs": 2592000000
             }
           }
         ],
@@ -113,7 +114,7 @@
           {
             "type": 1,
             "content": {
-              "json": "All usage except Spot is presented at On-Demand prices.",
+              "json": "This chart shows you what is the pricing model proportion across all your VMs usage: Reservation, Savings Plan, Spot, or On-Demand (i.e., Pay-As-You-Go). All usage except Spot is presented at On-Demand prices. This means that, for example, if you have 100 USD Reservation usage in a specific day, this is what you had paid if the respective VMs didn't have reservations (on-demand price).",
               "style": "info"
             },
             "name": "preambleText"
@@ -169,7 +170,7 @@
           {
             "type": 1,
             "content": {
-              "json": "Reservations usage is presented at Reservation prices",
+              "json": "This chart allows you to compare your Reservations usage with scenarios in which the VMs were being consumed in other pricing models and understand what you are saving with Reservations. Reservations usage is presented at Reservation prices (i.e., amortized cost). This means that, for example, if you see in the chart below 100 USD for Reservation and 120 USD for On-Demand in a specific day, you are saving 20 USD against the On-Demand price (Pay-As-You-Go). Likewise for the Reservation vs. Savings Plan comparison chart.",
               "style": "info"
             },
             "name": "text - 2"
@@ -244,7 +245,7 @@
           {
             "type": 1,
             "content": {
-              "json": "Savings Plans usage is presented at Savings Plan prices",
+              "json": "This chart allows you to compare your Savings Plans usage with scenarios in which the VMs were being consumed in other pricing models and understand what you are saving with Savings Plans. Savings Plans usage is presented at Savings Plan prices (i.e., amortized cost). This means that, for example, if you see in the chart below 100 USD for Savings Plan and 120 USD for On-Demand in a specific day, you are saving 20 USD against the On-Demand price (Pay-As-You-Go).\r\n\r\n",
               "style": "info"
             },
             "name": "text - 1"
@@ -317,6 +318,14 @@
             "name": "spotParameters"
           },
           {
+            "type": 1,
+            "content": {
+              "json": "This chart allows you to compare your Spot usage with scenarios in which the VMs were being consumed in other pricing models and understand what you are saving with Spot. Spot usage is presented at Spot prices. This means that, for example, if you see in the chart below 100 USD for Spot and 120 USD for On-Demand in a specific day, you are saving 20 USD against the On-Demand price (Pay-As-You-Go).",
+              "style": "info"
+            },
+            "name": "text - 2"
+          },
+          {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
@@ -364,7 +373,7 @@
           {
             "type": 1,
             "content": {
-              "json": "Identify the potential hourly commitments for either Savings Plans or Reservations",
+              "json": "Identify the potential hourly commitments for either Savings Plans or Reservations.\r\n\r\nFor the Savings Plan analysis, the chart shows the average hourly On-Demand (PAYG) usage in your currency for each Azure subscription. For example, if subscription ABC has 100 USD average hourly On-Demand usage for a specific day, this means that if you had a Savings Plan commitment of 80 USD/hour, you would have absorbed 80% of On-Demand usage with Savings Plan discounts.\r\n\r\nFor the vCPUs (Reservations) analysis, the chart shows the average hourly On-Demand (PAYG) usage in vCPUs for each VM size family. For example, if VM size family Dav4 has 100 vCPUs average hourly On-Demand usage for a specific day, this means that if you had a Reservation commitment of 40 instances of the D2a_v4 size (80 vCPUs), you would have absorbed 80% of On-Demand usage with Reservation discounts.\r\n",
               "style": "upsell"
             },
             "name": "text - 2"
