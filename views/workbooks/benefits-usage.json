@@ -290,9 +290,11 @@
                   "name": "SavingsPlanTerm",
                   "label": "Savings Plan Term",
                   "type": 10,
+                  "description": "Savings Plan term to get the Savings Plan prices from",
                   "isRequired": true,
                   "typeSettings": {
-                    "additionalResourceOptions": []
+                    "additionalResourceOptions": [],
+                    "showDefault": false
                   },
                   "jsonData": "[\"1 Year\", \"3 Years\"]",
                   "timeContext": {
@@ -327,6 +329,10 @@
                   {
                     "seriesName": "OnDemand",
                     "color": "red"
+                  },
+                  {
+                    "seriesName": "SavingsPlan",
+                    "color": "yellow"
                   }
                 ]
               }
@@ -430,7 +436,7 @@
           {
             "type": 1,
             "content": {
-              "json": "Identify the potential hourly commitments for either Savings Plans or Reservations.\r\n\r\nFor the Savings Plan analysis, the chart shows the average hourly On-Demand (PAYG) usage in your currency for each Azure subscription. For example, if subscription ABC has 100 USD average hourly On-Demand usage for a specific day, this means that if you had a Savings Plan commitment of 80 USD/hour, you would have absorbed 80% of On-Demand usage with Savings Plan discounts.\r\n\r\nFor the vCPUs (Reservations) analysis, the chart shows the average hourly On-Demand (PAYG) usage in vCPUs for each VM size family. For example, if VM size family Dav4 has 100 vCPUs average hourly On-Demand usage for a specific day, this means that if you had a Reservation commitment of 40 instances of the D2a_v4 size (80 vCPUs), you would have absorbed 80% of On-Demand usage with Reservation discounts.\r\n",
+              "json": "Identify the potential hourly commitments for either Savings Plans or Reservations.\r\n\r\nThe first chart shows you the actual hourly cost at On-Demand prices. You can use it as a reference to compare with different Savings Plans commitment terms.\r\n\r\nFor the Savings Plan analysis, the chart shows the average hourly On-Demand (PAYG) usage in your currency (at Savings Plans prices) for each Azure subscription. For example, if subscription ABC has 100 USD average hourly On-Demand usage for a specific day, this means that if you had a Savings Plan commitment of 80 USD/hour, you would have absorbed 80% of On-Demand usage with Savings Plan discounts.\r\n\r\nFor the vCPUs (Reservations) analysis, the chart shows the average hourly On-Demand (PAYG) usage in vCPUs for each VM size family. For example, if VM size family Dav4 has 100 vCPUs average hourly On-Demand usage for a specific day, this means that if you had a Reservation commitment of 40 instances of the D2a_v4 size (80 vCPUs), you would have absorbed 80% of On-Demand usage with Reservation discounts.\r\n",
               "style": "upsell"
             },
             "name": "text - 2"
@@ -446,9 +452,11 @@
                   "name": "SavingsPlanTerm",
                   "label": "Savings Plan Term",
                   "type": 10,
+                  "description": "Savings Plan term to get the Savings Plan prices from",
                   "isRequired": true,
                   "typeSettings": {
-                    "additionalResourceOptions": []
+                    "additionalResourceOptions": [],
+                    "showDefault": false
                   },
                   "jsonData": "[\"1 Year\", \"3 Years\"]",
                   "timeContext": {
@@ -462,6 +470,32 @@
               "resourceType": "microsoft.operationalinsights/workspaces"
             },
             "name": "parameters - 3"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where todatetime(Date_s) > todatetime('{LookbackPeriod:startISO}') and todatetime(Date_s) < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and MeterCategory_s == 'Virtual Machines'\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > ago(2d)\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | distinct SubscriptionId=SubscriptionGuid_g, SubscriptionName=ContainerName_s, Cloud_s\r\n) on SubscriptionId\r\n| where Cloud_s == 'AzureCloud'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend SubscriptionName = iif(isnotempty(SubscriptionName_s), SubscriptionName_s, SubscriptionName)\r\n| project Date_s, QtyHours=todouble(Quantity_s), BillingMeter=MeterName_s, ArmRegion=ResourceLocation_s, MeterId=MeterId_g, ResourceId, OnDemandPrice=todouble(UnitPrice_s), SubscriptionName\r\n| extend OnDemandCost = QtyHours * OnDemandPrice\r\n| summarize HourlyCost=sum(OnDemandCost)/24 by bin(todatetime(Date_s), 1d), SubscriptionName",
+              "size": 1,
+              "aggregation": 3,
+              "title": "Average On-Demand hourly usage (actual cost)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "barchart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Reservation",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "OnDemand",
+                    "color": "red"
+                  }
+                ]
+              }
+            },
+            "name": "onDemandUsageAsIs"
           },
           {
             "type": 3,
@@ -493,7 +527,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "AzureOptimizationConsumptionV1_CL\r\n| where todatetime(Date_s) > todatetime('{LookbackPeriod:startISO}') and todatetime(Date_s) < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and MeterCategory_s == 'Virtual Machines'\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > ago(2d)\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | distinct SubscriptionId=SubscriptionGuid_g, SubscriptionName=ContainerName_s, Cloud_s\r\n) on SubscriptionId\r\n| where Cloud_s == 'AzureCloud'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend SubscriptionName = iif(isnotempty(SubscriptionName_s), SubscriptionName_s, SubscriptionName)\r\n| extend VCPUs = toint(parse_json(AdditionalInfo_s).VCPUs)\r\n| extend MeterRegion = tostring(split(ProductName_s, ' - ')[2])\r\n| project Date_s, QtyHours=todouble(Quantity_s), BillingMeter=MeterName_s, ArmRegion=ResourceLocation_s, MeterRegion, MeterId=MeterId_g, ResourceId, OnDemandPrice=todouble(UnitPrice_s), SubscriptionName, VCPUs, MeterSubCategory_s\r\n| extend ReservationSKU = strcat(MeterSubCategory_s, ' ', MeterRegion)\r\n| summarize HourlyVCPUs=sum(VCPUs)/24 by bin(todatetime(Date_s), 1d), ReservationSKU",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where todatetime(Date_s) > todatetime('{LookbackPeriod:startISO}') and todatetime(Date_s) < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and MeterCategory_s == 'Virtual Machines'\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > ago(2d)\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | distinct SubscriptionId=SubscriptionGuid_g, SubscriptionName=ContainerName_s, Cloud_s\r\n) on SubscriptionId\r\n| where Cloud_s == 'AzureCloud'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend SubscriptionName = iif(isnotempty(SubscriptionName_s), SubscriptionName_s, SubscriptionName)\r\n| extend VCPUs = toint(parse_json(AdditionalInfo_s).VCPUs)\r\n| extend MeterRegion = tostring(split(ProductName_s, ' - ')[2])\r\n| project Date_s, QtyHours=todouble(Quantity_s), BillingMeter=MeterName_s, ArmRegion=ResourceLocation_s, MeterRegion, MeterId=MeterId_g, ResourceId, OnDemandPrice=todouble(UnitPrice_s), SubscriptionName, VCPUs, MeterSubCategory_s\r\n| extend ReservationSKU = strcat(MeterSubCategory_s, ' ', MeterRegion)\r\n| summarize HourlyVCPUs=sum(VCPUs*QtyHours/24) by bin(todatetime(Date_s), 1d), ReservationSKU",
               "size": 1,
               "aggregation": 3,
               "title": "Average On-Demand hourly usage (vCPUs for VM Reservations)",
