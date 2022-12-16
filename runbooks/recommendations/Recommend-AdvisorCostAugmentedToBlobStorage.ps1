@@ -323,7 +323,7 @@ try
     $pricesheet = $null
     $pricesheetEntries = @()
     $subscription = $workspaceSubscriptionId
-    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
+    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2021-10-01&%24expand=properties%2FmeterDetails"
 
     do
     {
