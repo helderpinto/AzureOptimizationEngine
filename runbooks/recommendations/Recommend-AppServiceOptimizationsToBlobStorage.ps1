@@ -358,29 +358,27 @@ Write-Output "Looking for performance constrained App Service Plans, with more t
 
 $baseQuery = @"
     let perfInterval = $($perfDaysBackwards)d; 
-    let cpuPercentileValue = $cpuPercentile;
-    let memoryPercentileValue = $memoryPercentile;
 
     let MemoryPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
     | where ResourceId has 'microsoft.web/serverfarms'
     | where MetricNames_s == "MemoryPercentage" and AggregationType_s == 'Average' and AggregationOfType_s == 'Maximum'
     | extend InstanceId_s = ResourceId
-    | summarize PMemoryPercentage = percentile(todouble(MetricValue_s), memoryPercentileValue) by InstanceId_s;
+    | summarize PMemoryPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
     
     let ProcessorMaxPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
     | where ResourceId has 'microsoft.web/serverfarms'
     | where MetricNames_s == "CpuPercentage" and AggregationType_s == 'Maximum'
     | extend InstanceId_s = ResourceId
-    | summarize PCPUMaxPercentage = percentile(todouble(MetricValue_s), cpuPercentileValue) by InstanceId_s;
+    | summarize PCPUMaxPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
 
     let ProcessorAvgPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
     | where ResourceId has 'microsoft.web/serverfarms'
     | where MetricNames_s == "CpuPercentage" and AggregationType_s == 'Average' and AggregationOfType_s == 'Maximum'
     | extend InstanceId_s = ResourceId
-    | summarize PCPUAvgPercentage = percentile(todouble(MetricValue_s), cpuPercentileValue) by InstanceId_s;
+    | summarize PCPUAvgPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
 
     $appServicePlansTableName 
     | where TimeGenerated > ago(1d) and ComputeMode_s == 'Dedicated'

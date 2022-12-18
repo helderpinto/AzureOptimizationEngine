@@ -613,7 +613,6 @@ Write-Output "Looking for performance constrained Scale Sets, with more than $cp
 
 $baseQuery = @"
     let perfInterval = $($perfDaysBackwards)d; 
-    let cpuPercentileValue = $cpuPercentile;
 
     let MemoryPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
@@ -632,13 +631,13 @@ $baseQuery = @"
     | where TimeGenerated > ago(perfInterval) 
     | where MetricNames_s == "Percentage CPU" and AggregationType_s == 'Maximum'
     | extend InstanceId_s = ResourceId
-    | summarize PCPUMaxPercentage = percentile(todouble(MetricValue_s), cpuPercentileValue) by InstanceId_s;
+    | summarize PCPUMaxPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
 
     let ProcessorAvgPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
     | where MetricNames_s == "Percentage CPU" and AggregationType_s == 'Average'
     | extend InstanceId_s = ResourceId
-    | summarize PCPUAvgPercentage = percentile(todouble(MetricValue_s), cpuPercentileValue) by InstanceId_s;
+    | summarize PCPUAvgPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
 
     $vmssTableName 
     | where TimeGenerated > ago(1d)
