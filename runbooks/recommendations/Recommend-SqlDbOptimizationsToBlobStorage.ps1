@@ -170,7 +170,7 @@ $baseQuery = @"
     | join kind=leftouter (
         $consumptionTableName
         | where todatetime(Date_s) between (stime..etime)
-        | project ResourceId, CostInBillingCurrency_s, Date_s
+        | project ResourceId=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on ResourceId
     | summarize Last30DaysCost=sum(todouble(CostInBillingCurrency_s)) by DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s, P99DTUPercentage
     | join kind=leftouter ( 

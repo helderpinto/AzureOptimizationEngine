@@ -491,7 +491,7 @@ $advisorTableName
     | extend VMConsumedQuantity = iif(ResourceId contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
     | extend VMPrice = iif(ResourceId contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
     | extend FinalCost = iif(ResourceId contains 'virtualmachines', VMPrice * VMConsumedQuantity, todouble(CostInBillingCurrency_s))
-    | extend InstanceId_s = ResourceId
+    | extend InstanceId_s = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(VMConsumedQuantity) by InstanceId_s
 ) on InstanceId_s
 | join kind=leftouter (

@@ -138,7 +138,7 @@ $baseQuery = @"
     | join kind=leftouter (
         $consumptionTableName
         | where todatetime(Date_s) between (stime..etime)
-        | project InstanceId_s=ResourceId, CostInBillingCurrency_s, Date_s
+        | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
     | summarize Last30DaysCost=sum(todouble(CostInBillingCurrency_s)) by DiskName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s    
     | join kind=leftouter ( 
@@ -184,7 +184,7 @@ foreach ($result in $results)
     | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
     | join kind=inner (
         $consumptionTableName
-        | project InstanceId_s=ResourceId, CostInBillingCurrency_s, Date_s
+        | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
     | where todatetime(Date_s) > LastAttachedDate
     | summarize CostsSinceDetached = sum(todouble(CostInBillingCurrency_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    

@@ -242,6 +242,7 @@ $baseQuery = @"
     | extend DiskConsumedQuantity = todouble(Quantity_s)
     | extend DiskPrice = todouble(UnitPrice_s)
     | extend FinalCost = DiskPrice * DiskConsumedQuantity
+    | extend ResourceId = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(DiskConsumedQuantity) by ResourceId;
 
     $metricsTableName

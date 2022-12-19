@@ -122,7 +122,7 @@
             "typeSettings": {
               "additionalResourceOptions": []
             },
-            "jsonData": "[{ \"value\": \"ActualCosts\", \"label\": \"Actual costs\", \"selected\": true}, { \"value\": \"RIsAsCosts\", \"label\": \"RIs as costs\"}]"
+            "jsonData": "[{ \"value\": \"ActualCosts\", \"label\": \"Actual costs\"}, { \"value\": \"RIsAsCosts\", \"label\": \"RIs as costs\", \"selected\": true}]"
           }
         ],
         "style": "pills",
@@ -186,9 +186,6 @@
         "showAnalytics": true,
         "title": "Top Growing/Outliers (daily costs)",
         "noDataMessage": "The query returned no results. Your costs do not have anomalies and are not growing given the conditions filters above.",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "exportedParameters": [
           {
@@ -212,14 +209,11 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where {SelectedPerspective} in ('{SelectedPerspectiveId}') and TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize PerspectiveCost = sum(FinalCost) by bin(todatetime(Date_s), 1d)\r\n| render timechart",
+        "query": "AzureOptimizationConsumptionV1_CL\r\n| where {SelectedPerspective} in~ ('{SelectedPerspectiveId}') and TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize PerspectiveCost = sum(FinalCost) by bin(todatetime(Date_s), 1d)\r\n| render timechart",
         "size": 1,
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Evolution over time (select growing/outlier cost)",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
@@ -236,9 +230,6 @@
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Top contributing subscriptions over time",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
@@ -250,14 +241,11 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let CostStartIndex = 1;\r\nlet ContributingInstances = AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage'\r\n| where {SelectedPerspective} == '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize InstanceCost = sum(FinalCost) by ResourceGroup, Date_s\r\n| order by todatetime(Date_s) asc\r\n| make-series Cost=sum(InstanceCost) on todatetime(Date_s) step 1d by ResourceGroup\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| top {TopN} by iif({GrowthPercentage} >= 0, EndCost-StartCost, StartCost-EndCost)\r\n| project ResourceGroup;\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage' and ResourceGroup in (ContributingInstances)\r\n| where {SelectedPerspective} == '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize InstanceCost = sum(FinalCost) by bin(todatetime(Date_s), 1d), ResourceGroup\r\n| render timechart",
+        "query": "let CostStartIndex = 1;\r\nlet ContributingInstances = AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage'\r\n| where {SelectedPerspective} == '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| extend ResourceGroup = tolower(ResourceGroup)\r\n| summarize InstanceCost = sum(FinalCost) by ResourceGroup, Date_s\r\n| order by todatetime(Date_s) asc\r\n| make-series Cost=sum(InstanceCost) on todatetime(Date_s) step 1d by ResourceGroup\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| top {TopN} by iif({GrowthPercentage} >= 0, EndCost-StartCost, StartCost-EndCost)\r\n| project ResourceGroup;\r\nAzureOptimizationConsumptionV1_CL\r\n| extend ResourceGroup = tolower(ResourceGroup)\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage' and ResourceGroup in (ContributingInstances)\r\n| where {SelectedPerspective} == '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize InstanceCost = sum(FinalCost) by bin(todatetime(Date_s), 1d), ResourceGroup\r\n| render timechart",
         "size": 1,
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Top contributing resource groups over time",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
@@ -269,14 +257,11 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let CostStartIndex = 1;\r\nlet ContributingInstances = AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage'\r\n| where {SelectedPerspective} == '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize InstanceCost = sum(FinalCost) by ResourceId, Date_s\r\n| order by todatetime(Date_s) asc\r\n| make-series Cost=sum(InstanceCost) on todatetime(Date_s) step 1d by ResourceId\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| top {TopN} by iif({GrowthPercentage} >= 0, EndCost-StartCost, StartCost-EndCost)\r\n| project ResourceId;\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage' and ResourceId in (ContributingInstances)\r\n| where {SelectedPerspective} == '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize InstanceCost = sum(FinalCost) by bin(todatetime(Date_s), 1d), InstanceName_s\r\n| render timechart",
+        "query": "let CostStartIndex = 1;\r\nlet ContributingInstances = AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage'\r\n| extend ResourceId = tolower(ResourceId)\r\n| where {SelectedPerspective} =~ '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize InstanceCost = sum(FinalCost) by ResourceId, Date_s\r\n| order by todatetime(Date_s) asc\r\n| make-series Cost=sum(InstanceCost) on todatetime(Date_s) step 1d by ResourceId\r\n| extend StartCost = todouble(Cost[CostStartIndex]), EndCost = todouble(Cost[array_length(Cost)-1])\r\n| top {TopN} by iif({GrowthPercentage} >= 0, EndCost-StartCost, StartCost-EndCost)\r\n| project ResourceId;\r\nAzureOptimizationConsumptionV1_CL\r\n| extend ResourceId = tolower(ResourceId)\r\n| where TimeGenerated > datetime('{CostTimeRange:startISO}') and TimeGenerated < datetime('{CostTimeRange:endISO}') and ChargeType_s == 'Usage' and ResourceId in~ (ContributingInstances)\r\n| where {SelectedPerspective} =~ '{SelectedPerspectiveId}'\r\n| extend FinalCost = iif('{CostOption}' == 'ActualCosts', todouble(CostInBillingCurrency_s), todouble(UnitPrice_s) * todouble(Quantity_s))\r\n| summarize InstanceCost = sum(FinalCost) by bin(todatetime(Date_s), 1d), ResourceName_s\r\n| render timechart",
         "size": 1,
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Top contributing instances over time",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
@@ -293,9 +278,6 @@
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Top contributing meter categories over time",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
@@ -312,9 +294,6 @@
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Top contributing meter subcategories over time",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
@@ -331,9 +310,6 @@
         "aggregation": 5,
         "showAnalytics": true,
         "title": "Top contributing meter names over time",
-        "timeContext": {
-          "durationMs": 0
-        },
         "timeContextFromParameter": "CostTimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"

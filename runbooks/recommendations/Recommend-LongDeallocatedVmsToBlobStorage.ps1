@@ -142,7 +142,7 @@ $baseQuery = @"
     let BilledVMs = $consumptionTableName 
     | where todatetime(Date_s) between (stime..etime)
     | where ResourceId like 'microsoft.compute/virtualmachines/' or ResourceId like 'microsoft.classiccompute/virtualmachines/' 
-    | extend InstanceId_s = ResourceId
+    | extend InstanceId_s = tolower(ResourceId)
     | distinct InstanceId_s;
     let RunningVMs = $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
@@ -151,7 +151,7 @@ $baseQuery = @"
     let BilledDisks = $consumptionTableName 
     | where todatetime(Date_s) between (stime..etime)
     | where ResourceId like 'microsoft.compute/disks/'
-    | extend BillingInstanceId = ResourceId
+    | extend BillingInstanceId = tolower(ResourceId)
     | summarize DisksCosts = sum(todouble(CostInBillingCurrency_s)) by BillingInstanceId;
     $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
@@ -207,7 +207,8 @@ foreach ($result in $results)
     $queryText = @"
         let offlineInterval = $($offlineInterval)d;
         $consumptionTableName
-        | where ResourceId == '$queryInstanceId'
+        | extend ResourceId = tolower(ResourceId) 
+        | where ResourceId =~ '$queryInstanceId'
         | where todatetime(Date_s) < now()
         | join kind=inner (
             $disksTableName
@@ -219,7 +220,7 @@ foreach ($result in $results)
         (
             $consumptionTableName
             | where todatetime(Date_s) > ago(offlineInterval)
-            | extend DiskInstanceId = ResourceId
+            | extend DiskInstanceId = tolower(ResourceId)
             | summarize DiskCosts = sum(todouble(CostInBillingCurrency_s)) by DiskInstanceId
         )
         on DiskInstanceId

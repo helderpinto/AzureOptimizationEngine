@@ -186,7 +186,7 @@ $baseQuery = @"
     | where todatetime(Date_s) between (stime..etime) and ResourceId has 'microsoft.web/serverfarms'
     | extend ConsumedQuantity = todouble(Quantity_s)
     | extend FinalCost = todouble(UnitPrice_s) * ConsumedQuantity
-    | extend InstanceId_s = ResourceId
+    | extend InstanceId_s = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(ConsumedQuantity) by InstanceId_s;
 
     let ProcessorPerf = $metricsTableName 
@@ -555,7 +555,7 @@ $appServicePlansTableName
 | join kind=leftouter (
     $consumptionTableName
     | where todatetime(Date_s) between (stime..etime)
-    | project InstanceId_s=ResourceId, CostInBillingCurrency_s, Date_s
+    | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
 ) on InstanceId_s
 | summarize Last30DaysCost=sum(todouble(CostInBillingCurrency_s)) by AppServicePlanName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuSize_s, NumberOfWorkers_s, Tags_s, Cloud_s
 | join kind=leftouter ( 
@@ -602,7 +602,7 @@ foreach ($result in $results)
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, AppServicePlanName_s
     | join kind=inner (
         $consumptionTableName
-        | project InstanceId_s=ResourceId, CostInBillingCurrency_s, Date_s
+        | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
     | where todatetime(Date_s) > FirstUnusedDate
     | summarize CostsSinceUnused = sum(todouble(CostInBillingCurrency_s)) by AppServicePlanName_s, FirstUnusedDate
