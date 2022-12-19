@@ -59,7 +59,7 @@ if ([string]::IsNullOrEmpty($authenticationOption))
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_CostDetailsContainer" -ErrorAction SilentlyContinue
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
     $storageAccountSinkContainer = "consumptionexports"
