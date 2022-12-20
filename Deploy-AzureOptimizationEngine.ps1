@@ -623,7 +623,7 @@ if ("Y", "y" -contains $continueInput) {
         }      
         Write-Host "Current Hybrid Worker option: $hybridWorkerOption" -ForegroundColor Green            
 
-        $dataIngestRunbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook)
+        $dataIngestRunbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook.name)
         $dataExportsToMultiSchedule = $upgradeManifest.dataCollection | Where-Object { $_.exportSchedules.Count -gt 0 }
         $recommendationsProcessingRunbooks = $upgradeManifest.baseIngest | Where-Object { $_.source -eq "recommendations" -or $_.source -eq "maintenance"}
 
@@ -674,7 +674,7 @@ if ("Y", "y" -contains $continueInput) {
             $dataExportsToSchedule = ($upgradeManifest.dataCollection + $upgradeManifest.recommendations) | Where-Object { $_.exportSchedule -eq $schedule.name }
             foreach ($dataExport in $dataExportsToSchedule)
             {
-                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook.name)
                 $runbookType = $runbookName.Split("-")[0]
                 switch ($runbookType)
                 {
@@ -716,7 +716,7 @@ if ("Y", "y" -contains $continueInput) {
                 $exportSchedule = $dataExport.exportSchedules | Where-Object { $_.schedule -eq $schedule.name }
                 if ($exportSchedule)
                 {
-                    $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                    $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook.name)
                     $runbookType = $runbookName.Split("-")[0]
                     switch ($runbookType)
                     {

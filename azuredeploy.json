@@ -1318,11 +1318,11 @@
                         },
                         "Az.Accounts": {
                             "name": "Az.Accounts",
-                            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.8.0"
+                            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.10.4"
                         },
                         "Microsoft.Graph.Authentication": {
                             "name": "Microsoft.Graph.Authentication",
-                            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.9.6"
+                            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.19.0"
                         },
                         "psModules": [
                             {
