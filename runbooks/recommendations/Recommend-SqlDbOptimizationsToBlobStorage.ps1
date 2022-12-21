@@ -303,21 +303,20 @@ Write-Output "Looking for performance constrained SQL Databases, with more than 
 $baseQuery = @"
     let DTUPercentageThreshold = $dtuDegradedPercentageThreshold;
     let MetricsInterval = $($perfDaysBackwards)d;
-    let dtuPercentPercentile = $dtuPercentile;
     let CandidateDatabaseIds = $sqlDbsTableName
-    | where TimeGenerated > ago(1d) and SkuName_s in ('Standard','Premium')
+    | where TimeGenerated > ago(1d) and SkuName_s in ('Basic','Standard','Premium')
     | distinct InstanceId_s;
     $metricsTableName
     | where TimeGenerated > ago(MetricsInterval)
     | where ResourceId in (CandidateDatabaseIds) and MetricNames_s == 'dtu_consumption_percent' and AggregationType_s == 'Average' and AggregationOfType_s == 'Maximum'
-    | summarize P99DTUPercentage = percentile(todouble(MetricValue_s), dtuPercentPercentile) by ResourceId
-    | where P99DTUPercentage > DTUPercentageThreshold
+    | summarize AvgDTUPercentage = avg(todouble(MetricValue_s)) by ResourceId
+    | where AvgDTUPercentage > DTUPercentageThreshold
     | join (
         $sqlDbsTableName
         | where TimeGenerated > ago(1d)
         | project ResourceId = InstanceId_s, DBName_s, ResourceGroupName_s, SubscriptionGuid_g, TenantGuid_g, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s
     ) on ResourceId
-    | project DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s, P99DTUPercentage
+    | project DBName_s, ResourceId, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, SkuName_s, ServiceObjectiveName_s, Tags_s, Cloud_s, AvgDTUPercentage
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d)
@@ -376,7 +375,7 @@ foreach ($result in $results)
     $additionalInfoDictionary = @{}
 
     $additionalInfoDictionary["currentSku"] = "$($result.SkuName_s) $($result.ServiceObjectiveName_s)"
-    $additionalInfoDictionary["DTUPercentage"] = [int] $result.P99DTUPercentage 
+    $additionalInfoDictionary["DTUPercentage"] = [int] $result.AvgDTUPercentage 
 
     $fitScore = 4
 

@@ -201,7 +201,7 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 foreach ($result in $results)
 {
-    $queryInstanceId = $result.InstanceId_s
+    $queryInstanceId = $result.ResourceId
     $queryText = @"
     $consumptionTableName 
     | where MeterCategory_s == 'Storage' and ConsumedService_s == 'Microsoft.Storage' and MeterName_s endswith 'Data Stored' and ChargeType_s == 'Usage'
