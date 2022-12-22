@@ -9,10 +9,6 @@
             "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.19.0"
         },
         {
-            "name": "Az.Advisor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Advisor/2.0.0"
-        },
-        {
             "name": "Az.Compute",
             "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/5.2.0"
         },
