@@ -91,50 +91,45 @@ $tenantId = (Get-AzContext).Tenant.Id
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
+$refreshResultsURLs = @()
+
 foreach ($subscription in $subscriptions)
 {
     Write-Output "Generating fresh recommendations for subscription $subscription..."
 
-    $recommendations = @()
-
     # refresh recommendations cache
-    <#
+    
     $generateApiPath = "/subscriptions/$subscription/providers/Microsoft.Advisor/generateRecommendations?api-version=2020-01-01"
     $result = Invoke-AzRestMethod -Path $generateApiPath -Method POST
     if ($result.StatusCode -in (200,202))
     {
-        $requestResultPath = $result.Headers.Location.PathAndQuery
-
-        Write-Output "Obtained generate result endpoint: $requestResultPath..."
-
-        Write-Output "Was told to wait $($result.Headers.RetryAfter.Delta.TotalSeconds) seconds."
-
-        $sleepSeconds = 60
-        if ($result.Headers.RetryAfter.Delta.TotalSeconds -gt 0)
-        {
-            $sleepSeconds = $result.Headers.RetryAfter.Delta.TotalSeconds
-        }
-
-        do
-        {
-            Start-Sleep -Seconds $sleepSeconds
-            $generateResult = Invoke-AzRestMethod -Method GET -Path $requestResultPath
-            if (-not($generateResult.StatusCode -in (202,204)))
-            {
-                Write-Output "Failed to generate recommendations. Status code: $($generateResult.StatusCode); Message: $($generateResult.Content)"
-            }
-            if ($generateResult.StatusCode -eq 204)
-            {
-                Write-Output "Recommendations successfully refreshed"
-            }
-        }
-        while ($generateResult.StatusCode -eq 202)
+        $refreshResultsURLs += $result.Headers.Location.PathAndQuery
     }
     else
     {
-        Write-Output "Failed to kick off recommendations generation. Status code: $($result.StatusCode); Message: $($result.Content)"
+        Write-Output "Failed to kick off recommendations generation for subscription $subscription. Status code: $($result.StatusCode); Message: $($result.Content)"
     }
-    #>
+}
+
+Write-Output "Waiting 60 seconds to finish refreshing the recommendations..."
+Start-Sleep -Seconds 60
+
+foreach ($refreshResultsURL in $refreshResultsURLs)
+{
+    $generateResult = Invoke-AzRestMethod -Method GET -Path $refreshResultsURL
+    if (-not($generateResult.StatusCode -in (202,204)))
+    {
+        Write-Output "Failed to generate recommendations for $refreshResultsURL. Status code: $($generateResult.StatusCode); Message: $($generateResult.Content)"
+    }
+    if ($generateResult.StatusCode -eq 202)
+    {
+        Write-Output "Recommendations not yet refreshed for $refreshResultsURL"
+    }
+}
+
+foreach ($subscription in $subscriptions)
+{
+    $recommendations = @()
 
     # list recommendations from cache
     $filter = ""
