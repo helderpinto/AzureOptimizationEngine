@@ -84,7 +84,7 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
 
 ### Log Analytics Workbooks
 
-With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned, how your resources are distributed, how your Block Blob Storage usage is distributed, how your Azure Benefits usage is distributed or exploring Azure Policy compliance results over time.
+With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned, how your resources are distributed, how your Block Blob Storage usage is distributed, how your Azure Benefits usage is distributed (supports only Enterprise Agreement customers) or exploring Azure Policy compliance results over time.
 
 ![Costs growing anomalies](./docs/workbooks-costsgrowing-anomalies.jpg "Costs growing anomalies")
 
@@ -114,7 +114,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
     * New workbooks
         * Recommendations
         * Block Blob Storage Usage
-        * Benefits Usage
+        * Benefits Usage (Enterprise Agreement customers only)
     * Several bug fixes and performance improvements
 * 06/2022
     * New Cost recommendations added

@@ -120,7 +120,7 @@ foreach ($subscription in $subscriptions)
         $consumption = $null
         $billingEntries = @()
     
-        $ConsumptionApiPath = "/subscriptions/$($subscription.Id)/providers/Microsoft.Consumption/usageDetails?api-version=2019-10-01&%24expand=properties%2FmeterDetails%2Cproperties%2FadditionalInfo&%24filter=properties%2FusageStart%20ge%20%27$targetStartDate%27%20and%20properties%2FusageEnd%20le%20%27$targetEndDate%27"
+        $ConsumptionApiPath = "/subscriptions/$($subscription.Id)/providers/Microsoft.Consumption/usageDetails?api-version=2021-10-01&%24expand=properties%2FmeterDetails%2Cproperties%2FadditionalInfo&%24filter=properties%2FusageStart%20ge%20%27$targetStartDate%27%20and%20properties%2FusageEnd%20le%20%27$targetEndDate%27"
     
         Write-Output "Starting consumption export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
     
