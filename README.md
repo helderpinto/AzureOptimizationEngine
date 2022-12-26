@@ -16,11 +16,11 @@ It is highly recommended that you read the whole blog series dedicated to this p
 
 ## <a id="whatyoucanget"></a>What you can get ##
 
-A few hours after setting up the engine, you'll get a Power BI dashboard with all Azure optimization opportunities, coming from both Azure Advisor and from custom recommendations included in the engine. These recommendations are then updated every 7 days and you can contribute with your own custom ones if needed. Check below some examples of the Power BI dashboard pages.
+A few hours after setting up the engine, you'll get a Power BI dashboard with all Azure optimization opportunities, coming from both Azure Advisor and from custom recommendations included in the engine. These recommendations are also available, with less detail, directly from the Azure Portal, via the Recommendations Workbook. Recommendations are updated every 7 days and you can contribute with your own custom ones if needed. Check below some examples of the Power BI dashboard and Recommendations Workbook pages.
 
 ### Built-in custom recommendations
 
-Besides collecting **all Azure Advisor recommendations**, AOE includes other custom recommendations that you can tailor to your needs:
+Besides collecting **all Azure Advisor recommendations**, AOE includes other custom recommendations that you can tailor to your needs, such as:
 
 * Cost
     * Augmented Advisor Cost VM right-size recommendations, with fit score based on Virtual Machine guest OS metrics (collected by Log Analytics agents) and Azure properties
@@ -32,12 +32,16 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Orphaned Public IPs
     * Underutilized Azure SQL Databases (DTU-based SKUs only)
     * Storage Accounts without retention policy in place
+    * Underutilized App Service Plans
+    * App Service Plans without any application
 * High Availability
     * Virtual Machine high availability (availability zones count, availability set, managed disks, storage account distribution when using unmanaged disks)
     * VM Scale Set high availability (availability zones count, managed disks)
     * Availability Sets structure (fault/update domains count)
 * Performance
     * VM Scale Sets constrained by lack of compute resources
+    * SQL Databases constrained by lack of resources (DTU-based SKUs only)
+    * App Service Plans constrained by lack of compute resources
 * Security
     * Service Principal credentials/certificates without expiration date
     * NSG rules referring to empty or inexisting subnets
@@ -54,25 +58,33 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Empty subnets
     * Orphaned NICs
 
-### Recommendations overview
+### Recommendations overview (Azure Workbook)
+
+![An overview of all your optimization recommendations](./docs/workbooks-recommendations-overview.jpg "An overview of all your optimization recommendations")
+
+### Cost opportunities overview (Azure Workbook)
+
+![An overview of your Cost optimization opportunities](./docs/workbooks-recommendations-costoverview.jpg "An overview of your Cost optimization opportunities")
+
+### Recommendations overview (Power BI)
 
 ![An overview of all your optimization recommendations](./docs/powerbi-dashboard-overview.jpg "An overview of all your optimization recommendations")
 
-### Cost opportunities overview
+### Cost opportunities overview (Power BI)
 
 ![An overview of your Cost optimization opportunities](./docs/powerbi-dashboard-costoverview.jpg "An overview of your Cost optimization opportunities")
 
-### Augmented VM right-size overview
+### Augmented VM right-size overview (Power BI)
 
 ![An overview of your VM right-size recommendations](./docs/powerbi-dashboard-vmrightsizeoverview.jpg "An overview of your VM right-size recommendations")
 
-### Fit score history for a specific recommendation
+### Fit score history for a specific recommendation (Power BI)
 
 ![Fit score history for a specific recommendation](./docs/powerbi-dashboard-fitscorehistory.jpg "Fit score history for a specific recommendation")
 
 ### Log Analytics Workbooks
 
-With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned, how your resources are distributed or exploring Azure Policy compliance results over time.
+With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned, how your resources are distributed, how your Block Blob Storage usage is distributed, how your Azure Benefits usage is distributed or exploring Azure Policy compliance results over time.
 
 ![Costs growing anomalies](./docs/workbooks-costsgrowing-anomalies.jpg "Costs growing anomalies")
 
@@ -82,10 +94,28 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ![Privileged Azure AD roles and assignment history](./docs/workbooks-identitiesroles-rolehistory.jpg "Priviliged Azure AD roles and assignment history")
 
+![Block Blob Storage usage analysis with Lifecycle Management recommendations](./docs/workbooks-blockblobusage-standardv2.jpg "Block Blob Storage usage analysis with Lifecycle Management recommendations")
+
+![Azure Benefits usage analysis with a comparison between Reservations and On-Demand/Savings Plan prices](./docs/workbooks-benefitsusage-reservations.jpg "Azure Benefits usage analysis with a comparison between Reservations and On-Demand/Savings Plan prices")
+
 ![Policy Compliance state, with evolution over time](./docs/workbooks-policycompliance.jpg "Policy Compliance state, with evolution over time")
 
 ## <a id="releases"></a>Releases ##
 
+* 12/2022
+    * Migrated from the deprecated Consumption API to the new Cost Details API
+    * Recommendations report available also in Azure Workbook (besides Power BI)
+    * New Cost recommendations added
+        * Underutilized App Service Plans
+        * App Service Plans without any application
+    * New Performance recommendations added
+        * SQL Databases constrained by lack of resources (DTU-based SKUs only)
+        * App Service Plans constrained by lack of compute resources
+    * New workbooks
+        * Recommendations
+        * Block Blob Storage Usage
+        * Benefits Usage
+    * Several bug fixes and performance improvements
 * 06/2022
     * New Cost recommendations added
         * Underutilized SQL Databases (DTU-based SKUs only)
@@ -142,7 +172,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
     * Added daily Azure AD and Azure RM RBAC assignments exports
     * Added daily resource containers exports (subscriptions and resource groups)
     * Added OS and image models to VM exports
-    * Improved support for Azure China and US Government clouds
+    * Improved support for US Government cloud
     * Support for Azure subscription names in recommendations
     * SQL Database component changed from Serveless to cheaper Basic plan
     * Several bug fixes
@@ -227,7 +257,7 @@ If you don't want to use Azure Cloud Shell and prefer instead to run the deploym
 If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token (see syntax and example below)
 
 ```powershell
-.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri <URL to the ARM template JSON file (e.g., https://contoso.com/azuredeploy.json)> [-ArtifactsSasToken <Storage Account SAS token>] [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
+.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri <URL to the ARM template JSON file (e.g., https://contoso.com/azuredeploy.json)> [-ArtifactsSasToken <Storage Account SAS token>] [-AzureEnvironment <AzureUSGovernment|AzureGermanCloud|AzureCloud>]
 
 # Example 1 - Deploying from a public endpoint not requiring authentication
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://contoso.com/azuredeploy.json"
@@ -258,7 +288,7 @@ Some customers may also customize the SQL Server deployment, for example, migrat
 
 ## <a id="usage"></a>Usage instructions ##
 
-Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones! The first recommendations will be available more or less 3h30m after the deployment. In order to see them, you'll need to connect Power BI to the AOE database (see details below). Every week at the same time, AOE recommendations will be updated according to the current state of your environment.
+Once successfully deployed, and assuming you have your VMs onboarded to Log Analytics and collecting all the [required performance counters](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/augmenting-azure-advisor-cost-recommendations-for-automated/ba-p/1457687), we have everything that is needed to start augmenting Advisor recommendations and even generate custom ones! The first recommendations will be available more or less 3h30m after the deployment. In order to see them, you just have to open the Recommendations Workbook. For a more detailed analysis, you'll need to connect Power BI to the AOE database (see details below). Every week at the same time, AOE recommendations will be updated according to the current state of your environment.
 
 ### Validating whether Log Analytics is collecting the right performance counters
 
@@ -281,7 +311,7 @@ For all the available customization details, check [Customizing the Azure Optimi
 By default, the base time for the AOE Automation schedules is set as the deployment time. Soon after the initial deployment completes, the exports, ingests and recommendations runbooks will run according to the engine's default schedules. For example, if you deploy AOE on a Monday at 11:00 a.m., you will get new recommendations every Monday at 2:30 p.m.. If this schedule, for some reason, does not fit your needs, you can reset it to the time that better suits you, by using the `Reset-AutomationSchedules.ps1` script. You just have to call the script following the syntax below and answer the input requests:
 
 ```powershell
-./Reset-AutomationSchedules.ps1 -AutomationAccountName <AOE automation account> -ResourceGroupName <AOE resource group> [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>]
+./Reset-AutomationSchedules.ps1 -AutomationAccountName <AOE automation account> -ResourceGroupName <AOE resource group> [-AzureEnvironment <AzureUSGovernment|AzureGermanCloud|AzureCloud>]
 ```
 
 The base time you choose must be in UTC and must be defined according to the week day and hour you want recommendations to be generated. You must deduce 3h30m from the time you choose, because the base time defines the schedules for all the dependent automation runbooks that must run before the recommendations are generated. For example, let's say you want recommendations to be generated every Monday at 8h30 a.m.; the base time will be the next calendar date falling on a Monday, at 5h00 a.m.. The format of the date you choose must be YYYY-MM-dd HH:mm:ss, e.g., 2022-01-03 05:00:00.
@@ -318,9 +348,9 @@ If some recommendation is not applicable or you want it to be removed from the r
 
 * **Is the AOE supported by Microsoft?** No, the Azure Optimization Engine is not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind. The entire risk arising out of the use or performance of the scripts and documentation remains with you.
 
-* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). Although not tested yet, it should also work in MCA and PAYG subscriptions. It was designed to also operate in the Azure China and US Government clouds. Azure Internal (MS-AZR-0015P), Sponsorship (MS-AZR-0036P and MS-AZR-0143P), CSP (MS-AZR-0145P, MS-AZR-0146P, and MS-AZR-159P) and DreamSpark (MS-AZR-0144P) subscriptions are not supported.
+* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). Although not tested yet, it should also work in MCA and PAYG subscriptions. It was designed to also operate in the US Government cloud. Azure Internal (MS-AZR-0015P), Sponsorship (MS-AZR-0036P and MS-AZR-0143P), CSP (MS-AZR-0145P, MS-AZR-0146P, and MS-AZR-159P) and DreamSpark (MS-AZR-0144P) subscriptions are not supported.
 
-* **Why is my report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
+* **Why is my Powe BI report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
 
 * **Why is my VM right-size recommendations overview page empty?** The AOE depends on Azure Advisor Cost recommendations for VM right-sizing. If no VMs are showing up, try increasing the CPU threshold in the Azure Advisor configuration... or maybe your infrastructure is not oversized after all!
 
