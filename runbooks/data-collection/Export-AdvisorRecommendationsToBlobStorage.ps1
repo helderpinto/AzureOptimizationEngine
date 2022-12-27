@@ -79,12 +79,10 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 }
 else
 {
-    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" } | ForEach-Object { "$($_.Id)"}
 }
 
 $tenantId = (Get-AzContext).Tenant.Id
-
-$recommendations = @()
 
 <#
    Getting Advisor recommendations for each subscription and building CSV entries
@@ -93,90 +91,115 @@ $recommendations = @()
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
+$refreshResultsURLs = @()
+
 foreach ($subscription in $subscriptions)
 {
-    Select-AzSubscription -SubscriptionId $subscription
+    Write-Output "Generating fresh recommendations for subscription $subscription..."
 
-    switch ($advisorFilter)
+    # refresh recommendations cache
+    
+    $generateApiPath = "/subscriptions/$subscription/providers/Microsoft.Advisor/generateRecommendations?api-version=2020-01-01"
+    $result = Invoke-AzRestMethod -Path $generateApiPath -Method POST
+    if ($result.StatusCode -in (200,202))
     {
-        "cost" {
-            $advisorRecommendations = Get-AzAdvisorRecommendation -Category Cost
-            break
-        }
-        "highavailability" {
-            $advisorRecommendations = Get-AzAdvisorRecommendation -Category HighAvailability
-            break
-        }
-        "operationalexcellence" {
-            $advisorRecommendations = Get-AzAdvisorRecommendation -Category OperationalExcellence
-            break
-        }
-        "performance" {
-            $advisorRecommendations = Get-AzAdvisorRecommendation -Category Performance
-            break
-        }
-        "security" {
-            $advisorRecommendations = Get-AzAdvisorRecommendation -Category Security
-            break
-        }
-        default {
-            $advisorRecommendations = Get-AzAdvisorRecommendation
-        }
+        $refreshResultsURLs += $result.Headers.Location.PathAndQuery
+    }
+    else
+    {
+        Write-Output "Failed to kick off recommendations generation for subscription $subscription. Status code: $($result.StatusCode); Message: $($result.Content)"
+    }
+}
+
+Write-Output "Waiting 60 seconds to finish refreshing the recommendations..."
+Start-Sleep -Seconds 60
+
+foreach ($refreshResultsURL in $refreshResultsURLs)
+{
+    $generateResult = Invoke-AzRestMethod -Method GET -Path $refreshResultsURL
+    if (-not($generateResult.StatusCode -in (202,204)))
+    {
+        Write-Output "Failed to generate recommendations for $refreshResultsURL. Status code: $($generateResult.StatusCode); Message: $($generateResult.Content)"
+    }
+    if ($generateResult.StatusCode -eq 202)
+    {
+        Write-Output "Recommendations not yet refreshed for $refreshResultsURL"
+    }
+}
+
+foreach ($subscription in $subscriptions)
+{
+    $recommendations = @()
+
+    # list recommendations from cache
+    $filter = ""
+    if ($advisorFilter -ne "all" -and -not([string]::IsNullOrEmpty($advisorFilter)))
+    {
+        $filter = "&`$filter=Category eq '$advisorFilter'"
     }
 
-    Write-Output "Found $($advisorRecommendations.Count) raw recommendations. Filtering out suppressed ones..."
-    $advisorRecommendations = $advisorRecommendations | Where-Object { -not($_.SuppressionIds) }
-    Write-Output "Continuing processing $($advisorRecommendations.Count) recommendations..."
-    foreach ($advisorRecommendation in $advisorRecommendations)
+    $listApiPath = "/subscriptions/$subscription/providers/Microsoft.Advisor/recommendations?api-version=2020-01-01$filter"
+
+    do
     {
-        # compute instance ID, resource group and subscription for the recommendation
-        $resourceIdParts = $advisorRecommendation.ResourceId.Split('/')
-        if ($resourceIdParts.Count -ge 9)
+        $result = Invoke-AzRestMethod -Path $listApiPath -Method GET
+
+        if ($result.StatusCode -eq 200)
         {
-            # if the Resource ID is made of 9 parts, then the recommendation is relative to a specific Azure resource
-            $realResourceIdParts = $resourceIdParts[1..8]
-            $instanceId = ""
-            for ($i = 0; $i -lt $realResourceIdParts.Count; $i++)
+            $recommendationsJson = $result.Content | ConvertFrom-Json
+
+            foreach ($advisorRecommendation in $recommendationsJson.value)
             {
-                $instanceId += "/" + $realResourceIdParts[$i]
+                if (-not($advisorRecommendation.properties.suppressionIds))
+                {
+                    $resourceIdParts = $advisorRecommendation.id.Split('/')
+                    if ($resourceIdParts.Count -ge 9)
+                    {
+                        # if the Resource ID is made of 9 parts, then the recommendation is relative to a specific Azure resource
+                        $realResourceIdParts = $resourceIdParts[0..8]
+                        $instanceId = ($realResourceIdParts -join "/").ToLower()
+                        $resourceGroup = $realResourceIdParts[4].ToLower()
+                        $subscriptionId = $realResourceIdParts[2]
+                    }
+                    else
+                    {
+                        # otherwise it is not a resource-specific recommendation (e.g., reservations)
+                        $resourceGroup = "notavailable"
+                        $instanceId = $advisorRecommendation.id.ToLower()
+                        $subscriptionId = $resourceIdParts[2]
+                    }
+                            
+                    $recommendation = New-Object PSObject -Property @{
+                        Timestamp = $timestamp
+                        Cloud = $cloudEnvironment
+                        Category = $advisorRecommendation.properties.category
+                        Impact = $advisorRecommendation.properties.impact
+                        ImpactedArea = $advisorRecommendation.properties.impactedField
+                        Description = $advisorRecommendation.properties.shortDescription.problem
+                        RecommendationText = $advisorRecommendation.properties.shortDescription.solution
+                        RecommendationTypeId = $advisorRecommendation.properties.recommendationTypeId
+                        InstanceId = $instanceId
+                        InstanceName = $advisorRecommendation.properties.impactedValue
+                        AdditionalInfo = $advisorRecommendation.properties.extendedProperties
+                        ResourceGroup = $resourceGroup
+                        SubscriptionGuid = $subscriptionId
+                        TenantGuid = $tenantId
+                    }
+                
+                    $recommendations += $recommendation    
+                }
             }
 
-            $resourceGroup = $realResourceIdParts[3]
-            $subscriptionId = $realResourceIdParts[1]
+            $listApiPath = ([Uri] $recommendationsJson.nextLink).PathAndQuery
         }
         else
         {
-            # otherwise it is not a resource-specific recommendation (e.g., reservations)
-            $instanceId = $advisorRecommendation.ResourceId
-            $resourceGroup = "NotAvailable"
-            $subscriptionId = $resourceIdParts[2]
+            Write-Output "Failed to get recommendations listing. Status code: $($result.StatusCode); Message: $($result.Content)"
         }
-
-        $recommendation = New-Object PSObject -Property @{
-            Timestamp = $timestamp
-            Cloud = $cloudEnvironment
-            Impact = $advisorRecommendation.Impact
-            ImpactedArea = $advisorRecommendation.ImpactedField
-            Description = $advisorRecommendation.ShortDescription.Problem
-            RecommendationText = $advisorRecommendation.ShortDescription.Solution
-            RecommendationTypeId = $advisorRecommendation.RecommendationTypeId
-            InstanceId = $instanceId.ToLower()
-            Category = $advisorRecommendation.Category
-            InstanceName = $advisorRecommendation.ImpactedValue.ToLower()
-            AdditionalInfo = $advisorRecommendation.ExtendedProperties
-            ResourceGroup = $resourceGroup.ToLower()
-            SubscriptionGuid = $subscriptionId
-            TenantGuid = $tenantId
-        }
-    
-        $recommendations += $recommendation    
     }
+    while ($recommendationsJson.nextLink)
 
-    Write-Output "Found $($recommendations.Count) recommendations ($advisorFilter) for $subscription subscription"
-
-    <#
-    Actually exporting CSV to Azure Storage
-    #>
+    Write-Output "Found $($recommendations.Count) ($advisorFilter) recommendations (filtered out suppressed ones)..."
 
     $fileDate = $datetime.ToString("yyyyMMdd")
     $advisorFilter = $advisorFilter.ToLower()

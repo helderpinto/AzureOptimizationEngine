@@ -69,7 +69,7 @@ $tenantId = (Get-AzContext).Tenant.Id
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
-$subscriptions = Get-AzSubscription -TenantId $tenantId | Where-Object { $_.State -eq "Enabled" }
+$subscriptions = Get-AzSubscription -TenantId $tenantId | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
 
 $roleAssignments = @()
 

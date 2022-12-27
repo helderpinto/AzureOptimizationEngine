@@ -317,7 +317,7 @@ else {
 
 Write-Host "...for the Azure SQL Server..." -ForegroundColor Green
 $sql = Get-AzSqlServer -ResourceGroupName $resourceGroupName -Name $sqlServerName -ErrorAction SilentlyContinue
-if ($null -eq $sql) {
+if ($null -eq $sql -and -not($sqlServerName -like "*.database.*") -and -not($IgnoreNamingAvailabilityErrors)) {
 
     $SqlServerNameAvailabilityUriPath = "/subscriptions/$subscriptionId/providers/Microsoft.Sql/checkNameAvailability?api-version=2014-04-01"
     $body = "{`"name`": `"$sqlServerName`", `"type`": `"Microsoft.Sql/servers`"}"
@@ -556,21 +556,21 @@ if ("Y", "y" -contains $continueInput) {
         for ($i = 0; $i -lt $allRunbooks.Count; $i++)
         {
             try {
-                Invoke-WebRequest -Uri ($runbookBaseUri + $allRunbooks[$i]) | Out-Null
-                $runbookName = [System.IO.Path]::GetFilenameWithoutExtension($allRunbooks[$i])
+                Invoke-WebRequest -Uri ($runbookBaseUri + $allRunbooks[$i].name) | Out-Null
+                $runbookName = [System.IO.Path]::GetFilenameWithoutExtension($allRunbooks[$i].name)
                 $runbookJson = "{ `"name`": `"$automationAccountName/$runbookName`", `"type`": `"Microsoft.Automation/automationAccounts/runbooks`", " + `
                 "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
                 "`"runbookType`": `"PowerShell`", `"logProgress`": false, `"logVerbose`": false, " + `
-                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i])`" } } }"
+                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i].name)`", `"version`": `"$runbookBaseUri$($allRunbooks[$i].version)`" } } }"
                 $runbookDeploymentTemplateJson += $runbookJson
                 if ($i -lt $allRunbooks.Count - 1)
                 {
                     $runbookDeploymentTemplateJson += ", "
                 }
-                Write-Host "$($allRunbooks[$i]) imported."
+                Write-Host "$($allRunbooks[$i].name) imported."
             }
             catch {
-                Write-Host "$($allRunbooks[$i]) not imported (not found)." -ForegroundColor Yellow
+                Write-Host "$($allRunbooks[$i].name) not imported (not found)." -ForegroundColor Yellow
             }
         }
         $runbookDeploymentTemplateJson += $bottomTemplateJson
@@ -623,6 +623,10 @@ if ("Y", "y" -contains $continueInput) {
         }      
         Write-Host "Current Hybrid Worker option: $hybridWorkerOption" -ForegroundColor Green            
 
+        $dataIngestRunbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook.name)
+        $dataExportsToMultiSchedule = $upgradeManifest.dataCollection | Where-Object { $_.exportSchedules.Count -gt 0 }
+        $recommendationsProcessingRunbooks = $upgradeManifest.baseIngest | Where-Object { $_.source -eq "recommendations" -or $_.source -eq "maintenance"}
+
         foreach ($schedule in $allSchedules)
         {
             if (-not($schedules | Where-Object { $_.Name -eq $schedule.name }))
@@ -670,7 +674,7 @@ if ("Y", "y" -contains $continueInput) {
             $dataExportsToSchedule = ($upgradeManifest.dataCollection + $upgradeManifest.recommendations) | Where-Object { $_.exportSchedule -eq $schedule.name }
             foreach ($dataExport in $dataExportsToSchedule)
             {
-                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook.name)
                 $runbookType = $runbookName.Split("-")[0]
                 switch ($runbookType)
                 {
@@ -707,14 +711,12 @@ if ("Y", "y" -contains $continueInput) {
                 }
             }
 
-            $dataExportsToMultiSchedule = $upgradeManifest.dataCollection | Where-Object { $_.exportSchedules.Count -gt 0 }
-
             foreach ($dataExport in $dataExportsToMultiSchedule)
             {
                 $exportSchedule = $dataExport.exportSchedules | Where-Object { $_.schedule -eq $schedule.name }
                 if ($exportSchedule)
                 {
-                    $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook)
+                    $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($dataExport.runbook.name)
                     $runbookType = $runbookName.Split("-")[0]
                     switch ($runbookType)
                     {
@@ -760,40 +762,42 @@ if ("Y", "y" -contains $continueInput) {
             $dataIngestToSchedule = $upgradeManifest.dataCollection | Where-Object { $_.ingestSchedule -eq $schedule.name }
             foreach ($dataIngest in $dataIngestToSchedule)
             {
-                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension(($upgradeManifest.baseIngest | Where-Object { $_.source -eq "dataCollection"}).runbook)
-                $runbookType = $runbookName.Split("-")[0]
-                switch ($runbookType)
-                {
-                    "Export" {
-                        $hybridWorkerName = $exportHybridWorkerOption
-                    }
-                    "Recommend" {
-                        $hybridWorkerName = $recommendHybridWorkerOption
-                    }
-                    "Ingest" {
-                        $hybridWorkerName = $ingestHybridWorkerOption
-                    }
-                    "Remediate" {
-                        $hybridWorkerName = $remediateHybridWorkerOption
-                    }
-                    Default {
-                        $hybridWorkerName = $null
-                    }
-                }
+                $hybridWorkerName = $ingestHybridWorkerOption
     
-                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
+                if (-not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $dataIngestRunbookName}))
                 {
                     $params = @{"StorageSinkContainer"=$dataIngest.container}
 
                     if ($hybridWorkerName)
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName -Parameters $params | Out-Null
+                            -RunbookName $dataIngestRunbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName -Parameters $params | Out-Null
                     }
                     else
                     {
                         Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
-                            -RunbookName $runbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
+                            -RunbookName $dataIngestRunbookName -ScheduleName $schedule.name -Parameters $params | Out-Null                        
+                    }
+                    Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $dataIngestRunbookName runbook."
+                }
+            }
+
+            foreach ($recommendationsProcessingRunbook in $recommendationsProcessingRunbooks)
+            {
+                $runbookName = [System.IO.Path]::GetFileNameWithoutExtension($recommendationsProcessingRunbook.runbook.name)
+                $hybridWorkerName = $ingestHybridWorkerOption
+    
+                if ($recommendationsProcessingRunbook.schedule -eq $schedule.name -and -not($scheduledRunbooks | Where-Object { $_.RunbookName -eq $runbookName}))
+                {
+                    if ($hybridWorkerName)
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name -RunOn $hybridWorkerName | Out-Null
+                    }
+                    else
+                    {
+                        Register-AzAutomationScheduledRunbook -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName `
+                            -RunbookName $runbookName -ScheduleName $schedule.name | Out-Null                        
                     }
                     Write-Host "Added $($schedule.name) schedule to $hybridWorkerName $runbookName runbook."
                 }
@@ -811,6 +815,15 @@ if ("Y", "y" -contains $continueInput) {
                     -Value $variable.defaultValue -Encrypted $false | Out-Null
                 Write-Host "$($variable.name) variable created."
             }
+        }
+
+        Write-Host "Force-updating variables..." -ForegroundColor Green
+        $forceUpdateVariables = $upgradeManifest.overwriteVariables
+        foreach ($variable in $forceUpdateVariables)
+        {
+            Set-AzAutomationVariable -Name $variable.name -AutomationAccountName $automationAccountName -ResourceGroupName $resourceGroupName `
+                -Value $variable.value -Encrypted $false | Out-Null
+            Write-Host "$($variable.name) variable updated."
         }
 
         Write-Host "Removing deprecated runbooks..." -ForegroundColor Green

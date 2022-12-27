@@ -146,11 +146,11 @@ if (-not($cpuDegradedMaxPercentageThreshold -gt 0)) {
 }
 $cpuDegradedAvgPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdCpuDegradedAvgPercentage" -ErrorAction SilentlyContinue)
 if (-not($cpuDegradedAvgPercentageThreshold -gt 0)) {
-    $cpuDegradedAvgPercentageThreshold = 70
+    $cpuDegradedAvgPercentageThreshold = 75
 }
 $memoryDegradedPercentageThreshold = [int] (Get-AutomationVariable -Name  "AzureOptimization_PerfThresholdMemoryDegradedPercentage" -ErrorAction SilentlyContinue)
 if (-not($memoryDegradedPercentageThreshold -gt 0)) {
-    $memoryDegradedPercentageThreshold = 80
+    $memoryDegradedPercentageThreshold = 90
 }
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
@@ -262,7 +262,7 @@ try
     $pricesheet = $null
     $pricesheetEntries = @()
     $subscription = $workspaceSubscriptionId
-    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
+    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2021-10-01&%24expand=properties%2FmeterDetails"
 
     do
     {
@@ -310,6 +310,8 @@ catch
 
 $skuPricesFound = @{}
 
+$recommendationsErrors = 0
+
 Write-Output "Looking for underutilized Scale Sets, with less than $cpuPercentageThreshold% CPU and $memoryPercentageThreshold% RAM usage..."
 
 $baseQuery = @"
@@ -317,14 +319,15 @@ $baseQuery = @"
     let perfInterval = $($perfDaysBackwards)d; 
     let cpuPercentileValue = $cpuPercentile;
     let memoryPercentileValue = $memoryPercentile;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(30d) | summarize max(todatetime(Date_s)))); 
     let stime = etime-billingInterval; 
 
     let BilledVMs = $consumptionTableName 
-    | where UsageDate_t between (stime..etime) and InstanceId_s contains 'virtualmachinescalesets'
-    | extend VMConsumedQuantity = iif(InstanceId_s contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
-    | extend VMPrice = iif(InstanceId_s contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
+    | where todatetime(Date_s) between (stime..etime) and ResourceId contains 'virtualmachinescalesets'
+    | extend VMConsumedQuantity = iif(ResourceId contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
+    | extend VMPrice = iif(ResourceId contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
     | extend FinalCost = VMPrice * VMConsumedQuantity
+    | extend InstanceId_s = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(VMConsumedQuantity) by InstanceId_s;
 
     let MemoryPerf = $metricsTableName 
@@ -348,11 +351,11 @@ $baseQuery = @"
 
     $vmssTableName 
     | where TimeGenerated > ago(1d)
-    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Tags_s
+    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, Tags_s
     | join kind=inner ( BilledVMs ) on InstanceId_s 
     | join kind=leftouter ( MemoryPerf ) on InstanceId_s
     | join kind=leftouter ( ProcessorPerf ) on InstanceId_s
-    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUPercentage, Tags_s, Last30DaysCost, Last30DaysQuantity
+    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, PMemoryPercentage, PCPUPercentage, Tags_s, Last30DaysCost, Last30DaysQuantity
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d)
@@ -374,7 +377,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -398,6 +401,7 @@ foreach ($result in $results)
     $memoryNeeded = [double]($currentSku.Capabilities | Where-Object { $_.Name -eq 'MemoryGB' }).Value * ([double] $result.PMemoryPercentage / 100)
     $cpuNeeded = [double]$currentSkuvCPUs * ([double] $result.PCPUPercentage / 100)
     $currentPremiumIO = [bool] ($currentSku.Capabilities | Where-Object { $_.Name -eq 'PremiumIO' }).Value
+    $currentCpuArch = ($currentSku.Capabilities | Where-Object { $_.Name -eq 'CpuArchitectureType' }).Value
 
     if ($null -eq $skuPricesFound[$currentSku.Name])
     {
@@ -415,10 +419,11 @@ foreach ($result in $results)
         $skuMaxDataDisks = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxDataDiskCount' }).Value
         $skuMaxNICs = [int] ($sku.Capabilities | Where-Object { $_.Name -eq 'MaxNetworkInterfaces' }).Value
         $skuPremiumIO = [bool] ($sku.Capabilities | Where-Object { $_.Name -eq 'PremiumIO' }).Value
+        $skuCpuArch = ($sku.Capabilities | Where-Object { $_.Name -eq 'CpuArchitectureType' }).Value
 
         if ($currentSku.Name -ne $sku.Name -and -not($sku.Name -like "*Promo*") -and [double]$skuCPUs -ge $cpuNeeded -and [double]$skuMemory -ge $memoryNeeded `
                 -and $skuMaxDataDisks -ge [int] $result.DataDiskCount_s -and $skuMaxNICs -ge [int] $result.NicCount_s `
-                -and ($currentPremiumIO -eq $false -or $skuPremiumIO -eq $currentPremiumIO))
+                -and ($currentPremiumIO -eq $false -or $skuPremiumIO -eq $currentPremiumIO) -and $skuCpuArch -eq $currentCpuArch)
         {
             if ($null -eq $skuPricesFound[$sku.Name])
             {
@@ -494,6 +499,7 @@ foreach ($result in $results)
         $additionalInfoDictionary["BelowCPUThreshold"] = "true"
         $additionalInfoDictionary["BelowMemoryThreshold"] = "true"
         $additionalInfoDictionary["currentSku"] = "$($result.VMSSSize_s)"
+        $additionalInfoDictionary["InstanceCount"] = [int] $result.Capacity_s
         $additionalInfoDictionary["targetSku"] = "$($targetSku.Name)"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["NicCount"] = "$($result.NicCount_s)"
@@ -607,7 +613,6 @@ Write-Output "Looking for performance constrained Scale Sets, with more than $cp
 
 $baseQuery = @"
     let perfInterval = $($perfDaysBackwards)d; 
-    let cpuPercentileValue = $cpuPercentile;
 
     let MemoryPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
@@ -626,21 +631,21 @@ $baseQuery = @"
     | where TimeGenerated > ago(perfInterval) 
     | where MetricNames_s == "Percentage CPU" and AggregationType_s == 'Maximum'
     | extend InstanceId_s = ResourceId
-    | summarize PCPUMaxPercentage = percentile(todouble(MetricValue_s), cpuPercentileValue) by InstanceId_s;
+    | summarize PCPUMaxPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
 
     let ProcessorAvgPerf = $metricsTableName 
     | where TimeGenerated > ago(perfInterval) 
     | where MetricNames_s == "Percentage CPU" and AggregationType_s == 'Average'
     | extend InstanceId_s = ResourceId
-    | summarize PCPUAvgPercentage = percentile(todouble(MetricValue_s), cpuPercentileValue) by InstanceId_s;
+    | summarize PCPUAvgPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
 
     $vmssTableName 
     | where TimeGenerated > ago(1d)
-    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Tags_s
+    | distinct InstanceId_s, VMSSName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, Tags_s
     | join kind=leftouter ( MemoryPerf ) on InstanceId_s
     | join kind=leftouter ( ProcessorMaxPerf ) on InstanceId_s
     | join kind=leftouter ( ProcessorAvgPerf ) on InstanceId_s
-    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, PMemoryPercentage, PCPUMaxPercentage, PCPUAvgPercentage, Tags_s
+    | project InstanceId_s, VMSSName = VMSSName_s, ResourceGroup = ResourceGroupName_s, SubscriptionId = SubscriptionGuid_g, Cloud_s, TenantGuid_g, VMSSSize_s, NicCount_s, DataDiskCount_s, Capacity_s, PMemoryPercentage, PCPUMaxPercentage, PCPUAvgPercentage, Tags_s
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d)
@@ -662,7 +667,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Query finished with $($results.Count) results."
@@ -679,7 +684,7 @@ foreach ($result in $results)
 {
     $queryInstanceId = $result.InstanceId_s
     $queryText = @"
-    let perfInterval = 7d; 
+    let perfInterval = $($perfDaysBackwards)d; 
     let armId = `'$queryInstanceId`';
     let gInt = $perfTimeGrain;
     let MemoryPerf = $metricsTableName 
@@ -731,14 +736,19 @@ foreach ($result in $results)
 
     $additionalInfoDictionary = @{}
 
+    $additionalInfoDictionary["currentSku"] = "$($result.VMSSSize_s)"
+    $additionalInfoDictionary["InstanceCount"] = [int] $result.Capacity_s
     $additionalInfoDictionary["MetricCPUAvgPercentage"] = "$($result.PCPUAvgPercentage)"
     $additionalInfoDictionary["MetricCPUMaxPercentage"] = "$($result.PCPUMaxPercentage)"
     $additionalInfoDictionary["MetricMemoryPercentage"] = "$($result.PMemoryPercentage)"
 
-    $fitScore = 5 # needs disk IOPS and throughput analysis to improve score
-    
-    $fitScore = [Math]::max(0.0, $fitScore)
+    $fitScore = 3 # needs disk IOPS and throughput analysis to improve score
 
+    if ([double] $result.PCPUMaxPercentage -gt [double] $cpuDegradedMaxPercentageThreshold -and [double] $result.PCPUAvgPercentage -gt [double] $cpuDegradedAvgPercentageThreshold)
+    {
+        $fitScore = 4
+    }
+    
     $tags = @{}
 
     if (-not([string]::IsNullOrEmpty($result.Tags_s)))
@@ -800,3 +810,7 @@ Remove-Item -Path $jsonExportPath -Force
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
 
+if ($recommendationsErrors -gt 0)
+{
+    throw "Some of the recommendations queries failed. Please, review the job logs for additional information."
+}

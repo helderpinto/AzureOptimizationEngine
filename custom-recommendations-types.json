@@ -15,7 +15,7 @@
         {
             "category": "Cost",
             "typeId": "dc3d2baa-26c8-435e-aa9d-edb2bfd6fff6",
-            "impact": "Medium",
+            "impact": "High",
             "description": "Application Gateways without a backend pool incur in unnecessary costs"
         },
         {
@@ -53,6 +53,18 @@
             "typeId": "08e049ca-18b0-4d22-b174-131a91d0381c",
             "impact": "Medium",
             "description": "Storage Account without retention policy in place"
+        },
+        {
+            "category": "Cost",
+            "typeId": "042adaca-ebdf-49b4-bc1b-2800b6e40fea",
+            "impact": "High",
+            "description": "Underused App Service Plans (performance capacity waste)"
+        },
+        {
+            "category": "Cost",
+            "typeId": "ef525225-8b91-47a3-81f3-e674e94564b6",
+            "impact": "High",
+            "description": "App Service Plans without any application incur in unnecessary costs"
         },
         {
             "category": "HighAvailability",
@@ -203,6 +215,18 @@
             "typeId": "20a40c62-e5c8-4cc3-9fc2-f4ac75013182",
             "impact": "Medium",
             "description": "VM Scale Set performance has been constrained by lack of resources"
+        },
+        {
+            "category": "Performance",
+            "typeId": "724ff2f5-8c83-4105-b00d-029c4560d774",
+            "impact": "Medium",
+            "description": "SQL Database performance has been constrained by lack of resources"
+        },
+        {
+            "category": "Performance",
+            "typeId": "351574cb-c105-4538-a778-11dfbe4857bf",
+            "impact": "Medium",
+            "description": "App Service Plan performance has been constrained by lack of resources"
         }
     ]
 }

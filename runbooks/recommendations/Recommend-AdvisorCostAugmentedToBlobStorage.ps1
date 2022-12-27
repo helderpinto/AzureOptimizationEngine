@@ -323,7 +323,7 @@ try
     $pricesheet = $null
     $pricesheetEntries = @()
     $subscription = $workspaceSubscriptionId
-    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
+    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2021-10-01&%24expand=properties%2FmeterDetails"
 
     do
     {
@@ -435,7 +435,7 @@ let networkPercentileValue = $networkPercentile;
 let diskPercentileValue = $diskPercentile;
 let rightSizeRecommendationId = '$rightSizeRecommendationId';
 let billingInterval = 30d;
-let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(30d) | summarize max(todatetime(Date_s)))); 
 let stime = etime-billingInterval; 
 let RightSizeInstanceIds = materialize($advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost' and RecommendationTypeId_g == rightSizeRecommendationId
@@ -487,10 +487,11 @@ $advisorTableName
 | distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g
 | join kind=leftouter (
     $consumptionTableName
-    | where UsageDate_t between (stime..etime)
-    | extend VMConsumedQuantity = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
-    | extend VMPrice = iif(InstanceId_s contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
-    | extend FinalCost = iif(InstanceId_s contains 'virtualmachines', VMPrice * VMConsumedQuantity, todouble(Cost_s))
+    | where todatetime(Date_s) between (stime..etime)
+    | extend VMConsumedQuantity = iif(ResourceId contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
+    | extend VMPrice = iif(ResourceId contains 'virtualmachines' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
+    | extend FinalCost = iif(ResourceId contains 'virtualmachines', VMPrice * VMConsumedQuantity, todouble(CostInBillingCurrency_s))
+    | extend InstanceId_s = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(VMConsumedQuantity) by InstanceId_s
 ) on InstanceId_s
 | join kind=leftouter (
@@ -600,7 +601,7 @@ foreach ($result in $results) {
     $fitScore = 5
     $hasCpuRamPerfMetrics = $false
 
-    if ($additionalInfoDictionary.targetSku) {
+    if ($additionalInfoDictionary.targetSku -and $result.RecommendationTypeId_g -eq $rightSizeRecommendationId) {
         $additionalInfoDictionary["SupportsDataDisksCount"] = "true"
         $additionalInfoDictionary["DataDiskCount"] = "$($result.DataDiskCount_s)"
         $additionalInfoDictionary["SupportsNICCount"] = "true"
@@ -791,7 +792,14 @@ foreach ($result in $results) {
         }
         else
         {
-            $savingsMonthly = [double] $result.Last30DaysCost 
+            if ($result.RecommendationTypeId_g -eq $rightSizeRecommendationId)
+            {
+                $savingsMonthly = [double] $result.Last30DaysCost 
+            }
+            else
+            {
+                $savingsMonthly = 0.0 # unknown
+            }
         }            
     }
 

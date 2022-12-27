@@ -126,11 +126,13 @@ if ($workspaceSubscriptionId -ne $storageAccountSinkSubscriptionId)
     Select-AzSubscription -SubscriptionId $workspaceSubscriptionId
 }
 
+$recommendationsErrors = 0
+
 # Execute the Cost recommendation query against Log Analytics
 
 $baseQuery = @"
     let interval = 30d;
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(interval) | summarize max(todatetime(Date_s)))); 
     let stime = etime-interval; 
     $lbsTableName
     | where TimeGenerated > ago(1d)
@@ -140,10 +142,10 @@ $baseQuery = @"
     | distinct InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s 
     | join kind=leftouter (
         $consumptionTableName
-        | where UsageDate_t between (stime..etime)
-        | project InstanceId_s, Cost_s, UsageDate_t
+        | where todatetime(Date_s) between (stime..etime)
+        | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | summarize Last30DaysCost=sum(todouble(Cost_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s    
+    | summarize Last30DaysCost=sum(todouble(CostInBillingCurrency_s)) by InstanceName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuName_s, Tags_s, Cloud_s    
     | join kind=leftouter ( 
         $subscriptionsTableName 
         | where TimeGenerated > ago(1d)
@@ -164,7 +166,7 @@ catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
     Write-Warning -Message $error[0]
-    throw "Execution aborted"
+    $recommendationsErrors++
 }
 
 Write-Output "Costs query finished with $($results.Count) results."
@@ -190,10 +192,10 @@ foreach ($result in $results)
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s, SkuName_s
     | join kind=inner (
         $consumptionTableName
-        | project InstanceId_s, Cost_s, UsageDate_t
+        | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where UsageDate_t > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(Cost_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
+    | where todatetime(Date_s) > FirstUnusedDate
+    | summarize CostsSinceUnused = sum(todouble(CostInBillingCurrency_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
@@ -303,6 +305,8 @@ try
 catch
 {
     Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
+    $recommendationsErrors++
 }
 
 Write-Output "Operational Excellence query finished with $($results.Count) results."
@@ -394,3 +398,8 @@ Remove-Item -Path $jsonExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Removed $jsonExportPath from local disk..."
+
+if ($recommendationsErrors -gt 0)
+{
+    throw "Some of the recommendations queries failed. Please, review the job logs for additional information."
+}

@@ -137,21 +137,22 @@ $baseQuery = @"
     let billingInterval = $($billingInterval)d;
     let billingWindowIntervalEnd = $($consumptionOffsetDays)d; 
     let billingWindowIntervalStart = $($consumptionOffsetDaysStart)d; 
-    let etime = todatetime(toscalar($consumptionTableName | summarize max(UsageDate_t))); 
+    let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(billingInterval) | summarize max(todatetime(Date_s)))); 
     let stime = etime-offlineInterval;
     let BilledVMs = $consumptionTableName 
-    | where UsageDate_t between (stime..etime)
-    | where InstanceId_s like 'microsoft.compute/virtualmachines/' or InstanceId_s like 'microsoft.classiccompute/virtualmachines/' 
+    | where todatetime(Date_s) between (stime..etime)
+    | where ResourceId like 'microsoft.compute/virtualmachines/' or ResourceId like 'microsoft.classiccompute/virtualmachines/' 
+    | extend InstanceId_s = tolower(ResourceId)
     | distinct InstanceId_s;
     let RunningVMs = $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
     | where PowerState_s has_any ('running','starting','readyrole')
     | distinct InstanceId_s;
     let BilledDisks = $consumptionTableName 
-    | where UsageDate_t between (stime..etime)
-    | where InstanceId_s like 'microsoft.compute/disks/'
-    | extend BillingInstanceId = InstanceId_s
-    | summarize DisksCosts = sum(todouble(Cost_s)) by BillingInstanceId;
+    | where todatetime(Date_s) between (stime..etime)
+    | where ResourceId like 'microsoft.compute/disks/'
+    | extend BillingInstanceId = tolower(ResourceId)
+    | summarize DisksCosts = sum(todouble(CostInBillingCurrency_s)) by BillingInstanceId;
     $vmsTableName
     | where TimeGenerated > ago(billingWindowIntervalStart) and TimeGenerated < ago(billingWindowIntervalEnd)
     | where InstanceId_s !in (RunningVMs)
@@ -206,19 +207,21 @@ foreach ($result in $results)
     $queryText = @"
         let offlineInterval = $($offlineInterval)d;
         $consumptionTableName
-        | where InstanceId_s == '$queryInstanceId'
+        | extend ResourceId = tolower(ResourceId) 
+        | where ResourceId =~ '$queryInstanceId'
+        | where todatetime(Date_s) < now()
         | join kind=inner (
             $disksTableName
             | extend DiskInstanceId = InstanceId_s
         )
-        on `$left.InstanceId_s == `$right.OwnerVMId_s
-        | summarize DeallocatedSince = max(UsageDate_t) by DiskName_s, DiskSizeGB_s, SKU_s, DiskInstanceId 
+        on `$left.ResourceId == `$right.OwnerVMId_s
+        | summarize DeallocatedSince = max(todatetime(Date_s)) by DiskName_s, DiskSizeGB_s, SKU_s, DiskInstanceId 
         | join kind=inner
         (
             $consumptionTableName
-            | where UsageDate_t > ago(offlineInterval)
-            | extend DiskInstanceId = InstanceId_s
-            | summarize DiskCosts = sum(todouble(Cost_s)) by DiskInstanceId
+            | where todatetime(Date_s) > ago(offlineInterval)
+            | extend DiskInstanceId = tolower(ResourceId)
+            | summarize DiskCosts = sum(todouble(CostInBillingCurrency_s)) by DiskInstanceId
         )
         on DiskInstanceId
         | project DeallocatedSince, DiskName_s, DiskSizeGB_s, SKU_s, MonthlyCosts = DiskCosts

@@ -1,8 +1,3 @@
-param(
-    [Parameter(Mandatory = $true)]
-    [string] $StorageSinkContainer
-)
-
 $ErrorActionPreference = "Stop"
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
@@ -37,36 +32,21 @@ if ([string]::IsNullOrEmpty($lognamePrefix))
 {
     $lognamePrefix = "AzureOptimization"
 }
-$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
-$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
-$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = $StorageSinkContainer
-$StorageBlobsPageSize = [int] (Get-AutomationVariable -Name  "AzureOptimization_StorageBlobsPageSize" -ErrorAction SilentlyContinue)
-if (-not($StorageBlobsPageSize -gt 0))
-{
-    $StorageBlobsPageSize = 1000
-}
 
 $SqlTimeout = 120
 $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
-Write-Output "Logging in to Azure with $authenticationOption..."
-
-switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
-        break
-    }
-    "ManagedIdentity" { 
-        Connect-AzAccount -Identity
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
-        break
-    }
+$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
+$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
+$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_RecommendationsContainer" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($storageAccountSinkContainer)) {
+    $storageAccountSinkContainer = "recommendationsexports"
+}
+$StorageBlobsPageSize = [int] (Get-AutomationVariable -Name  "AzureOptimization_StorageBlobsPageSize" -ErrorAction SilentlyContinue)
+if (-not($StorageBlobsPageSize -gt 0))
+{
+    $StorageBlobsPageSize = 1000
 }
 
 #region Functions
@@ -142,13 +122,39 @@ Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField
 }
 #endregion Functions
 
+
+Write-Output "Logging in to Azure with $authenticationOption..."
+
+switch ($authenticationOption) {
+    "RunAsAccount" { 
+        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
+        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+        break
+    }
+    "ManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment
+        break
+    }
+    "User" { 
+        $cred = Get-AutomationPSCredential –Name $authenticationCredential
+        Connect-AzAccount -Credential $cred -EnvironmentName $cloudEnvironment
+        break
+    }
+    Default {
+        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
+        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+        break
+    }
+}
+
 # get reference to storage sink
-Write-Output "Getting blobs list from $storageAccountSink storage account ($storageAccountSinkContainer container)..."
+Write-Output "Getting reference to $storageAccountSink storage account (recommendations exports sink)"
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
 $sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
 
 $allblobs = @()
 
+Write-Output "Getting blobs list..."
 $continuationToken = $null
 do
 {
@@ -210,10 +216,10 @@ $newProcessedTime = $null
 $unprocessedBlobs = @()
 
 foreach ($blob in $allblobs) {
-	$blobLastModified = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+    $blobLastModified = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     if ($lastProcessedDateTime -lt $blobLastModified -or `
         ($lastProcessedDateTime -eq $blobLastModified -and $lastProcessedLine -gt 0)) {
-		Write-Output "$($blob.Name) found (modified on $blobLastModified)"
+        Write-Output "$($blob.Name) found (modified on $blobLastModified)"
         $unprocessedBlobs += $blob
     }
 }
@@ -226,79 +232,94 @@ foreach ($blob in $unprocessedBlobs) {
     $newProcessedTime = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     Write-Output "About to process $($blob.Name)..."
     Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
-    $csvObject = Import-Csv $blob.Name
+    $jsonObject = Get-Content -Path $blob.Name | ConvertFrom-Json
+    Write-Output "Blob contains $($jsonObject.Count) results..."
 
-    $linesProcessed = 0
-    $csvObjectSplitted = @()
-
-    if ($null -eq $csvObject)
+    if ($null -eq $jsonObject)
     {
         $recCount = 0
     }
-    elseif ($null -eq $csvObject.Count)
+    elseif ($null -eq $jsonObject.Count)
     {
         $recCount = 1
     }
     else
     {
-        $recCount = $csvObject.Count    
+        $recCount = $jsonObject.Count    
     }
+
+    $linesProcessed = 0
+    $jsonObjectSplitted = @()
 
     if ($recCount -gt 1)
     {
         for ($i = 0; $i -lt $recCount; $i += $LogAnalyticsChunkSize) {
-            $csvObjectSplitted += , @($csvObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
+            $jsonObjectSplitted += , @($jsonObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
         }
     }
     else
     {
-        $csvObjectArray = @()
-        $csvObjectArray += $csvObject
-        $csvObjectSplitted += , $csvObjectArray   
-    }        
+        $jsonObjectArray = @()
+        $jsonObjectArray += $jsonObject
+        $jsonObjectSplitted += , $jsonObjectArray   
+    }
     
-    for ($i = 0; $i -lt $csvObjectSplitted.Count; $i++) {
-        $currentObjectLines = $csvObjectSplitted[$i].Count
-        if ($lastProcessedLine -lt $linesProcessed) {				
-            $jsonObject = ConvertTo-Json -InputObject $csvObjectSplitted[$i]                
-            $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp" -AzureEnvironment $cloudEnvironment
-            If ($res -ge 200 -and $res -lt 300) {
-                Write-Output "Succesfully uploaded $currentObjectLines $LogAnalyticsSuffix rows to Log Analytics"    
-                $linesProcessed += $currentObjectLines
-                if ($i -eq ($csvObjectSplitted.Count - 1)) {
-                    $lastProcessedLine = -1    
+    for ($j = 0; $j -lt $jsonObjectSplitted.Count; $j++)
+    {
+        if ($jsonObjectSplitted[$j])
+        {
+            $currentObjectLines = $jsonObjectSplitted[$j].Count
+            if ($lastProcessedLine -lt $linesProcessed)
+            {
+                for ($i = 0; $i -lt $jsonObjectSplitted[$j].Count; $i++)
+                {
+                    $jsonObjectSplitted[$j][$i].RecommendationDescription = $jsonObjectSplitted[$j][$i].RecommendationDescription.Replace("'", "")
+                    $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
+                    $jsonObjectSplitted[$j][$i].AdditionalInfo = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json
+                    $jsonObjectSplitted[$j][$i].Tags = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json
                 }
-                else {
-                    $lastProcessedLine = $linesProcessed - 1   
+                    
+                $jsonObject = ConvertTo-Json -InputObject $jsonObjectSplitted[$j]                
+                $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp" -AzureEnvironment $cloudEnvironment
+                If ($res -ge 200 -and $res -lt 300) {
+                    Write-Output "Succesfully uploaded $currentObjectLines $LogAnalyticsSuffix rows to Log Analytics"    
+                    $linesProcessed += $currentObjectLines
+                    if ($j -eq ($jsonObjectSplitted.Count - 1)) {
+                        $lastProcessedLine = -1    
+                    }
+                    else {
+                        $lastProcessedLine = $linesProcessed - 1   
+                    }
+                    
+                    $updatedLastProcessedLine = $lastProcessedLine
+                    $updatedLastProcessedDateTime = $lastProcessedDateTime
+                    if ($j -eq ($jsonObjectSplitted.Count - 1)) {
+                        $updatedLastProcessedDateTime = $newProcessedTime
+                    }
+                    $lastProcessedDateTime = $updatedLastProcessedDateTime
+                    Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
+                    $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
+                    $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+                    $Conn.Open() 
+                    $Cmd=new-object system.Data.SqlClient.SqlCommand
+                    $Cmd.Connection = $Conn
+                    $Cmd.CommandText = $sqlStatement
+                    $Cmd.CommandTimeout=120 
+                    $Cmd.ExecuteReader()
+                    $Conn.Close()    
+                    $Conn.Dispose()            
                 }
-                
-                $updatedLastProcessedLine = $lastProcessedLine
-                $updatedLastProcessedDateTime = $lastProcessedDateTime
-                if ($i -eq ($csvObjectSplitted.Count - 1)) {
-                    $updatedLastProcessedDateTime = $newProcessedTime
+                Else {
+                    $linesProcessed += $currentObjectLines
+                    Write-Warning "Failed to upload $currentObjectLines $LogAnalyticsSuffix rows. Error code: $res"
+                    throw
                 }
-                $lastProcessedDateTime = $updatedLastProcessedDateTime
-                Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
-                $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
-                $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
-                $Conn.Open() 
-                $Cmd=new-object system.Data.SqlClient.SqlCommand
-                $Cmd.Connection = $Conn
-                $Cmd.CommandText = $sqlStatement
-                $Cmd.CommandTimeout=120 
-                $Cmd.ExecuteReader()
-                $Conn.Close()    
-                $Conn.Dispose()            
             }
-            Else {
-                $linesProcessed += $currentObjectLines
-                Write-Warning "Failed to upload $currentObjectLines $LogAnalyticsSuffix rows. Error code: $res"
-                throw
-            }
+            else
+            {
+                $linesProcessed += $currentObjectLines  
+            }        
         }
-        else {
-            $linesProcessed += $currentObjectLines  
-        }            
     }
 
     Remove-Item -Path $blob.Name -Force
