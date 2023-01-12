@@ -375,6 +375,14 @@
             "name": "storageV2Parameters"
           },
           {
+            "type": 1,
+            "content": {
+              "json": "Enable Lifecycle Management recommendations may not apply when there is a very large object count to be moved to cooler tiers. Each object moved to a cooler tier will trigger a SetBlobTier transaction billed at Cool Write Operations pricing. Please review the blob count metrics and estimate Lifecycle Management operations costs before applying the recommendation. See more details [here](https://learn.microsoft.com/en-us/azure/storage/blobs/access-tiers-overview#changing-a-blobs-access-tier). For pricing, check [here](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/).",
+              "style": "warning"
+            },
+            "name": "lcmWarning"
+          },
+          {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
