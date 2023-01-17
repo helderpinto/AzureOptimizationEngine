@@ -102,6 +102,12 @@ else
     {
         $BillingAccountID = $BillingAccountIDVar
     }
+
+    if ([string]::IsNullOrEmpty($BillingAccountID))
+    {
+        throw "Billing Account ID undefined. Use either the AzureOptimization_BillingAccountID variable or the BillingAccountID parameter"
+    }
+
     $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID"
 }
 

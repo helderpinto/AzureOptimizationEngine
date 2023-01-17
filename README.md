@@ -114,7 +114,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
     * New workbooks
         * Recommendations
         * Block Blob Storage Usage
-        * Benefits Usage (Enterprise Agreement customers only)
+        * Benefits Usage (preview, Enterprise Agreement customers only)
     * Several bug fixes and performance improvements
 * 06/2022
     * New Cost recommendations added
