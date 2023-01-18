@@ -109,7 +109,7 @@ $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 $CostDetailsSupportedQuotaIDs = @('EnterpriseAgreement_2014-09-01')
-$ConsumptionSupportedQuotaIDs = @('PayAsYouGo_2014-09-01','MSDN_2014-09-01')
+$ConsumptionSupportedQuotaIDs = @('PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
 
 foreach ($subscription in $subscriptions)
 {
