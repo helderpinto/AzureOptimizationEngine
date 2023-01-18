@@ -12,7 +12,13 @@ param(
     [string] $externalCredentialName = "",
 
     [Parameter(Mandatory = $false)] 
-    [string] $billingPeriod = "" # YYYYMM format
+    [string] $billingPeriod = "", # YYYYMM format
+
+    [Parameter(Mandatory = $false)] 
+    [string] $meterCategories = $null, # comma-separated meter categories (e.g., "Virtual Machines,Storage")
+
+    [Parameter(Mandatory = $false)] 
+    [string] $meterRegions = $null # comma-separated billing meter regions (e.g., "EU North,EU West")
 )
 
 $ErrorActionPreference = "Stop"
@@ -68,8 +74,8 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 }
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
-$meterCategories = Get-AutomationVariable -Name "AzureOptimization_PriceSheetMeterCategories" -ErrorAction SilentlyContinue
-$meterRegions = Get-AutomationVariable -Name "AzureOptimization_PriceSheetMeterRegions" -ErrorAction SilentlyContinue
+$meterCategoriesVar = Get-AutomationVariable -Name "AzureOptimization_PriceSheetMeterCategories" -ErrorAction SilentlyContinue
+$meterRegionsVar = Get-AutomationVariable -Name "AzureOptimization_PriceSheetMeterRegions" -ErrorAction SilentlyContinue
 $BillingAccountIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID" -ErrorAction SilentlyContinue
 
 Write-Output "Logging in to Azure with $authenticationOption..."
@@ -103,12 +109,22 @@ if ([string]::IsNullOrEmpty($BillingAccountID))
     throw "Billing Account ID undefined. Use either the AzureOptimization_BillingAccountID variable or the BillingAccountID parameter"
 }
 
-if ($null -ne $meterCategories)
+if (-not([string]::IsNullOrEmpty($meterCategoriesVar)))
+{
+    $meterCategories = $meterCategoriesVar
+}
+
+if (-not([string]::IsNullOrEmpty($meterRegionsVar)))
+{
+    $meterRegions = $meterRegionsVar
+}
+
+if (-not([string]::IsNullOrEmpty($meterCategories)))
 {
     $meterCategories = $meterCategories.Split(',')
 }
 
-if ($null -ne $meterRegions)
+if (-not([string]::IsNullOrEmpty($meterRegions)))
 {
     $meterRegions = $meterRegions.Split(',')
 }
@@ -152,7 +168,7 @@ if ($result.StatusCode -in (200,202))
             $downloadUrl = ($downloadResult.Content | ConvertFrom-Json).properties.downloadUrl
 
             $csvExportPath = "$env:TEMP\pricesheet-$billingPeriod-$BillingAccountID.csv"
-            $finalCsvExportPath = "$env:TEMP\pricesheet-$billingPeriod-$BillingAccountID-final.csv"
+            $finalCsvExportPath = "$env:TEMP\pricesheet-$billingPeriod-$BillingAccountID$($meterCategories.Replace(',',''))$($meterRegions.Replace(',',''))-final.csv"
 
             Invoke-WebRequest -Uri $downloadUrl -OutFile $csvExportPath
 
