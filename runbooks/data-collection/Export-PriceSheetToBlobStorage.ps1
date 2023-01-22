@@ -184,9 +184,16 @@ if ($result.StatusCode -in (200,202))
                 $lineCounter++
                 if ($lineCounter -eq 3)
                 {
-                    $line = $line.Replace(" ", "").Replace("-","").Replace("category", "Category").Replace("name","Name").Replace("sub", "Sub").Replace("region","Region").Replace("of","Of").Replace("measure","Measure").Replace("number","Number").Replace("price","Price").Replace("code","Code").Replace("quantity","Quantity").Replace("type","Type")
-                    Write-Output "New headers: $line"
-                    $w.WriteLine($line)
+                    if ($line -match "Category")
+                    {
+                        $line = $line.Replace(" ", "").Replace("-","").Replace("category", "Category").Replace("name","Name").Replace("sub", "Sub").Replace("region","Region").Replace("of","Of").Replace("measure","Measure").Replace("number","Number").Replace("price","Price").Replace("code","Code").Replace("quantity","Quantity").Replace("type","Type")
+                        Write-Output "New headers: $line"
+                        $w.WriteLine($line)
+                    }
+                    else
+                    {
+                        throw "Pricesheet format has changed at line 3: $line"
+                    }
                 }
                 if ($lineCounter -gt 3)
                 {
