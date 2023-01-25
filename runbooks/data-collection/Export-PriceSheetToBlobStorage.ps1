@@ -99,6 +99,8 @@ if ([string]::IsNullOrEmpty($billingPeriod))
     $billingPeriod = (Get-Date).Date.AddDays($consumptionOffsetDays * -1).ToString("yyyyMM")
 }
 
+$exportDate = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
+
 if (-not([string]::IsNullOrEmpty($BillingAccountIDVar)))
 {
     $BillingAccountID = $BillingAccountIDVar
@@ -131,7 +133,7 @@ if (-not([string]::IsNullOrEmpty($meterRegions)))
 
 Write-Output "Starting pricesheet export process for $billingPeriod billing period for Billing Account $BillingAccountID..."
 
-$MaxTries = 9 # The typical Retry-After is set to 20 seconds. We'll give 3 minutes overall to download the pricesheet report
+$MaxTries = 30 # The typical Retry-After is set to 20 seconds. We'll give 10 minutes overall to download the pricesheet report
 
 $PriceSheetApiPath = "/providers/Microsoft.Billing/billingAccounts/$BillingAccountID/billingPeriods/$billingPeriod/providers/Microsoft.Consumption/pricesheets/download?api-version=2022-06-01&ln=en"
 
@@ -168,7 +170,7 @@ if ($result.StatusCode -in (200,202))
             $downloadUrl = ($downloadResult.Content | ConvertFrom-Json).properties.downloadUrl
 
             $csvExportPath = "$env:TEMP\pricesheet-$billingPeriod-$BillingAccountID.csv"
-            $finalCsvExportPath = "$env:TEMP\pricesheet-$billingPeriod-$BillingAccountID$($meterCategories.Replace(',',''))$($meterRegions.Replace(',',''))-final.csv"
+            $finalCsvExportPath = "$env:TEMP\pricesheet-$billingPeriod-$BillingAccountID$($meterCategories.Replace(',',''))$($meterRegions.Replace(',',''))-$exportDate-final.csv"
 
             Invoke-WebRequest -Uri $downloadUrl -OutFile $csvExportPath
 
@@ -283,6 +285,11 @@ if ($result.StatusCode -in (200,202))
         }
     } 
     while (-not($requestSuccess) -and $tries -lt $MaxTries)
+
+    if ($tries -ge $MaxTries)
+    {
+        throw "Couldn't complete request before the alloted number of $MaxTries retries"
+    }
 
     if (-not($requestSuccess))
     {
