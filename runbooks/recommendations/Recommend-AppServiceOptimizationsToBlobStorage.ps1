@@ -204,7 +204,7 @@ $baseQuery = @"
     | summarize PMemoryPercentage = percentile(todouble(MetricValue_s), memoryPercentileValue) by InstanceId_s;
     
     $appServicePlansTableName 
-    | where TimeGenerated > ago(1d) and ComputeMode_s == 'Dedicated'
+    | where TimeGenerated > ago(1d) and ComputeMode_s == 'Dedicated' and SkuTier_s != 'Free'
     | distinct InstanceId_s, AppServicePlanName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, SkuSize_s, NumberOfWorkers_s, Tags_s
     | join kind=inner ( BilledPlans ) on InstanceId_s 
     | join kind=leftouter ( MemoryPerf ) on InstanceId_s
@@ -381,7 +381,7 @@ $baseQuery = @"
     | summarize PCPUAvgPercentage = avg(todouble(MetricValue_s)) by InstanceId_s;
 
     $appServicePlansTableName 
-    | where TimeGenerated > ago(1d) and ComputeMode_s == 'Dedicated'
+    | where TimeGenerated > ago(1d) and ComputeMode_s == 'Dedicated' and SkuTier_s != 'Free'
     | distinct InstanceId_s, AppServicePlanName_s, ResourceGroupName_s, SubscriptionGuid_g, Cloud_s, TenantGuid_g, SkuSize_s, NumberOfWorkers_s, Tags_s
     | join kind=leftouter ( MemoryPerf ) on InstanceId_s
     | join kind=leftouter ( ProcessorMaxPerf ) on InstanceId_s
@@ -550,7 +550,7 @@ let interval = 30d;
 let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(interval) | summarize max(todatetime(Date_s)))); 
 let stime = etime-interval; 
 $appServicePlansTableName
-| where TimeGenerated > ago(1d) and ComputeMode_s == 'Dedicated' and toint(NumberOfSites_s) == 0
+| where TimeGenerated > ago(1d) and ComputeMode_s == 'Dedicated' and SkuTier_s != 'Free' and toint(NumberOfSites_s) == 0
 | distinct AppServicePlanName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SkuSize_s, NumberOfWorkers_s, Tags_s, Cloud_s 
 | join kind=leftouter (
     $consumptionTableName
