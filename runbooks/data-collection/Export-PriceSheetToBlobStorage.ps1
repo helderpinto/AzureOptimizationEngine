@@ -121,14 +121,17 @@ if (-not([string]::IsNullOrEmpty($meterRegionsVar)))
     $meterRegions = $meterRegionsVar
 }
 
+$meterCategoryFilters = $null
+$meterRegionFilters = $null
+
 if (-not([string]::IsNullOrEmpty($meterCategories)))
 {
-    $meterCategories = $meterCategories.Split(',')
+    $meterCategoryFilters = $meterCategories.Split(',')
 }
 
 if (-not([string]::IsNullOrEmpty($meterRegions)))
 {
-    $meterRegions = $meterRegions.Split(',')
+    $meterRegionFilters = $meterRegions.Split(',')
 }
 
 Write-Output "Starting pricesheet export process for $billingPeriod billing period for Billing Account $BillingAccountID..."
@@ -176,7 +179,20 @@ if ($result.StatusCode -in (200,202))
 
             Write-Output "Blob downloaded to $csvExportPath successfully."
 
-            Write-Output "Filtering data with meter categories ($($meterCategories -join ",")) and meter regions ($($meterRegions -join ",")) to $finalCsvExportPath..."
+            Write-Output "Filtering data with meter categories $meterCategories and meter regions $meterRegions to $finalCsvExportPath..."
+
+            $categoryWriteLineDefault = $true
+            if ($meterCategoryFilters.Count -gt 0)
+            {
+                $categoryWriteLineDefault = $false
+            }
+            $regionWriteLineDefault = $true
+            if ($meterRegionFilters.Count -gt 0)
+            {
+                $regionWriteLineDefault = $false
+            }
+
+            Write-Output "Defaulting to meter categories writes $($categoryWriteLineDefault) and meter regions writes $($regionWriteLineDefault)..."
 
             $r = [IO.File]::OpenText($csvExportPath)
             $w = [System.IO.StreamWriter]::new($finalCsvExportPath)
@@ -197,14 +213,14 @@ if ($result.StatusCode -in (200,202))
                         throw "Pricesheet format has changed at line 3: $line"
                     }
                 }
-                if ($lineCounter -gt 3)
+                else
                 {
-                    $categoryWriteLine = $false
-                    $regionWriteLine = $false
-
-                    if ($meterCategories.Count -gt 0)
+                    if ($lineCounter -gt 3)
                     {
-                        foreach ($meterCategory in $meterCategories)
+                        $categoryWriteLine = $categoryWriteLineDefault
+                        $regionWriteLine = $regionWriteLineDefault
+    
+                        foreach ($meterCategory in $meterCategoryFilters)
                         {
                             if ($line -match ",$meterCategory,")
                             {
@@ -212,15 +228,8 @@ if ($result.StatusCode -in (200,202))
                                 break
                             }
                         }    
-                    }
-                    else
-                    {
-                        $categoryWriteLine = $true
-                    }                    
-
-                    if ($meterRegions.Count -gt 0)
-                    {
-                        foreach ($meterRegion in $meterRegions)
+    
+                        foreach ($meterRegion in $meterRegionFilters)
                         {
                             if ($line -match ",$meterRegion,")
                             {
@@ -228,14 +237,11 @@ if ($result.StatusCode -in (200,202))
                                 break
                             }
                         }    
-                    }
-                    else
-                    {
-                        $regionWriteLine = $true
-                    }
-                    if ($categoryWriteLine -and $regionWriteLine)
-                    {
-                        $w.WriteLine($line)
+    
+                        if ($categoryWriteLine -eq $true -and $regionWriteLine -eq $true)
+                        {
+                            $w.WriteLine($line)
+                        }
                     }
                 }
             }
