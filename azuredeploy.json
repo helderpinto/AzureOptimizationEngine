@@ -714,6 +714,9 @@
                         "policyStateExportsRunbookName": "Export-PolicyComplianceToBlobStorage",
                         "monitorExportsRunbookName": "Export-AzMonitorMetricsToBlobStorage",
                         "argAppServicePlanExportsRunbookName": "Export-ARGAppServicePlanPropertiesToBlobStorage",
+                        "reservationsExportsRunbookName": "Export-ReservationsUsageToBlobStorage",
+                        "reservationsPriceExportsRunbookName": "Export-ReservationsPriceToBlobStorage",
+                        "priceSheetExportsRunbookName": "Export-PriceSheetToBlobStorage",
                         // CSV exports schedules
                         "advisorExportsScheduleName": "AzureOptimization_ExportAdvisorWeekly",
                         "argExportsScheduleName": "AzureOptimization_ExportARGDaily",
@@ -1510,6 +1513,27 @@
                                 "description": "Exports App Service Plan properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argAppServicePlanExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('reservationsExportsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Exports Reservations Usage to Blob Storage using the Enterprise Enrollment APIs",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('reservationsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('reservationsPriceExportsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Exports Reservations Prices to Blob Storage using the Retail Prices API",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('reservationsPriceExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('priceSheetExportsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Exports Price Sheet to Blob Storage using the Enterprise Enrollment APIs",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('priceSheetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('csvIngestRunbookName')]",

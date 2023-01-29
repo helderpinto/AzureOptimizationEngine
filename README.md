@@ -344,13 +344,36 @@ The report was built for a scenario where you have an "environment" tag applied 
 
 If some recommendation is not applicable or you want it to be removed from the report while you schedule its mitigation, you can suppress it, either for a specific resource, resource group, subscription or even solution-wide. See [Suppressing recommendations](./docs/suppressing-recommendations.md) for more details.
 
+### Enabling the Reservations and Benefits Usage workbooks (Public Preview, Enterprise Agreement customers-only)
+
+Follow these steps to feed the AOE Log Analytics workspace with the data that is required by the Benefits Usage workbook:
+
+1. Create in the AOE's Azure Automation Account a `AzureOptimization_BillingAccountID` variable with your Enterprise Agreement's billing account ID
+1. Create in the AOE's Storage Account the following containers: `reservationsexports`, `pricesheetexports` and `reservationspriceexports`
+1. Grant the Enterprise Enrollment Reader role to the AOE's managed identity, by following the steps described [here](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/assign-roles-azure-service-principals#assign-enrollment-account-role-permission-to-the-spn) and using the following values in the REST request query string and JSON body:
+    1. *billingAccountName*: your Enterprise Agreement's billing account ID
+    1. *billingRoleAssignmentName*: random GUID (e.g., use the `[System.Guid]::NewGuid()` PowerShell instruction to get one)
+    1. *properties.principalId*: object ID of the AOE's Automation Account Managed Identity (accessible in the *Identity* blade of the Automation Account)
+    1. *properties.principalTenantId*: tenant ID of your Azure AD (accessible in the *Overview* blade of Azure Active Directory)
+    1. *properties.roleDefinitionId*: `/providers/Microsoft.Billing/billingAccounts/<YourBillingAccountID>/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e` (Enrollment Reader role)
+1. Create the following Azure Automation **weekly** schedules (day of week and timing of your choice, ensuring ingests run at least 15 minutes after exports) and link them to their respective runbook:
+    1. `AzureOptimization_ExportPricesWeekly` schedule to be linked to the `Export-PriceSheetToBlobStorage` and `Export-ReservationsPriceToBlobStorage` runbooks
+    1. `AzureOptimization_IngestPricesheetWeekly` schedule to be linked to the `Ingest-OptimizationCSVExportsToLogAnalytics` runbook with `pricesheetexports` as the `StorageSinkContainer` parameter
+    1. `AzureOptimization_IngestReservationsPriceWeekly` schedule to be linked to the `Ingest-OptimizationCSVExportsToLogAnalytics` runbook with `reservationspriceexports` as the `StorageSinkContainer` parameter
+1. Create the following Azure Automation **daily** schedules (timing of your choice, ensuring ingests run at least 15 minutes after exports) and link them to their respective runbook:
+    1. `AzureOptimization_ExportReservationsDaily` schedule to be linked to the `Export-ReservationsUsageToBlobStorage` runbook
+    1. `AzureOptimization_IngestReservationsUsageDaily` schedule to be linked to the `Ingest-OptimizationCSVExportsToLogAnalytics` runbook with `reservationsexports` as the `StorageSinkContainer` parameter
+1. (optional and recommended if you're not using Hybrid Workers) Create the following Azure Automation variables, to filter in the Price Sheet meter categories and regions:
+    1. `AzureOptimization_PriceSheetMeterCategories` set to *Virtual Machines*
+    1. `AzureOptimization_PriceSheetMeterRegions` set to the comma-separated billing regions of your virtual machines (e.g. *EU West,EU North*)
+
 ## <a id="faq"></a>Frequently Asked Questions ##
 
 * **Is the AOE supported by Microsoft?** No, the Azure Optimization Engine is not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind. The entire risk arising out of the use or performance of the scripts and documentation remains with you.
 
 * **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). Although not tested yet, it should also work in MCA and PAYG subscriptions. It was designed to also operate in the US Government cloud. Azure Internal (MS-AZR-0015P), Sponsorship (MS-AZR-0036P and MS-AZR-0143P), CSP (MS-AZR-0145P, MS-AZR-0146P, and MS-AZR-159P) and DreamSpark (MS-AZR-0144P) subscriptions are not supported.
 
-* **Why is my Powe BI report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
+* **Why is my Power BI report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
 
 * **Why is my VM right-size recommendations overview page empty?** The AOE depends on Azure Advisor Cost recommendations for VM right-sizing. If no VMs are showing up, try increasing the CPU threshold in the Azure Advisor configuration... or maybe your infrastructure is not oversized after all!
 

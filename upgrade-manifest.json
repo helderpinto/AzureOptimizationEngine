@@ -294,6 +294,27 @@
             },
             "source": "maintenance",
             "schedule": "AzureOptimization_CleanUpRecommendationsWeekly"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/data-collection/Export-ReservationsUsageToBlobStorage.ps1",
+                "version": "1.0.0.0"
+            },
+            "source": "dataCollectionPublicPreview"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/data-collection/Export-ReservationsPriceToBlobStorage.ps1",
+                "version": "1.0.0.0"
+            },
+            "source": "dataCollectionPublicPreview"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/data-collection/Export-PriceSheetToBlobStorage.ps1",
+                "version": "1.0.0.0"
+            },
+            "source": "dataCollectionPublicPreview"
         }
     ],
     "dataCollection": [

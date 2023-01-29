@@ -135,3 +135,15 @@ BEGIN
     INSERT INTO [dbo].[LogAnalyticsIngestControl] 
     VALUES ('argappserviceplanexports', '1901-01-01T00:00:00Z', -1, 'AppServicePlansV1', 'AppServicePlans')
 END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'pricesheetexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('pricesheetexports', '1901-01-01T00:00:00Z', -1, 'PricesheetV1', 'Pricesheet')
+END
+
+IF NOT EXISTS (SELECT * FROM [dbo].[LogAnalyticsIngestControl] WHERE StorageContainerName = 'reservationspriceexports')
+BEGIN
+    INSERT INTO [dbo].[LogAnalyticsIngestControl] 
+    VALUES ('reservationspriceexports', '1901-01-01T00:00:00Z', -1, 'ReservationsPriceV1', 'ReservationsPrice')
+END
