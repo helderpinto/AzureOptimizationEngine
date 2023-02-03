@@ -349,6 +349,7 @@ If some recommendation is not applicable or you want it to be removed from the r
 Follow these steps to feed the AOE Log Analytics workspace with the data that is required by the Benefits Usage workbook:
 
 1. Create in the AOE's Azure Automation Account a `AzureOptimization_BillingAccountID` variable with your Enterprise Agreement's billing account ID
+1. Create in the AOE's Azure Automation Account a `AzureOptimization_RetailPricesCurrencyCode` variable with your Enterprise Agreement currency code (e.g., EUR, USD, etc.)
 1. Create in the AOE's Storage Account the following containers: `reservationsexports`, `pricesheetexports` and `reservationspriceexports`
 1. Grant the Enterprise Enrollment Reader role to the AOE's managed identity, by following the steps described [here](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/assign-roles-azure-service-principals#assign-enrollment-account-role-permission-to-the-spn) and using the following values in the REST request query string and JSON body:
     1. *billingAccountName*: your Enterprise Agreement's billing account ID
