@@ -31,7 +31,7 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 $authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
-    $authenticationOption = "RunAsAccount"
+    $authenticationOption = "ManagedIdentity"
 }
 
 # get Consumption exports sink (storage account) details
