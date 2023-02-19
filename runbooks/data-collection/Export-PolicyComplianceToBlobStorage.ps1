@@ -106,41 +106,181 @@ $policyDefinitions = @{}
 $excludedAssignmentScopes = @()
 $allInitiatives = @()
 
-foreach ($sub in $subscriptions)
+if ($PolicyStatesEndpoint -eq "ARG")
 {
-    Select-AzSubscription -SubscriptionId $sub | Out-Null
-    $assignments = Get-AzPolicyAssignment -IncludeDescendent
-    foreach ($assignment in $assignments)
+    $resultsSoFar = 0
+
+    $argQuery = @"
+    policyresources
+    | where type =~ 'microsoft.authorization/policyassignments'
+    | extend displayName = iif(isnotempty(properties.displayName), tostring(properties.displayName), 'N/A')
+    | distinct id, displayName
+    | order by id asc
+"@
+
+    $argAssignmentsTotal = @()
+
+    do
     {
-        if (-not($policyAssignments[$assignment.PolicyAssignmentId]))
+        if ($resultsSoFar -eq 0)
         {
-            $policyAssignments.Add($assignment.PolicyAssignmentId, $assignment.Properties.DisplayName)
+            $argAssignments = Search-AzGraph -Query $argQuery -First $ARGPageSize -UseTenantScope
         }
-        if ($assignment.Properties.NotScopes -and -not($excludedAssignmentScopes | Where-Object { $_.PolicyAssignmentId -eq $assignment.PolicyAssignmentId }))
+        else
         {
-            $excludedAssignmentScopes += $assignment
+            $argAssignments = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -UseTenantScope
         }
+        if ($argAssignments -and $argAssignments.GetType().Name -eq "PSResourceGraphResponse")
+        {
+            $argAssignments = $argAssignments.Data
+        }
+        $resultsCount = $argAssignments.Count
+        $resultsSoFar += $resultsCount
+        $argAssignmentsTotal += $argAssignments
+
+    } while ($resultsCount -eq $ARGPageSize)
+
+    Write-Output "Building $($argAssignmentsTotal.Count) assignment entries"
+
+    foreach ($assignment in $argAssignmentsTotal)
+    {
+        $policyAssignments.Add($assignment.id, $assignment.displayName)
     }
 
-    $initiatives = Get-AzPolicySetDefinition
-    foreach ($initiative in $initiatives)
+    $resultsSoFar = 0
+
+    $argQuery = @"
+    policyresources
+    | where type =~ 'microsoft.authorization/policysetdefinitions'
+    | extend displayName = iif(isnotempty(properties.displayName), tostring(properties.displayName), 'N/A')
+    | distinct id, displayName
+    | order by id asc
+"@
+
+    $argInitiativesTotal = @()
+
+    do
     {
-        if (-not($policyInitiatives[$initiative.PolicySetDefinitionId]))
+        if ($resultsSoFar -eq 0)
         {
-            $policyInitiatives.Add($initiative.PolicySetDefinitionId, $initiative.Properties.DisplayName)
+            $argInitiatives = Search-AzGraph -Query $argQuery -First $ARGPageSize -UseTenantScope
         }
-        if (-not($allInitiatives | Where-Object { $_.PolicySetDefinitionId -eq $initiative.PolicySetDefinitionId }))
+        else
         {
-            $allInitiatives += $initiative
+            $argInitiatives = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -UseTenantScope
         }
+        if ($argInitiatives -and $argInitiatives.GetType().Name -eq "PSResourceGraphResponse")
+        {
+            $argInitiatives = $argInitiatives.Data
+        }
+        $resultsCount = $argInitiatives.Count
+        $resultsSoFar += $resultsCount
+        $argInitiativesTotal += $argInitiatives
+
+    } while ($resultsCount -eq $ARGPageSize)
+
+    Write-Output "Building $($argInitiativesTotal.Count) initiative entries"
+
+    foreach ($initiative in $argInitiativesTotal)
+    {
+        $policyInitiatives.Add($initiative.id, $initiative.displayName)
     }
 
-    $definitions = Get-AzPolicyDefinition
-    foreach ($definition in $definitions)
+    $resultsSoFar = 0
+
+    $argQuery = @"
+    policyresources
+    | where type =~ 'microsoft.authorization/policydefinitions'
+    | extend displayName = iif(isnotempty(properties.displayName), tostring(properties.displayName), 'N/A')
+    | distinct id, displayName
+    | order by id asc
+"@
+
+    $argDefinitionsTotal = @()
+
+    do
     {
-        if (-not($policyDefinitions[$definition.PolicyDefinitionId]))
+        if ($resultsSoFar -eq 0)
         {
-            $policyDefinitions.Add($definition.PolicyDefinitionId, $definition.Properties.DisplayName)
+            $argDefinitions = Search-AzGraph -Query $argQuery -First $ARGPageSize -UseTenantScope
+        }
+        else
+        {
+            $argDefinitions = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -UseTenantScope
+        }
+        if ($argDefinitions -and $argDefinitions.GetType().Name -eq "PSResourceGraphResponse")
+        {
+            $argDefinitions = $argDefinitions.Data
+        }
+        $resultsCount = $argDefinitions.Count
+        $resultsSoFar += $resultsCount
+        $argDefinitionsTotal += $argDefinitions
+
+    } while ($resultsCount -eq $ARGPageSize)
+
+    Write-Output "Building $($argDefinitionsTotal.Count) definition entries"
+
+    foreach ($definition in $argDefinitionsTotal)
+    {
+        $policyDefinitions.Add($definition.id, $definition.displayName)
+    }
+}
+else
+{
+    foreach ($sub in $subscriptions)
+    {
+        Select-AzSubscription -SubscriptionId $sub | Out-Null
+        $assignments = Get-AzPolicyAssignment -IncludeDescendent
+        foreach ($assignment in $assignments)
+        {
+            if (-not($policyAssignments[$assignment.PolicyAssignmentId]))
+            {
+                $assignmentName = $assignment.Properties.DisplayName
+                if([string]::IsNullOrWhiteSpace($assignmentName)) {
+                    $policyAssignments.Add($assignment.PolicyAssignmentId, 'N/A')
+                }
+                else  {
+                    $policyAssignments.Add($assignment.PolicyAssignmentId, $assignmentName)
+                }
+            }
+            if ($assignment.Properties.NotScopes -and -not($excludedAssignmentScopes | Where-Object { $_.PolicyAssignmentId -eq $assignment.PolicyAssignmentId }))
+            {
+                $excludedAssignmentScopes += $assignment
+            }
+        }
+
+        $initiatives = Get-AzPolicySetDefinition
+        foreach ($initiative in $initiatives)
+        {
+            if (-not($policyInitiatives[$initiative.PolicySetDefinitionId]))
+            {
+                $setDefinitionName = $initiative.Properties.DisplayName
+                if([string]::IsNullOrWhiteSpace($setDefinitionName)) {
+                    $policyInitiatives.Add($initiative.PolicySetDefinitionId, 'N/A')
+                }
+                else  {
+                    $policyInitiatives.Add($initiative.PolicySetDefinitionId, $setDefinitionName)
+                }
+            }
+            if (-not($allInitiatives | Where-Object { $_.PolicySetDefinitionId -eq $initiative.PolicySetDefinitionId }))
+            {
+                $allInitiatives += $initiative
+            }
+        }
+
+        $definitions = Get-AzPolicyDefinition
+        foreach ($definition in $definitions)
+        {
+            if (-not($policyDefinitions[$definition.PolicyDefinitionId]))
+            {
+                $definitionName = $initiative.Properties.DisplayName
+                if([string]::IsNullOrWhiteSpace($definitionName)) {
+                    $policyDefinitions.Add($definition.PolicyDefinitionId, 'N/A')
+                }
+                else  {
+                    $policyDefinitions.Add($definition.PolicyDefinitionId, $definitionName)
+                }
+            }
         }
     }
 }
@@ -169,6 +309,7 @@ if ($PolicyStatesEndpoint -eq "ARG")
     | extend evaluatedOn = todatetime(properties.timestamp)
     | summarize StatesCount = count() by id, tenantId, subscriptionId, resourceGroup, resourceId, resourceType, complianceState, complianceReason, effect, assignmentId, definitionReferenceId, definitionId, initiativeId, evaluatedOn
     | union ( policyresources
+        | where type =~ 'microsoft.policyinsights/policystates'
         | extend complianceState = tostring(properties.complianceState)
         | where complianceState == 'Compliant'
         | extend effect = tostring(properties.policyDefinitionAction)
@@ -306,62 +447,144 @@ foreach ($policyState in $policyStatesTotal)
     $allpolicyStates += $logentry
 }
 
-Write-Output "Adding excluded scopes from $($excludedAssignmentScopes.Count) assignments"
-
-foreach ($excludedAssignment in $excludedAssignmentScopes)
+if ($PolicyStatesEndpoint -eq "ARG")
 {
-    $excludedIDs = @()
-    $excludedInitiative = $allInitiatives | Where-Object { $_.PolicySetDefinitionId -eq $excludedAssignment.Properties.PolicyDefinitionId }
-    if ($excludedInitiative)
-    {
-        $excludedDefinitions = $excludedInitiative.Properties.PolicyDefinitions
-        foreach ($excludedDefinition in $excludedDefinitions)
-        {
-            $excludedIDs += "$($excludedDefinition.policyDefinitionId)|$($excludedDefinition.policyDefinitionReferenceId)"
-        }
-    }
-    else
-    {
-        $excludedIDs += $excludedAssignment.Properties.PolicyDefinitionId
-    }
+    $resultsSoFar = 0
 
-    foreach ($excludedID in $excludedIDs)
+    $argQuery = @"
+    policyresources
+    | where type =~ 'microsoft.authorization/policyassignments'
+    | where array_length(properties.notScopes) > 0
+    | mv-expand notScope = properties.notScopes
+    | extend policyAssignmentId = tolower(id)
+    | extend assignmentPolicyDefinitionId = tolower(properties.policyDefinitionId)
+    | join kind=leftouter ( 
+        policyresources
+        | where type =~ 'microsoft.authorization/policysetdefinitions'
+        | mv-expand policyDefinition = properties.policyDefinitions
+        | project policySetDefinitionId = tolower(id), policyDefinitionId = tolower(policyDefinition.policyDefinitionId), policyDefinitionReferenceId = tolower(policyDefinition.policyDefinitionReferenceId)
+    ) on `$left.assignmentPolicyDefinitionId == `$right.policySetDefinitionId
+    | project policyAssignmentId, notScope, assignmentPolicyDefinitionId, policySetDefinitionId, policyDefinitionId, policyDefinitionReferenceId
+    | order by policyDefinitionReferenceId, tostring(notScope)
+"@
+
+    do
     {
-        $excludedIDParts = $excludedID.Split('|')
-        $definitionId = $excludedIDParts[0].ToLower()
-        $definitionReferenceId = $null
-        if (-not([string]::IsNullOrEmpty($excludedIDParts[1])))
+        if ($resultsSoFar -eq 0)
         {
-            $definitionReferenceId = $excludedIDParts[1].ToLower()
+            $argExcludedAssignments = Search-AzGraph -Query $argQuery -First $ARGPageSize -UseTenantScope
+        }
+        else
+        {
+            $argExcludedAssignments = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -UseTenantScope
+        }
+        if ($argExcludedAssignments -and $argExcludedAssignments.GetType().Name -eq "PSResourceGraphResponse")
+        {
+            $argExcludedAssignments = $argExcludedAssignments.Data
+        }
+        $resultsCount = $argExcludedAssignments.Count
+        $resultsSoFar += $resultsCount
+        $excludedAssignmentScopes += $argExcludedAssignments
+
+    } while ($resultsCount -eq $ARGPageSize)
+
+    Write-Output "Adding excluded scopes from $($excludedAssignmentScopes.Count) assignments"
+
+    foreach ($excludedAssignmentScope in $excludedAssignmentScopes)
+    {
+        if (-not([String]::IsNullOrEmpty($excludedAssignmentScope.policySetDefinitionId)))
+        {
+            $initiativeId = $excludedAssignmentScope.policySetDefinitionId
+            $initiativeName = $policyInitiatives[$initiativeId]
+            $definitionReferenceId = $excludedAssignmentScope.policyDefinitionReferenceId
+            $definitionId = $excludedAssignmentScope.policyDefinitionId
+        }
+        else
+        {
+            $initiativeId = $null
+            $initiativeName = $null
+            $definitionReferenceId = $null
+            $definitionId = $excludedAssignmentScope.assignmentPolicyDefinitionId
         }
 
-        $initiativeId = $null
-        $initiativeName = $null
+        $logentry = New-Object PSObject -Property @{
+            Timestamp = $timestamp
+            Cloud = $cloudEnvironment
+            TenantGuid = $tenantId
+            ResourceId = $excludedAssignmentScope.notScope
+            ComplianceState = 'Excluded'
+            AssignmentId = $excludedAssignmentScope.policyAssignmentId
+            AssignmentName = $policyAssignments[$excludedAssignmentScope.policyAssignmentId]
+            InitiativeId = $initiativeId
+            InitiativeName = $initiativeName
+            DefinitionId = $definitionId
+            DefinitionName = $policyDefinitions[$definitionId]
+            DefinitionReferenceId = $definitionReferenceId
+            StatusDate = $statusDate
+        }        
+
+        $allpolicyStates += $logentry
+    }
+}
+else 
+{
+    Write-Output "Adding excluded scopes from $($excludedAssignmentScopes.Count) assignments"
+
+    foreach ($excludedAssignment in $excludedAssignmentScopes)
+    {
+        $excludedIDs = @()
+        $excludedInitiative = $allInitiatives | Where-Object { $_.PolicySetDefinitionId -eq $excludedAssignment.Properties.PolicyDefinitionId }
         if ($excludedInitiative)
         {
-            $initiativeId = $excludedInitiative.PolicySetDefinitionId.ToLower()
-            $initiativeName = $policyInitiatives[$initiativeId]
+            $excludedDefinitions = $excludedInitiative.Properties.PolicyDefinitions
+            foreach ($excludedDefinition in $excludedDefinitions)
+            {
+                $excludedIDs += "$($excludedDefinition.policyDefinitionId)|$($excludedDefinition.policyDefinitionReferenceId)"
+            }
+        }
+        else
+        {
+            $excludedIDs += $excludedAssignment.Properties.PolicyDefinitionId
         }
 
-        foreach ($notScope in $excludedAssignment.Properties.NotScopes)
+        foreach ($excludedID in $excludedIDs)
         {
-            $logentry = New-Object PSObject -Property @{
-                Timestamp = $timestamp
-                Cloud = $cloudEnvironment
-                TenantGuid = $tenantId
-                ResourceId = $notScope.ToLower()
-                ComplianceState = 'Excluded'
-                AssignmentId = $excludedAssignment.PolicyAssignmentId.ToLower()
-                AssignmentName = $policyAssignments[$excludedAssignment.PolicyAssignmentId]
-                InitiativeId = $initiativeId
-                InitiativeName = $initiativeName
-                DefinitionId = $definitionId
-                DefinitionName = $policyDefinitions[$definitionId]
-                DefinitionReferenceId = $definitionReferenceId
-                StatusDate = $statusDate
-            }        
+            $excludedIDParts = $excludedID.Split('|')
+            $definitionId = $excludedIDParts[0].ToLower()
+            $definitionReferenceId = $null
+            if (-not([string]::IsNullOrEmpty($excludedIDParts[1])))
+            {
+                $definitionReferenceId = $excludedIDParts[1].ToLower()
+            }
 
-            $allpolicyStates += $logentry
+            $initiativeId = $null
+            $initiativeName = $null
+            if ($excludedInitiative)
+            {
+                $initiativeId = $excludedInitiative.PolicySetDefinitionId.ToLower()
+                $initiativeName = $policyInitiatives[$initiativeId]
+            }
+
+            foreach ($notScope in $excludedAssignment.Properties.NotScopes)
+            {
+                $logentry = New-Object PSObject -Property @{
+                    Timestamp = $timestamp
+                    Cloud = $cloudEnvironment
+                    TenantGuid = $tenantId
+                    ResourceId = $notScope.ToLower()
+                    ComplianceState = 'Excluded'
+                    AssignmentId = $excludedAssignment.PolicyAssignmentId.ToLower()
+                    AssignmentName = $policyAssignments[$excludedAssignment.PolicyAssignmentId]
+                    InitiativeId = $initiativeId
+                    InitiativeName = $initiativeName
+                    DefinitionId = $definitionId
+                    DefinitionName = $policyDefinitions[$definitionId]
+                    DefinitionReferenceId = $definitionReferenceId
+                    StatusDate = $statusDate
+                }        
+
+                $allpolicyStates += $logentry
+            }
         }
     }
 }
