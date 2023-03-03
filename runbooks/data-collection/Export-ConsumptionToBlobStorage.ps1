@@ -100,8 +100,11 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 }
 else
 {
-    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
+    $supportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -in $supportedQuotaIDs }
 }
+
+Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for $($subscriptions.Count) subscriptions..."
 
 # for each subscription, get billing data
 

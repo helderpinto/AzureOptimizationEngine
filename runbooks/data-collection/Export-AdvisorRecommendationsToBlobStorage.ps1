@@ -79,7 +79,8 @@ if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 }
 else
 {
-    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" } | ForEach-Object { "$($_.Id)"}
+    $supportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -in $supportedQuotaIDs } | ForEach-Object { "$($_.Id)"}
 }
 
 $tenantId = (Get-AzContext).Tenant.Id
