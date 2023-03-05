@@ -114,6 +114,8 @@ $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 $CostDetailsSupportedQuotaIDs = @('EnterpriseAgreement_2014-09-01')
 $ConsumptionSupportedQuotaIDs = @('PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
 
+$hadErrors = $false
+
 foreach ($subscription in $subscriptions)
 {
     $subscriptionQuotaID = $subscription.SubscriptionPolicies.QuotaId
@@ -205,33 +207,41 @@ foreach ($subscription in $subscriptions)
         }
         while ($requestSuccess -and -not([string]::IsNullOrEmpty($consumption.nextLink)))
     
-        Write-Output "Generated $($billingEntries.Count) entries..."
-        
-        Write-Output "Uploading CSV to Storage"
-    
-        $ci = [CultureInfo]::new([System.Threading.Thread]::CurrentThread.CurrentCulture.Name)
-        if ($ci.NumberFormat.NumberDecimalSeparator -ne '.')
+        if ($requestSuccess)
         {
-            Write-Output "Current culture ($($ci.Name)) does not use . as decimal separator"    
-            $ci.NumberFormat.NumberDecimalSeparator = '.'
-            [System.Threading.Thread]::CurrentThread.CurrentCulture = $ci
-        }
-    
-        $csvExportPath = "$targetStartDate-$($subscription.Id).csv"
-
-        $billingEntries | Export-Csv -Path $csvExportPath -NoTypeInformation    
-
-        $csvBlobName = $csvExportPath
-        $csvProperties = @{"ContentType" = "text/csv"};
-        Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+            Write-Output "Generated $($billingEntries.Count) entries..."
         
-        $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-        Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+            Write-Output "Uploading CSV to Storage"
+        
+            $ci = [CultureInfo]::new([System.Threading.Thread]::CurrentThread.CurrentCulture.Name)
+            if ($ci.NumberFormat.NumberDecimalSeparator -ne '.')
+            {
+                Write-Output "Current culture ($($ci.Name)) does not use . as decimal separator"    
+                $ci.NumberFormat.NumberDecimalSeparator = '.'
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = $ci
+            }
+        
+            $csvExportPath = "$targetStartDate-$($subscription.Id).csv"
     
-        Remove-Item -Path $csvExportPath -Force
+            $billingEntries | Export-Csv -Path $csvExportPath -NoTypeInformation    
     
-        $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-        Write-Output "[$now] Removed $csvExportPath from local disk..."    
+            $csvBlobName = $csvExportPath
+            $csvProperties = @{"ContentType" = "text/csv"};
+            Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+            
+            $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+            Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+        
+            Remove-Item -Path $csvExportPath -Force
+        
+            $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+            Write-Output "[$now] Removed $csvExportPath from local disk..."        
+        }
+        else
+        {
+            $hadErrors = $true
+            Write-Warning "Failed to get consumption data for subscription $($subscription.Name)..."
+        }
     }
     elseif ($subscriptionQuotaID -in $CostDetailsSupportedQuotaIDs)
     {
@@ -321,14 +331,16 @@ foreach ($subscription in $subscriptions)
                 }
                 else
                 {
-                    Write-Output "Got an unexpected response code: $($downloadResult.StatusCode)"
+                    $hadErrors = $true
+                    Write-Warning "Got an unexpected response code: $($downloadResult.StatusCode)"
                 }
             } 
             while (-not($requestSuccess) -and $tries -lt $MaxTries)
 
             if (-not($requestSuccess))
             {
-                throw "Error returned by the Download Cost Details API. Status Code: $($downloadResult.StatusCode). Message: $($downloadResult.Content)"
+                $hadErrors = $true
+                Write-Warning "Error returned by the Download Cost Details API. Status Code: $($downloadResult.StatusCode). Message: $($downloadResult.Content)"
             }
             else
             {
@@ -339,7 +351,8 @@ foreach ($subscription in $subscriptions)
         {
             if ($result.StatusCode -ne 204)
             {
-                throw "Error returned by the Generate Cost Details API. Status Code: $($result.StatusCode). Message: $($result.Content)"
+                $hadErrors = $true
+                Write-Warning "Error returned by the Generate Cost Details API. Status Code: $($result.StatusCode). Message: $($result.Content)"
             }
             else
             {
@@ -349,6 +362,12 @@ foreach ($subscription in $subscriptions)
     }
     else
     {
-        throw "Subscription quota $subscriptionQuotaID not supported"
+        $hadErrors = $true
+        Write-Warning "Subscription quota $subscriptionQuotaID not supported"
     }
+}
+
+if ($hadErrors)
+{
+    throw "There were errors during the export process. Please check the output for details."
 }
