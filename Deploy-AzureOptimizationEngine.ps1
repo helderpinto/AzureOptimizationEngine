@@ -15,7 +15,10 @@ param (
     [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
-    [string] $SilentDeploymentSettingsPath
+    [string] $SilentDeploymentSettingsPath,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $AllowUnsupportedSubscriptions
 )
 
 function ConvertTo-Hashtable {
@@ -124,11 +127,17 @@ else {
 
 #region Azure subscription choice
 
-Write-Host "Getting Azure subscriptions (filtering out unsupported ones)..." -ForegroundColor Green
-
-$supportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
-
-$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -in $supportedQuotaIDs }
+if (-not($allowUnsupportedSubscriptions))
+{
+    $supportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
+    Write-Host "Getting Azure subscriptions (filtering out unsupported ones)..." -ForegroundColor Green
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -in $supportedQuotaIDs }
+}
+else
+{
+    Write-Host "Getting Azure subscriptions (**including unsupported ones**)..." -ForegroundColor Yellow
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
+}
 
 if ($subscriptions.Count -gt 1) {
 
@@ -169,7 +178,7 @@ else
     }
     else
     {
-        throw "No valid subscriptions found. Azure AD or Internal subscriptions are currently not supported."
+        throw "No valid subscriptions found. Only EA, MCA, PAYG or MSDN subscriptions are supported currently."
     }
 }
 
@@ -878,6 +887,24 @@ if ("Y", "y" -contains $continueInput) {
         Write-Host "Setting initial deployment date ($deploymentDate)..." -ForegroundColor Green
         New-AzAutomationVariable -Name $deploymentDateVariableName -Description "The date of the initial engine deployment" `
             -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $deploymentDate -Encrypted $false
+    }
+    #endregion
+
+    #region Unsupported subscriptions Automation variable
+    if ($AllowUnsupportedSubscriptions)
+    {
+        Write-Host "Checking Azure Automation variable allowing for unsupported subscriptions..." -ForegroundColor Green
+        $unsupportedSubsVariableName = "AzureOptimization_AllowUnsupportedSubscriptions"
+        $unsupportedSubsVariable = Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name $unsupportedSubsVariableName -ErrorAction SilentlyContinue
+        
+        if ($null -eq $unsupportedSubsVariable) {
+            Write-Host "Setting variable to allow for unsupported subscriptions..." -ForegroundColor Green
+            New-AzAutomationVariable -Name $unsupportedSubsVariableName -Description "Whether unsupported subscriptions are allowed" `
+                -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Value $true -Encrypted $false
+        }
+        else {
+            Write-Host "Variable already exists (AzureOptimization_AllowUnsupportedSubscriptions=$($unsupportedSubsVariable.Value)), skipping..." -ForegroundColor Green
+        }
     }
     #endregion
 
