@@ -329,6 +329,11 @@ if ($PolicyStatesEndpoint -eq "ARG")
         | extend initiativeId = tolower(properties.policySetDefinitionId)
         | summarize StatesCount = count() by tenantId, subscriptionId, complianceState, effect, assignmentId, definitionReferenceId, definitionId, initiativeId
     )
+    | join kind=leftouter ( 
+        resources
+        | project resourceId=tolower(id), tags
+    ) on resourceId
+    | project-away resourceId1
     | order by id asc
 "@
 
@@ -431,6 +436,15 @@ foreach ($policyState in $policyStatesTotal)
         $resourceGroup = $policyState.resourceGroup.ToLower()
     }
 
+    if (-not([string]::IsNullOrEmpty($policyState.tags)))
+    {
+        $tags = $policyState.tags | ConvertTo-Json
+    }
+    else
+    {
+        $tags = $null
+    }
+
     $logentry = New-Object PSObject -Property @{
         Timestamp = $timestamp
         Cloud = $cloudEnvironment
@@ -451,6 +465,7 @@ foreach ($policyState in $policyStatesTotal)
         DefinitionReferenceId = $policyState.definitionReferenceId
         EvaluatedOn = $policyState.evaluatedOn
         StatesCount = $policyState.StatesCount
+        Tags = $tags
         StatusDate = $statusDate
     }
     
