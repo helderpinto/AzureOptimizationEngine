@@ -538,6 +538,45 @@
               "margin": "20px",
               "padding": "20px"
             }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationRecommendationsV1_CL\r\n| where TimeGenerated > ago(730d)\r\n| where \"'*'\" == \"{Subscriptions}\" or SubscriptionName_s in ({Subscriptions})\r\n| where Impact_s in ({Impact})\r\n| where Category in ({Category})\r\n| summarize RecCount=count() by bin(TimeGenerated, 7d)\r\n| join kind=inner ( \r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > ago(730d)\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | where \"'*'\" == \"{Subscriptions}\" or ContainerName_s in ({Subscriptions})\r\n    | summarize ResourceCount=sum(toint(ResourceCount_s)) by bin(TimeGenerated, 1d)\r\n) on TimeGenerated\r\n| project TimeGenerated, ResourceCount",
+              "size": 1,
+              "aggregation": 3,
+              "title": "Resources # Over Time",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "timechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Cost",
+                    "color": "turquoise"
+                  },
+                  {
+                    "seriesName": "OperationalExcellence",
+                    "color": "magenta"
+                  },
+                  {
+                    "seriesName": "HighAvailability",
+                    "color": "lightBlue"
+                  },
+                  {
+                    "seriesName": "Security",
+                    "color": "brown"
+                  },
+                  {
+                    "seriesName": "Performance",
+                    "color": "blueDarkDark"
+                  }
+                ]
+              }
+            },
+            "customWidth": "80",
+            "name": "resourcesOverTime"
           }
         ]
       },
