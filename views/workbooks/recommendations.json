@@ -329,7 +329,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "AzureOptimizationRecommendationsV1_CL\r\n| where TimeGenerated > todatetime('{LastRecommendationDateTime}')-27d\r\n| where \"'*'\" == \"{Subscriptions}\" or SubscriptionName_s in ({Subscriptions})\r\n| where Impact_s in ({Impact})\r\n| where Category in ({Category})\r\n| make-series RecCounts=count() on TimeGenerated from todatetime('{LastRecommendationDateTime}')-28d to todatetime('{LastRecommendationDateTime}') step 7d by InstanceId_s, RecommendationDescription_s\r\n| where array_length(RecCounts) == 4 and not(set_has_element(RecCounts, 0))\r\n| summarize count() by Text='over past 4 weeks'",
+              "query": "AzureOptimizationRecommendationsV1_CL\r\n| where TimeGenerated > todatetime('{LastRecommendationDateTime}')-27d\r\n| where \"'*'\" == \"{Subscriptions}\" or SubscriptionName_s in ({Subscriptions})\r\n| where Impact_s in ({Impact})\r\n| where Category in ({Category})\r\n| make-series RecCounts=count() on TimeGenerated from todatetime('{LastRecommendationDateTime}')-27d to todatetime('{LastRecommendationDateTime}') step 7d by InstanceId_s, RecommendationDescription_s\r\n| where array_length(RecCounts) == 4 and not(set_has_element(RecCounts, 0))\r\n| summarize count() by Text='over past 4 weeks'",
               "size": 4,
               "title": "Long standing recommendations #",
               "queryType": 0,
