@@ -72,6 +72,12 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
 
+$consumptionMetric = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionMetric" -ErrorAction SilentlyContinue # AmortizedCost|ActualCost
+if ([string]::IsNullOrEmpty($consumptionMetric))
+{
+    $consumptionMetric = "AmortizedCost"
+}
+
 Write-Output "Logging in to Azure with $authenticationOption..."
 
 Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
@@ -125,7 +131,7 @@ foreach ($subscription in $subscriptions)
         $consumption = $null
         $billingEntries = @()
     
-        $ConsumptionApiPath = "/subscriptions/$($subscription.Id)/providers/Microsoft.Consumption/usageDetails?api-version=2021-10-01&%24expand=properties%2FmeterDetails%2Cproperties%2FadditionalInfo&%24filter=properties%2FusageStart%20ge%20%27$targetStartDate%27%20and%20properties%2FusageEnd%20le%20%27$targetEndDate%27"
+        $ConsumptionApiPath = "/subscriptions/$($subscription.Id)/providers/Microsoft.Consumption/usageDetails?api-version=2021-10-01&metric=$($consumptionMetric.ToLower())&%24expand=properties%2FmeterDetails%2Cproperties%2FadditionalInfo&%24filter=properties%2FusageStart%20ge%20%27$targetStartDate%27%20and%20properties%2FusageEnd%20le%20%27$targetEndDate%27"
     
         Write-Output "Starting consumption export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
     
@@ -221,7 +227,7 @@ foreach ($subscription in $subscriptions)
                 [System.Threading.Thread]::CurrentThread.CurrentCulture = $ci
             }
         
-            $csvExportPath = "$targetStartDate-$($subscription.Id).csv"
+            $csvExportPath = "$targetStartDate-$($subscription.Id)-$consumptionMetric.csv"
     
             $billingEntries | Export-Csv -Path $csvExportPath -NoTypeInformation    
     
@@ -250,7 +256,7 @@ foreach ($subscription in $subscriptions)
         $MaxTries = 9 # The typical Retry-After is set to 20 seconds. We'll give 3 minutes overall to download the cost details report
 
         $CostDetailsApiPath = "/subscriptions/$($subscription.Id)/providers/Microsoft.CostManagement/generateCostDetailsReport?api-version=2022-05-01"
-        $body = "{ `"metric`": `"ActualCost`", `"timePeriod`": { `"start`": `"$targetStartDate`", `"end`": `"$targetEndDate`" } }"
+        $body = "{ `"metric`": `"$consumptionMetric`", `"timePeriod`": { `"start`": `"$targetStartDate`", `"end`": `"$targetEndDate`" } }"
         $result = Invoke-AzRestMethod -Path $CostDetailsApiPath -Method POST -Payload $body
         $requestResultPath = $result.Headers.Location.PathAndQuery
         if ($result.StatusCode -in (200,202))
@@ -290,7 +296,7 @@ foreach ($subscription in $subscriptions)
 
                         Write-Output "Downloading blob $blobCounter..."
 
-                        $csvExportPath = "$targetStartDate-$($subscription.Id)-$blobCounter.csv"
+                        $csvExportPath = "$targetStartDate-$($subscription.Id)-$consumptionMetric-$blobCounter.csv"
 
                         Invoke-WebRequest -Uri $blob.blobLink -OutFile $csvExportPath
 
