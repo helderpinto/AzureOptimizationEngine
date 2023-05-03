@@ -103,7 +103,7 @@
               "durationMs": 2592000000
             },
             "id": "a3fb4877-28ef-43fc-8821-376df486fa2a",
-            "value": ""
+            "value": null
           },
           {
             "id": "3e36a073-14b2-4406-a84a-1b6d0a15f363",
@@ -112,7 +112,6 @@
             "label": "Instance Size Flexibility?",
             "type": 10,
             "isRequired": true,
-            "isHiddenWhenLocked": true,
             "typeSettings": {
               "additionalResourceOptions": [],
               "showDefault": false
@@ -331,7 +330,7 @@
                 ]
               }
             },
-            "customWidth": "50",
+            "customWidth": "60",
             "name": "riUsageDetailsV2"
           },
           {
@@ -368,7 +367,7 @@
                 ]
               }
             },
-            "customWidth": "50",
+            "customWidth": "40",
             "conditionalVisibility": {
               "parameterName": "selectedTab",
               "comparison": "isEqualTo",
@@ -447,19 +446,24 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g in ({Reservation:value})\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIsDaily=round(sum(UsedRIs),2) by Date_s, ReservationId_g\r\n| summarize AvgRIsUsedDaily=round(avg(UsedRIsDaily),2) by ReservationId_g\r\n| join kind=inner (\r\n    AzureOptimizationReservationsUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where ReservationId_g in ({Reservation:value})\r\n    | summarize arg_max(TimeGenerated, *) by ReservationId_g\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | extend SKUName_s=tolower(SKUName_s)\r\n    | project ReservationId_g, ReservationName_s=DisplayName_s, SKUName_s, Location_s, Util7Days_s, Util30Days_s, TotalReservedQuantity_s\r\n) on ReservationId_g\r\n| project ReservationId_g, ReservationName_s, TotalReservedQuantity_s, SKUName_s, Location_s, AvgRIsUsedDaily, Util7Days_s, Util30Days_s\r\n| join kind=inner ( ISFGroups ) on $left.SKUName_s == $right.ArmSKUName\r\n| extend QuantityInSmallestRatio = Ratio * todouble(TotalReservedQuantity_s)\r\n| extend AvgRIsUsedInSmallestRatio = Ratio * AvgRIsUsedDaily\r\n| summarize TotalReservedQuantity_s=sum(QuantityInSmallestRatio), AvgRIsUsedDaily=sum(AvgRIsUsedInSmallestRatio) by ISFGroup, Location_s\r\n| extend AvgRIUsagePercentInSmallestRatio = round(AvgRIsUsedDaily / TotalReservedQuantity_s * 100, 1)\r\n| order by AvgRIUsagePercentInSmallestRatio asc",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g in ({Reservation:value})\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIsDaily=round(sum(UsedRIs),2) by Date_s, ReservationId_g\r\n| summarize AvgRIsUsedDaily=round(avg(UsedRIsDaily),2) by ReservationId_g\r\n| join kind=inner (\r\n    AzureOptimizationReservationsUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where ReservationId_g in ({Reservation:value})\r\n    | summarize arg_max(TimeGenerated, *) by ReservationId_g\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | extend UsedQuantity = todouble(TotalReservedQuantity_s) * todouble(Util7Days_s) / 100\r\n    | extend UsedQuantity30d = todouble(TotalReservedQuantity_s) * todouble(Util30Days_s) / 100\r\n    | extend SKUName_s=tolower(SKUName_s)\r\n    | project ReservationId_g, ReservationName_s=DisplayName_s, SKUName_s, Location_s, UsedQuantity, UsedQuantity30d, TotalReservedQuantity_s, Term_s, AppliedScopeType_s\r\n) on ReservationId_g\r\n| project ReservationId_g, ReservationName_s, TotalReservedQuantity_s, SKUName_s, Location_s, AvgRIsUsedDaily, UsedQuantity, UsedQuantity30d, Term_s, AppliedScopeType_s\r\n| join kind=inner ( ISFGroups ) on $left.SKUName_s == $right.ArmSKUName\r\n| extend AvgRIsUsedInSmallestRatio = Ratio * AvgRIsUsedDaily\r\n| summarize TotalReservedQuantity_s=sum(todouble(TotalReservedQuantity_s)*Ratio), AvgRIsUsedDaily=sum(AvgRIsUsedInSmallestRatio), UsedQuantity=sum(UsedQuantity*Ratio), UsedQuantity30d=sum(UsedQuantity30d*Ratio) by ISFGroup, Location_s, Term_s, AppliedScopeType_s\r\n| extend Util7Days_s = UsedQuantity/TotalReservedQuantity_s*100, Util30Days_s = UsedQuantity30d/TotalReservedQuantity_s*100\r\n| extend AvgRIUsagePercentInSmallestRatio = round(AvgRIsUsedDaily / TotalReservedQuantity_s * 100, 1)\r\n| project-away AvgRIUsagePercentInSmallestRatio, AvgRIsUsedDaily\r\n| project-reorder ISFGroup, Location_s, Term_s, AppliedScopeType_s, TotalReservedQuantity_s, Util7Days_s, UsedQuantity, Util30Days_s, UsedQuantity30d\r\n| order by Util7Days_s asc",
               "size": 0,
               "title": "Reservation Usage Details (grouped by Instance Size Flexibility Group)",
               "timeContextFromParameter": "LookbackPeriod",
               "exportedParameters": [
                 {
-                  "fieldName": "ReservationId_g",
-                  "parameterName": "selectedReservation",
+                  "fieldName": "ISFGroup",
+                  "parameterName": "selectedISFGroup",
                   "parameterType": 1
                 },
                 {
                   "fieldName": "TotalReservedQuantity_s",
                   "parameterName": "selectedQuantity",
+                  "parameterType": 1
+                },
+                {
+                  "fieldName": "Location_s",
+                  "parameterName": "selectedRegion",
                   "parameterType": 1
                 }
               ],
@@ -467,6 +471,13 @@
               "resourceType": "microsoft.operationalinsights/workspaces",
               "gridSettings": {
                 "formatters": [
+                  {
+                    "columnMatch": "ISFGroup",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    }
+                  },
                   {
                     "columnMatch": "Location_s",
                     "formatter": 0,
@@ -479,6 +490,64 @@
                     "formatter": 0,
                     "formatOptions": {
                       "customColumnWidthSetting": "10ch"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Util7Days_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "14ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "UsedQuantity",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "18ch"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Util30Days_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "15ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "UsedQuantity30d",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
                     },
                     "numberFormat": {
                       "unit": 0,
@@ -530,34 +599,6 @@
                     "formatOptions": {
                       "customColumnWidthSetting": "20ch"
                     }
-                  },
-                  {
-                    "columnMatch": "Util7Days_s",
-                    "formatter": 0,
-                    "formatOptions": {
-                      "customColumnWidthSetting": "14ch"
-                    },
-                    "numberFormat": {
-                      "unit": 1,
-                      "options": {
-                        "style": "decimal",
-                        "maximumFractionDigits": 0
-                      }
-                    }
-                  },
-                  {
-                    "columnMatch": "Util30Days_s",
-                    "formatter": 0,
-                    "formatOptions": {
-                      "customColumnWidthSetting": "15ch"
-                    },
-                    "numberFormat": {
-                      "unit": 1,
-                      "options": {
-                        "style": "decimal",
-                        "maximumFractionDigits": 0
-                      }
-                    }
                   }
                 ],
                 "rowLimit": 5000,
@@ -571,31 +612,47 @@
                     "label": "Region"
                   },
                   {
+                    "columnId": "Term_s",
+                    "label": "Term"
+                  },
+                  {
+                    "columnId": "AppliedScopeType_s",
+                    "label": "Scope"
+                  },
+                  {
                     "columnId": "TotalReservedQuantity_s",
                     "label": "Qty."
                   },
                   {
-                    "columnId": "AvgRIsUsedDaily",
-                    "label": "Qty. Used (Avg)"
+                    "columnId": "Util7Days_s",
+                    "label": "Used (7d)"
                   },
                   {
-                    "columnId": "AvgRIUsagePercentInSmallestRatio",
-                    "label": "Used (Avg)"
+                    "columnId": "UsedQuantity",
+                    "label": "Used Qty. (7d)"
+                  },
+                  {
+                    "columnId": "Util30Days_s",
+                    "label": "Used (30d)"
+                  },
+                  {
+                    "columnId": "UsedQuantity30d",
+                    "label": "Used Qty. (30d)"
                   }
                 ]
               }
             },
-            "customWidth": "50",
+            "customWidth": "60",
             "name": "riUsageDetailsV2ISF"
           },
           {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let absoluteRIBought = toscalar(AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}')\r\n    and TimeGenerated < todatetime('{LookbackPeriod:endISO}')\r\n    and ChargeType_s == 'Usage'\r\n    and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| summarize (datetime_diff('Day',max(todatetime(Date_s)),min(todatetime(Date_s)))+1)*{selectedQuantity});\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend Tags_s = iif(Tags_s startswith \"{\", Tags_s, strcat(\"{\", Tags_s, \"}\"))\r\n| extend AggregatorTag = tostring(parse_json(Tags_s)['{Aggregator}'])\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIPercentage=round(sum(UsedRIs) / absoluteRIBought * 100, 2) by AggregatorTag, SubscriptionId\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionId=SubscriptionGuid_g\r\n) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder AggregatorTag, Subscription, UsedRIPercentage\r\n| order by AggregatorTag asc, UsedRIPercentage",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nlet absoluteRIBought = toscalar(AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}')\r\n    and TimeGenerated < todatetime('{LookbackPeriod:endISO}')\r\n    and ChargeType_s == 'Usage'\r\n    and isnotempty(ReservationName_s)\r\n| extend VMSize = tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| where ResourceLocation_s == '{selectedRegion}'\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| where ISFGroup == '{selectedISFGroup:value}'\r\n| summarize (datetime_diff('Day',max(todatetime(Date_s)),min(todatetime(Date_s)))+1)*{selectedQuantity});\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| extend VMSize = tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| where ResourceLocation_s == '{selectedRegion}'\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| where ISFGroup == '{selectedISFGroup:value}'\r\n| extend Tags_s = iif(Tags_s startswith \"{\", Tags_s, strcat(\"{\", Tags_s, \"}\"))\r\n| extend AggregatorTag = tostring(parse_json(Tags_s)['{Aggregator}'])\r\n| extend UsedRIs = todouble(Quantity_s) * Ratio / 24\r\n| summarize UsedRIPercentage=round(sum(UsedRIs) / absoluteRIBought * 100, 2) by AggregatorTag, SubscriptionId\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionId=SubscriptionGuid_g\r\n) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder AggregatorTag, Subscription, UsedRIPercentage\r\n| order by AggregatorTag asc, UsedRIPercentage",
               "size": 0,
               "showAnalytics": true,
-              "title": "Average Daily Reservation Usage by Tag (select ISF group first)",
+              "title": "Average Daily Reservation Usage by Tag (select ISF Group first)",
               "timeContextFromParameter": "LookbackPeriod",
               "exportFieldName": "ReservationId_g",
               "exportParameterName": "selectedReservation",
@@ -622,7 +679,7 @@
                 ]
               }
             },
-            "customWidth": "50",
+            "customWidth": "40",
             "conditionalVisibility": {
               "parameterName": "selectedTab",
               "comparison": "isEqualTo",
@@ -634,7 +691,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g == '{selectedReservation:value}'\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend VMSize = tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ConsumedSize = iif(isnotempty(VMSize), VMSize, strcat(MeterSubCategory_s, ' ', MeterName_s))\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize round(sum(UsedRIs),1) by todatetime(Date_s), ConsumedSize, ReservationName_s",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ResourceLocation_s == '{selectedRegion}'\r\n| extend VMSize = tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| where ISFGroup == '{selectedISFGroup:value}'\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend ConsumedSize = iif(isnotempty(VMSize), VMSize, strcat(MeterSubCategory_s, ' ', MeterName_s))\r\n| extend UsedRIs = todouble(Quantity_s) * Ratio / 24\r\n| summarize round(sum(UsedRIs),1) by todatetime(Date_s), ConsumedSize, ReservationName_s",
               "size": 0,
               "aggregation": 3,
               "title": "Average RI Usage Count by Size (select ISF group first)",
@@ -961,10 +1018,18 @@
         "groupType": "editable",
         "items": [
           {
+            "type": 1,
+            "content": {
+              "json": "VMs/instance count for each Instance Size Flexibility Group is proportional to the VM size with the lowest ratio (1).",
+              "style": "warning"
+            },
+            "name": "text - 1"
+          },
+          {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'UnusedReservation'\r\n| where ReservationId_g in ({Reservation:value})\r\n| summarize TotalUnusedCost = sum(todouble(CostInBillingCurrency_s)) by ReservationId_g\r\n| where round(TotalUnusedCost) > 0\r\n| join kind=inner (\r\n    AzureOptimizationReservationsUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | extend UnusedQuantity = todouble(TotalReservedQuantity_s) - (todouble(TotalReservedQuantity_s) * todouble(Util7Days_s) / 100)\r\n    | extend UnusedQuantity30d = todouble(TotalReservedQuantity_s) - (todouble(TotalReservedQuantity_s) * todouble(Util30Days_s) / 100)\r\n    | project ReservationId_g, ReservationName_s=DisplayName_s, ExpiryDate_s, SKUName_s, Location_s, TotalReservedQuantity_s, Term_s, AppliedScopeType_s, Util7Days_s, UnusedQuantity, Util30Days_s, UnusedQuantity30d\r\n) on ReservationId_g\r\n| project-away ReservationId_g1\r\n| project-reorder ReservationName_s, TotalUnusedCost\r\n| order by TotalUnusedCost\r\n",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'UnusedReservation'\r\n| where ReservationId_g in ({Reservation:value})\r\n| summarize TotalUnusedCost = sum(todouble(CostInBillingCurrency_s)) by ReservationId_g\r\n| where round(TotalUnusedCost) > 0\r\n| join kind=inner (\r\n    AzureOptimizationReservationsUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | extend UnusedQuantity = todouble(TotalReservedQuantity_s) - (todouble(TotalReservedQuantity_s) * todouble(Util7Days_s) / 100)\r\n    | extend UnusedQuantity30d = todouble(TotalReservedQuantity_s) - (todouble(TotalReservedQuantity_s) * todouble(Util30Days_s) / 100)\r\n    | project ReservationId_g, ReservationName_s=DisplayName_s, SKUName_s=tolower(SKUName_s), Location_s, TotalReservedQuantity_s, Term_s, AppliedScopeType_s, UnusedQuantity, UnusedQuantity30d\r\n) on ReservationId_g\r\n| project-away ReservationId_g1\r\n| join kind=inner ( ISFGroups ) on $left.SKUName_s == $right.ArmSKUName\r\n| summarize TotalUnusedCost=sum(TotalUnusedCost), TotalReservedQuantity_s=sum(todouble(TotalReservedQuantity_s)*Ratio), UnusedQuantity=sum(UnusedQuantity*Ratio), UnusedQuantity30d=sum(UnusedQuantity30d*Ratio) by ISFGroup, Location_s, Term_s, AppliedScopeType_s\r\n| extend Util7Days_s = (1-UnusedQuantity/TotalReservedQuantity_s)*100, Util30Days_s = (1-UnusedQuantity30d/TotalReservedQuantity_s)*100\r\n| project-reorder ISFGroup, TotalUnusedCost, Location_s, Term_s, AppliedScopeType_s, TotalReservedQuantity_s, Util7Days_s, UnusedQuantity, Util30Days_s\r\n| order by TotalUnusedCost",
               "size": 2,
               "title": "Unused Reservations Details (grouped by Instance Size Flexibility group)",
               "timeContextFromParameter": "LookbackPeriod",
@@ -972,13 +1037,6 @@
               "resourceType": "microsoft.operationalinsights/workspaces",
               "gridSettings": {
                 "formatters": [
-                  {
-                    "columnMatch": "ReservationName_s",
-                    "formatter": 0,
-                    "formatOptions": {
-                      "customColumnWidthSetting": "40ch"
-                    }
-                  },
                   {
                     "columnMatch": "TotalUnusedCost",
                     "formatter": 1,
@@ -993,10 +1051,6 @@
                         "maximumFractionDigits": 0
                       }
                     }
-                  },
-                  {
-                    "columnMatch": "ReservationId_g",
-                    "formatter": 5
                   },
                   {
                     "columnMatch": "TotalReservedQuantity_s",
@@ -1024,11 +1078,8 @@
                   {
                     "columnMatch": "UnusedQuantity",
                     "formatter": 1,
-                    "formatOptions": {
-                      "customColumnWidthSetting": "20ch"
-                    },
                     "numberFormat": {
-                      "unit": 17,
+                      "unit": 0,
                       "options": {
                         "style": "decimal",
                         "maximumFractionDigits": 0
@@ -1045,6 +1096,17 @@
                         "maximumFractionDigits": 0
                       }
                     }
+                  },
+                  {
+                    "columnMatch": "ReservationName_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "40ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "ReservationId_g",
+                    "formatter": 5
                   },
                   {
                     "columnMatch": "ProvisioningState_s",
@@ -1070,28 +1132,16 @@
                 ],
                 "labelSettings": [
                   {
-                    "columnId": "ReservationName_s",
-                    "label": "Reservation"
+                    "columnId": "ISFGroup",
+                    "label": "ISF Group"
                   },
                   {
                     "columnId": "TotalUnusedCost",
                     "label": "Total Unused Cost"
                   },
                   {
-                    "columnId": "ExpiryDate_s",
-                    "label": "Expires On"
-                  },
-                  {
-                    "columnId": "SKUName_s",
-                    "label": "Size"
-                  },
-                  {
                     "columnId": "Location_s",
                     "label": "Region"
-                  },
-                  {
-                    "columnId": "TotalReservedQuantity_s",
-                    "label": "Qty."
                   },
                   {
                     "columnId": "Term_s",
@@ -1100,6 +1150,10 @@
                   {
                     "columnId": "AppliedScopeType_s",
                     "label": "Scope"
+                  },
+                  {
+                    "columnId": "TotalReservedQuantity_s",
+                    "label": "Qty."
                   },
                   {
                     "columnId": "Util7Days_s",
