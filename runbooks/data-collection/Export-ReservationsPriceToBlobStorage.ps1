@@ -94,6 +94,14 @@ $timestamp = $datetime.ToString("yyyyMMdd")
 $fileFriendlyFilter = $Filter.Replace(" ","").Replace("'","")
 $csvExportPath = "reservationsprice-$timestamp-$fileFriendlyFilter.csv"
 
+$ci = [CultureInfo]::new([System.Threading.Thread]::CurrentThread.CurrentCulture.Name)
+if ($ci.NumberFormat.NumberDecimalSeparator -ne '.')
+{
+    Write-Output "Current culture ($($ci.Name)) does not use . as decimal separator"    
+    $ci.NumberFormat.NumberDecimalSeparator = '.'
+    [System.Threading.Thread]::CurrentThread.CurrentCulture = $ci
+}
+
 $prices | Export-Csv -NoTypeInformation -Path $csvExportPath
         
 Write-Output "Reservations price CSV exported to $csvExportPath successfully."
