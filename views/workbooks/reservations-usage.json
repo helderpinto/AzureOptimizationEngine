@@ -208,7 +208,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g in ({Reservation:value})\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIsDaily=round(sum(UsedRIs),2) by Date_s, ReservationId_g\r\n| summarize AvgRIsUsedDaily=round(avg(UsedRIsDaily),2) by ReservationId_g\r\n| join kind=inner (\r\n    AzureOptimizationReservationsUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where ReservationId_g in ({Reservation:value})\r\n    | summarize arg_max(TimeGenerated, *) by ReservationId_g\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | project ReservationId_g, ReservationName_s=DisplayName_s, SKUName_s, Location_s, Util7Days_s, Util30Days_s, TotalReservedQuantity_s\r\n) on ReservationId_g\r\n| project ReservationId_g, ReservationName_s, TotalReservedQuantity_s, SKUName_s, Location_s, AvgRIsUsedDaily, Util7Days_s, Util30Days_s\r\n| order by todouble(Util7Days_s) asc\r\n",
+              "query": "let LinuxOnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption' and MeterSubCategory_s !endswith \"Windows\"\r\n| where OfferId_s == 'MS-AZR-0017P'\r\n| extend MeterSubCategory_s = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Linux'))\r\n| summarize (TimeGenerated,LinuxUnitPrice)=arg_max(TimeGenerated, UnitPrice_s) by LinuxMeterId=MeterID_g, MeterName_s, MeterSubCategory_s, MeterRegion_s, LinuxUnitOfMeasure=UnitOfMeasure_s;\r\nlet OnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption'\r\n| where OfferId_s == 'MS-AZR-0017P'\r\n| extend NonWindowsMeterSubcategory = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Windows'))\r\n| extend WindowsMeterSubCategory = MeterSubCategory_s\r\n| extend NonWindowsMeterSubcategory = substring(NonWindowsMeterSubcategory, 0, indexof(NonWindowsMeterSubcategory, ' Linux'))\r\n| summarize arg_max(TimeGenerated, UnitPrice_s) by MeterID_g, MeterName_s, NonWindowsMeterSubcategory, WindowsMeterSubCategory, MeterRegion_s, UnitOfMeasure_s\r\n| join kind=leftouter ( LinuxOnDemandPriceSheet ) on MeterName_s, MeterRegion_s, $left.NonWindowsMeterSubcategory == $right.MeterSubCategory_s\r\n| extend PricesheetPrice = iif(isnotempty(LinuxUnitPrice), LinuxUnitPrice, UnitPrice_s)\r\n| extend PricesheetUnitOfMeasure = iif(isnotempty(LinuxUnitOfMeasure), LinuxUnitOfMeasure, UnitOfMeasure_s)\r\n| extend UnitHrs = toint(substring(PricesheetUnitOfMeasure, 0, indexof(PricesheetUnitOfMeasure, 'Hour')-1))\r\n| extend OnDemandUnitPrice = todouble(PricesheetPrice)/UnitHrs\r\n| distinct MeterID_g, OnDemandUnitPrice;\r\nlet ReservationPricesheet = AzureOptimizationReservationsPriceV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| extend Term_s = iif(reservationTerm_s == '3 Years', 'P3Y', 'P1Y')\r\n| extend TermDivider = iif(reservationTerm_s == '3 Years', 3, 1)\r\n| where serviceName_s == 'Virtual Machines'\r\n| extend ReservationPrice = todouble(replace_string(unitPrice_s,',','.'))/TermDivider/12/730\r\n| summarize arg_max(TimeGenerated, ReservationPrice) by Location_s=tolower(armRegionName_s), SKUName_s=tolower(armSkuName_s), Term_s;\r\nlet ReservationOnDemandMeters = AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| extend SKUName_s = tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| distinct ReservationId_g, MeterId_g, SKUName_s;\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ReservationId_g in ({Reservation:value})\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend UsedRIs = todouble(Quantity_s) * todouble(RINormalizationRatio) / 24\r\n| summarize UsedRIsDaily=round(sum(UsedRIs),2) by Date_s, ReservationId_g\r\n| summarize AvgRIsUsedDaily=round(avg(UsedRIsDaily),2) by ReservationId_g\r\n| join kind=inner (\r\n    AzureOptimizationReservationsUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where ReservationId_g in ({Reservation:value})\r\n    | summarize arg_max(TimeGenerated, *) by ReservationId_g\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | project ReservationId_g, ReservationName_s=DisplayName_s, SKUName_s, Location_s, Util7Days_s, Util30Days_s, TotalReservedQuantity_s, Term_s\r\n) on ReservationId_g\r\n| project ReservationId_g, ReservationName_s, TotalReservedQuantity_s, SKUName_s=tolower(SKUName_s), Location_s, AvgRIsUsedDaily, Util7Days_s, Util30Days_s, Term_s\r\n| join kind=leftouter ( ReservationPricesheet ) on SKUName_s and Location_s and Term_s\r\n| join kind=leftouter ( ReservationOnDemandMeters ) on ReservationId_g and SKUName_s\r\n| join kind=leftouter ( OnDemandPriceSheet ) on $left.MeterId_g == $right.MeterID_g\r\n| extend DiscountPercent = (1 - ReservationPrice/OnDemandUnitPrice) * 100\r\n| project ReservationId_g, ReservationName_s, TotalReservedQuantity_s=round(todouble(TotalReservedQuantity_s)), SKUName_s, Location_s, AvgRIsUsedDaily, Util7Days_s=round(todouble(Util7Days_s)), Util30Days_s=round(todouble(Util30Days_s)), DiscountPercent\r\n| order by Util7Days_s asc",
               "size": 0,
               "title": "Reservation Usage Details",
               "timeContextFromParameter": "LookbackPeriod",
@@ -236,14 +236,14 @@
                     "columnMatch": "ReservationName_s",
                     "formatter": 0,
                     "formatOptions": {
-                      "customColumnWidthSetting": "30ch"
+                      "customColumnWidthSetting": "28ch"
                     }
                   },
                   {
                     "columnMatch": "TotalReservedQuantity_s",
                     "formatter": 0,
                     "formatOptions": {
-                      "customColumnWidthSetting": "10ch"
+                      "customColumnWidthSetting": "9ch"
                     },
                     "numberFormat": {
                       "unit": 0,
@@ -258,14 +258,14 @@
                     "columnMatch": "SKUName_s",
                     "formatter": 0,
                     "formatOptions": {
-                      "customColumnWidthSetting": "20ch"
+                      "customColumnWidthSetting": "18ch"
                     }
                   },
                   {
                     "columnMatch": "Location_s",
                     "formatter": 0,
                     "formatOptions": {
-                      "customColumnWidthSetting": "15ch"
+                      "customColumnWidthSetting": "13ch"
                     }
                   },
                   {
@@ -295,9 +295,29 @@
                         "maximumFractionDigits": 0
                       }
                     }
+                  },
+                  {
+                    "columnMatch": "DiscountPercent",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "13ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
                   }
                 ],
                 "rowLimit": 5000,
+                "sortBy": [
+                  {
+                    "itemKey": "$gen_number_Util7Days_s_6",
+                    "sortOrder": 1
+                  }
+                ],
                 "labelSettings": [
                   {
                     "columnId": "ReservationName_s",
@@ -326,11 +346,21 @@
                   {
                     "columnId": "Util30Days_s",
                     "label": "Used (30d)"
+                  },
+                  {
+                    "columnId": "DiscountPercent",
+                    "label": "Discount"
                   }
                 ]
-              }
+              },
+              "sortBy": [
+                {
+                  "itemKey": "$gen_number_Util7Days_s_6",
+                  "sortOrder": 1
+                }
+              ]
             },
-            "customWidth": "60",
+            "customWidth": "55",
             "name": "riUsageDetailsV2"
           },
           {
@@ -367,7 +397,7 @@
                 ]
               }
             },
-            "customWidth": "40",
+            "customWidth": "45",
             "conditionalVisibility": {
               "parameterName": "selectedTab",
               "comparison": "isEqualTo",
@@ -691,7 +721,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ResourceLocation_s == '{selectedRegion}'\r\n| extend VMSize = tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| where ISFGroup == '{selectedISFGroup:value}'\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend ConsumedSize = iif(isnotempty(VMSize), VMSize, strcat(MeterSubCategory_s, ' ', MeterName_s))\r\n| extend UsedRIs = todouble(Quantity_s) * Ratio / 24\r\n| summarize round(sum(UsedRIs),1) by todatetime(Date_s), ConsumedSize",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(ReservationName_s)\r\n| where ResourceLocation_s == '{selectedRegion}'\r\n| extend VMSize = tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| where ISFGroup == '{selectedISFGroup:value}'\r\n| extend RINormalizationRatio = tostring(parse_json(AdditionalInfo_s).RINormalizationRatio)\r\n| extend ConsumedSize = iif(isnotempty(VMSize), VMSize, strcat(MeterSubCategory_s, ' ', MeterName_s))\r\n| extend UsedRIs = todouble(Quantity_s) / 24 * Ratio\r\n| summarize round(sum(UsedRIs),1) by todatetime(Date_s), ConsumedSize",
               "size": 0,
               "aggregation": 3,
               "title": "Average RI Usage Count by Size (select ISF group first)",
