@@ -78,6 +78,12 @@ if ([string]::IsNullOrEmpty($consumptionMetric))
     $consumptionMetric = "ActualCost"
 }
 
+$consumptionAPIOption = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionAPIOption" -ErrorAction SilentlyContinue # CostDetails|UsageDetails
+if ([string]::IsNullOrEmpty($consumptionMetric))
+{
+    $consumptionAPIOption = "CostDetails"
+}
+
 $consumptionScope = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionScope" -ErrorAction SilentlyContinue # Subscription|BillingAccount
 if ([string]::IsNullOrEmpty($consumptionScope))
 {
@@ -194,15 +200,95 @@ function Generate-CostDetails {
 
                     Write-Output "Downloading blob $blobCounter..."
 
-                    $csvExportPath = "$targetStartDate-$ScopeName-$consumptionMetric-$blobCounter.csv"
+                    $csvExportPath = "$env:TEMP\$targetStartDate-$ScopeName-$consumptionMetric-$blobCounter.csv"
+                    $finalCsvExportPath = "$env:TEMP\$targetStartDate-$ScopeName-$consumptionMetric-$blobCounter-final.csv"
 
                     Invoke-WebRequest -Uri $blob.blobLink -OutFile $csvExportPath
 
                     Write-Output "Blob downloaded to $csvExportPath successfully."
 
-                    $csvBlobName = $csvExportPath
+                    $r = [IO.File]::OpenText($csvExportPath)
+                    $w = [System.IO.StreamWriter]::new($finalCsvExportPath)
+
+                    # header normalization between MCA and EA
+                    $headerConversion = @{
+                        additionalInfo = "AdditionalInfo";
+                        billingAccountId = "BillingAccountId";
+                        billingAccountName = "BillingAccountName";
+                        billingCurrency = "BillingCurrencyCode";
+                        billingPeriodEndDate = "BillingPeriodEndDate";
+                        billingPeriodStartDate = "BillingPeriodStartDate";
+                        billingProfileId = "BillingProfileId";
+                        billingProfileName = "BillingProfileName";
+                        chargeType = "ChargeType";
+                        consumedService = "ConsumedService";
+                        costAllocationRuleName = "CostAllocationRuleName";
+                        costCenter = "CostCenter";
+                        costInBillingCurrency = "CostInBillingCurrency";
+                        date = "Date";
+                        effectivePrice = "EffectivePrice";
+                        frequency = "Frequency";
+                        invoiceSectionId = "InvoiceSectionId";
+                        invoiceSectionName = "InvoiceSectionName";
+                        isAzureCreditEligible = "IsAzureCreditEligible";
+                        meterCategory = "MeterCategory";
+                        meterId = "MeterId";
+                        meterName = "MeterName";
+                        meterRegion = "MeterRegion";
+                        meterSubCategory = "MeterSubCategory";
+                        offerId = "OfferId";
+                        pricingModel = "PricingModel";
+                        productOrderId = "ProductOrderId";
+                        productOrderName = "ProductOrderName";
+                        publisherName = "PublisherName";
+                        publisherType = "PublisherType";
+                        quantity = "Quantity";
+                        reservationId = "ReservationId";
+                        reservationName = "ReservationName";
+                        resourceGroupName = "ResourceGroup";
+                        resourceLocation = "ResourceLocation";
+                        serviceFamily = "ServiceFamily";
+                        serviceInfo1 = "ServiceInfo1";
+                        serviceInfo2 = "ServiceInfo2";
+                        subscriptionName = "SubscriptionName";
+                        tags = "Tags";
+                        term = "Term";
+                        unitOfMeasure = "UnitOfMeasure";
+                        unitPrice = "UnitPrice"
+                    }
+
+                    $lineCounter = 0
+                    while ($r.Peek() -ge 0) {
+                        $line = $r.ReadLine()
+                        $lineCounter++
+                        if ($lineCounter -eq 1)
+                        {
+                            $headers = $line.Split(",")
+
+                            for ($i = 0; $i -lt $headers.Length; $i++)
+                            {
+                                $header = $headers[$i]
+                                if ($headerConversion.ContainsKey($header))
+                                {
+                                    $headers[$i] = $headerConversion[$header]
+                                }
+                            }
+
+                            $line = $headers -join ","
+
+                            $w.WriteLine($line)
+                        }
+                        else
+                        {
+                            $w.WriteLine($line)
+                        }
+                    }
+                    $r.Dispose()
+                    $w.Close()        
+
+                    $csvBlobName = [System.IO.Path]::GetFileName($finalCsvExportPath)
                     $csvProperties = @{"ContentType" = "text/csv"};
-                    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+                    Set-AzStorageBlobContent -File $finalCsvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
                     
                     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
                     Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
@@ -211,6 +297,11 @@ function Generate-CostDetails {
                 
                     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
                     Write-Output "[$now] Removed $csvExportPath from local disk..."                    
+
+                    Remove-Item -Path $finalCsvExportPath -Force
+        
+                    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+                    Write-Output "[$now] Removed $finalCsvExportPath from local disk..."                            
                 }
 
                 $requestSuccess = $true
@@ -267,14 +358,14 @@ function Generate-CostDetails {
 
 if ($consumptionScope -eq "Subscription")
 {
-    $CostDetailsSupportedQuotaIDs = @('EnterpriseAgreement_2014-09-01')
-    $ConsumptionSupportedQuotaIDs = @('PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
+    $CostDetailsSupportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','Internal_2014-09-01','CSP_2015-05-01')
+    $ConsumptionSupportedQuotaIDs = @('PayAsYouGo_2014-09-01','MSDN_2014-09-01')
     
     foreach ($subscription in $subscriptions)
     {
         $subscriptionQuotaID = $subscription.SubscriptionPolicies.QuotaId
     
-        if ($subscriptionQuotaID -in $ConsumptionSupportedQuotaIDs)
+        if ($subscriptionQuotaID -in $ConsumptionSupportedQuotaIDs -or $consumptionAPIOption -eq "UsageDetails")
         {
             $consumption = $null
             $billingEntries = @()
@@ -318,43 +409,55 @@ if ($consumptionScope -eq "Subscription")
     
                     $billingEntry = New-Object PSObject -Property @{
                         Timestamp = $timestamp
-                        SubscriptionId = $consumptionLine.properties.subscriptionId
-                        SubscriptionName = $consumptionLine.properties.subscriptionName
-                        ResourceGroup = $consumptionLine.properties.resourceGroup
-                        ResourceName = $consumptionLine.properties.resourceName
-                        ResourceId = $consumptionLine.properties.resourceId
-                        Date = (Get-Date $consumptionLine.properties.date).ToString("MM/dd/yyyy")
-                        Tags = $tags
+                        AccountName = $consumptionLine.properties.accountName
+                        AccountOwnerId = $consumptionLine.properties.accountOwnerId
                         AdditionalInfo = $consumptionLine.properties.additionalInfo
+                        benefitId = $consumptionLine.properties.benefitId
+                        benefitName = $consumptionLine.properties.benefitName
+                        BillingAccountId = $consumptionLine.properties.billingAccountId
+                        BillingAccountName = $consumptionLine.properties.billingAccountName
                         BillingCurrencyCode = $consumptionLine.properties.billingCurrency
+                        BillingPeriodEndDate= $consumptionLine.properties.billingPeriodEndDate
+                        BillingPeriodStartDate= $consumptionLine.properties.billingPeriodStartDate
+                        BillingProfileId = $consumptionLine.properties.billingProfileId
+                        BillingProfileName= $consumptionLine.properties.billingProfileName
                         ChargeType = $consumptionLine.properties.chargeType
                         ConsumedService = $consumptionLine.properties.consumedService
+                        CostAllocationRuleName = $consumptionLine.properties.costAllocationRuleName
+                        CostCenter = $consumptionLine.properties.costCenter
                         CostInBillingCurrency = $consumptionLine.properties.cost
+                        Date = (Get-Date $consumptionLine.properties.date).ToString("MM/dd/yyyy")
                         EffectivePrice = $consumptionLine.properties.effectivePrice
                         Frequency = $consumptionLine.properties.frequency
+                        InvoiceSectionName = $consumptionLine.properties.invoiceSection
+                        IsAzureCreditEligible = $consumptionLine.properties.isAzureCreditEligible
                         MeterCategory = $consumptionLine.properties.meterDetails.meterCategory
                         MeterId = $consumptionLine.properties.meterId
                         MeterName = $consumptionLine.properties.meterDetails.meterName
+                        MeterRegion = $consumptionLine.properties.meterDetails.meterRegion
                         MeterSubCategory = $consumptionLine.properties.meterDetails.meterSubCategory
-                        ServiceFamily = $consumptionLine.properties.meterDetails.serviceFamily
+                        OfferId = $consumptionLine.properties.offerId
                         PartNumber = $consumptionLine.properties.partNumber
+                        PayGPrice = $consumptionLine.properties.PayGPrice
+                        PlanName = $consumptionLine.properties.planName
+                        PricingModel = $consumptionLine.properties.pricingModel
                         ProductName = $consumptionLine.properties.product
+                        PublisherName = $consumptionLine.properties.publisherName
+                        PublisherType = $consumptionLine.properties.publisherType
                         Quantity = $consumptionLine.properties.quantity
-                        UnitOfMeasure = $consumptionLine.properties.meterDetails.unitOfMeasure
-                        UnitPrice = $consumptionLine.properties.unitPrice
-                        ResourceLocation = $consumptionLine.properties.resourceLocation
                         ReservationId = $consumptionLine.properties.reservationId
                         ReservationName = $consumptionLine.properties.reservationName
-                        PublisherType = $consumptionLine.properties.publisherType
-                        PublisherName = $consumptionLine.properties.publisherName
-                        PlanName = $consumptionLine.properties.planName
-                        AccountOwnerId = $consumptionLine.properties.accountOwnerId
-                        AccountName = $consumptionLine.properties.accountName
-                        BillingAccountId = $consumptionLine.properties.billingAccountId
-                        BillingProfileId = $consumptionLine.properties.billingProfileId
-                        BillingProfileName= $consumptionLine.properties.billingProfileName
-                        BillingPeriodStartDate= $consumptionLine.properties.billingPeriodStartDate
-                        BillingPeriodEndDate= $consumptionLine.properties.billingPeriodEndDate
+                        ResourceGroup = $consumptionLine.properties.resourceGroup
+                        ResourceId = $consumptionLine.properties.resourceId
+                        ResourceLocation = $consumptionLine.properties.resourceLocation
+                        ResourceName = $consumptionLine.properties.resourceName
+                        ServiceFamily = $consumptionLine.properties.meterDetails.serviceFamily
+                        SubscriptionId = $consumptionLine.properties.subscriptionId
+                        SubscriptionName = $consumptionLine.properties.subscriptionName
+                        Tags = $tags
+                        Term = $consumptionLine.properties.term
+                        UnitOfMeasure = $consumptionLine.properties.meterDetails.unitOfMeasure
+                        UnitPrice = $consumptionLine.properties.unitPrice
                     }            
                     $billingEntries += $billingEntry
                 }    
@@ -397,7 +500,7 @@ if ($consumptionScope -eq "Subscription")
                 Write-Warning "Failed to get consumption data for subscription $($subscription.Name)..."
             }
         }
-        elseif ($subscriptionQuotaID -in $CostDetailsSupportedQuotaIDs)
+        elseif ($subscriptionQuotaID -in $CostDetailsSupportedQuotaIDs -or $consumptionAPIOption -eq "CostDetails")
         {
             Write-Output "Starting cost details export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
             Generate-CostDetails -ScopeId "/subscriptions/$($subscription.Id)" -ScopeName $subscription.Id
