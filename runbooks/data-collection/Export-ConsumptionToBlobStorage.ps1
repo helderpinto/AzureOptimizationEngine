@@ -133,8 +133,7 @@ if ($consumptionScope -eq "Subscription")
     }
     else
     {
-        $supportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
-        $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -in $supportedQuotaIDs }
+        $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
     }    
     Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for $($subscriptions.Count) subscriptions..."
 }

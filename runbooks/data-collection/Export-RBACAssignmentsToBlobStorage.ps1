@@ -69,17 +69,7 @@ $tenantId = (Get-AzContext).Tenant.Id
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
-$AllowUnsupportedSubscriptions = [bool] (Get-AutomationVariable -Name  "AzureOptimization_AllowUnsupportedSubscriptions" -ErrorAction SilentlyContinue)
-if (-not($AllowUnsupportedSubscriptions))
-{
-    $supportedQuotaIDs = @('EnterpriseAgreement_2014-09-01','PayAsYouGo_2014-09-01','MSDN_2014-09-01','MSDNDevTest_2014-09-01')
-    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -in $supportedQuotaIDs }
-}
-else
-{
-    Write-Output "Allowing unsupported subscriptions"
-    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
-}
+$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
 
 $roleAssignments = @()
 
