@@ -38,19 +38,41 @@
             "timeContext": {
               "durationMs": 86400000
             }
+          },
+          {
+            "id": "3e36a073-14b2-4406-a84a-1b6d0a15f363",
+            "version": "KqlParameterItem/1.0",
+            "name": "UseISF",
+            "label": "Instance Size Flexibility?",
+            "type": 10,
+            "isRequired": true,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\"Yes\", \"No\"]",
+            "value": "No"
           }
         ],
-        "style": "pills",
+        "style": "above",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
       "name": "parameters - 0"
     },
     {
+      "type": 1,
+      "content": {
+        "json": "Consumption data is updated once every 24 hours and is presented in the currency of your Azure consumption agreement.",
+        "style": "info"
+      },
+      "name": "info"
+    },
+    {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage'\r\n| where MeterCategory_s == 'Virtual Machines'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize FullCost=sum(FullCost) by PricingModel, bin(todatetime(Date_s), 1d)",
+        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(BillingAccountId_s)\r\n| where MeterCategory_s == 'Virtual Machines'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize FullCost=sum(FullCost) by PricingModel, bin(todatetime(Date_s), 1d)",
         "size": 1,
         "title": "Pricing Model Consumption over time (Virtual Machines only)",
         "timeContextFromParameter": "LookbackPeriod",
@@ -61,154 +83,637 @@
       "name": "pricingModelOverTime"
     },
     {
-      "type": 3,
+      "type": 12,
       "content": {
-        "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend VMSize=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| where isnotempty(VMSize)\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by ResourceId, Date_s, VMSize, ResourceLocation_s\r\n| summarize RIPotential=sum(UsedQuantity/24), AvgSizeUsageHours=avg(UsedQuantity) by Date_s, VMSize, ResourceLocation_s\r\n| summarize RIPotential=round(avg(RIPotential),1), AvgSizeUsageHours=round(avg(AvgSizeUsageHours)) by VMSize, ResourceLocation_s\r\n| extend Fragmentation = case(AvgSizeUsageHours >= 24.0, 0.0, AvgSizeUsageHours >= 18.0 and AvgSizeUsageHours < 24.0, 0.25, AvgSizeUsageHours >= 12.0 and AvgSizeUsageHours < 18.0, 0.5, AvgSizeUsageHours >= 6.0 and AvgSizeUsageHours < 12.0, 0.75, 1.0)\r\n| project-reorder VMSize, ResourceLocation_s, RIPotential, Fragmentation\r\n| order by Fragmentation asc, RIPotential desc",
-        "size": 0,
-        "title": "Instance sizes usage and RI potential/fragmentation",
-        "exportedParameters": [
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
           {
-            "fieldName": "VMSize",
-            "parameterName": "VMSize",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "ResourceLocation_s",
-            "parameterName": "Location",
-            "parameterType": 1
-          },
-          {
-            "fieldName": "RIPotential",
-            "parameterName": "RIPotential",
-            "parameterType": 1
-          }
-        ],
-        "showExportToExcel": true,
-        "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces",
-        "gridSettings": {
-          "formatters": [
-            {
-              "columnMatch": "Fragmentation",
-              "formatter": 18,
-              "formatOptions": {
-                "thresholdsOptions": "colors",
-                "thresholdsGrid": [
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage' and isnotempty(BillingAccountId_s)\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend VMSize=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ResourceLocation_s = tolower(ResourceLocation_s)\r\n| where isnotempty(VMSize)\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by ResourceId, Date_s, VMSize, ResourceLocation_s\r\n| summarize RIPotential=sum(UsedQuantity/24), AvgSizeUsageHours=avg(UsedQuantity) by Date_s, VMSize, ResourceLocation_s\r\n| summarize RIPotential=round(avg(RIPotential),1), AvgSizeUsageHours=round(avg(AvgSizeUsageHours)) by VMSize, ResourceLocation_s\r\n| extend Fragmentation = case(AvgSizeUsageHours >= 24.0, 0.0, AvgSizeUsageHours >= 18.0 and AvgSizeUsageHours < 24.0, 0.25, AvgSizeUsageHours >= 12.0 and AvgSizeUsageHours < 18.0, 0.5, AvgSizeUsageHours >= 6.0 and AvgSizeUsageHours < 12.0, 0.75, 1.0)\r\n| project-reorder VMSize, ResourceLocation_s, RIPotential, Fragmentation\r\n| order by Fragmentation asc, RIPotential desc",
+              "size": 0,
+              "title": "Instance sizes usage and RI potential/fragmentation",
+              "exportedParameters": [
+                {
+                  "fieldName": "VMSize",
+                  "parameterName": "VMSize",
+                  "parameterType": 1
+                },
+                {
+                  "fieldName": "ResourceLocation_s",
+                  "parameterName": "Location",
+                  "parameterType": 1
+                },
+                {
+                  "fieldName": "RIPotential",
+                  "parameterName": "RIPotential",
+                  "parameterType": 1
+                }
+              ],
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
                   {
-                    "operator": "==",
-                    "thresholdValue": "0",
-                    "representation": "green",
-                    "text": "Low to none"
+                    "columnMatch": "Fragmentation",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0",
+                          "representation": "green",
+                          "text": "low to none"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0.25",
+                          "representation": "yellow",
+                          "text": "some"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0.5",
+                          "representation": "orange",
+                          "text": "some to high"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0.75",
+                          "representation": "purple",
+                          "text": "high"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "1",
+                          "representation": "red",
+                          "text": "very high"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "blue",
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    },
+                    "tooltipFormat": {
+                      "tooltip": "On-demand usage has {0} fragmentation across multiple VMs with respect to the average count"
+                    }
                   },
                   {
-                    "operator": "==",
-                    "thresholdValue": "0.25",
-                    "representation": "yellow",
-                    "text": "Some"
+                    "columnMatch": "AvgSizeUsageHours",
+                    "formatter": 5
+                  }
+                ],
+                "rowLimit": 1000,
+                "labelSettings": [
+                  {
+                    "columnId": "VMSize",
+                    "label": "Size"
                   },
                   {
-                    "operator": "==",
-                    "thresholdValue": "0.5",
-                    "representation": "orange",
-                    "text": "Some to High"
+                    "columnId": "ResourceLocation_s",
+                    "label": "Region"
                   },
                   {
-                    "operator": "==",
-                    "thresholdValue": "0.75",
-                    "representation": "purple",
-                    "text": "High"
+                    "columnId": "RIPotential",
+                    "label": "VMs # (Avg.)"
                   },
                   {
-                    "operator": "==",
-                    "thresholdValue": "1",
-                    "representation": "red",
-                    "text": "Very High"
+                    "columnId": "Fragmentation",
+                    "label": "Fragmentation"
                   },
                   {
-                    "operator": "Default",
-                    "thresholdValue": null,
-                    "representation": "blue",
-                    "text": "{0}{1}"
+                    "columnId": "AvgSizeUsageHours",
+                    "label": "Usage (Avg. Hrs.)"
                   }
                 ]
               }
-            }
-          ],
-          "rowLimit": 1000,
-          "labelSettings": [
-            {
-              "columnId": "VMSize",
-              "label": "Size"
             },
-            {
-              "columnId": "ResourceLocation_s",
-              "label": "Region"
+            "customWidth": "45",
+            "name": "riPotential"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend VMSize=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ResourceLocation_s = tolower(ResourceLocation_s)\r\n| where VMSize == '{VMSize}' and ResourceLocation_s == '{Location}'\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by Date_s, ResourceId, SubscriptionId\r\n| summarize AvgUsedQuantity = round(avg(UsedQuantity),1) by ResourceId, SubscriptionId\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where TimeGenerated > ago(1d) and ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionName=ContainerName_s, SubscriptionId=SubscriptionGuid_g) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder ResourceId, SubscriptionName\r\n| extend AvgUsedVMs = AvgUsedQuantity / 24\r\n| order by ResourceId asc",
+              "size": 0,
+              "title": "Instances usage for selected size/location (click on a line at the left table)",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "SubscriptionName",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "AvgUsedQuantity",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "25ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "AvgUsedVMs",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ],
+                "rowLimit": 5000,
+                "labelSettings": [
+                  {
+                    "columnId": "ResourceId",
+                    "label": "Resource"
+                  },
+                  {
+                    "columnId": "SubscriptionName",
+                    "label": "Subscription"
+                  },
+                  {
+                    "columnId": "AvgUsedQuantity",
+                    "label": "Usage (Avg. hrs/day)"
+                  },
+                  {
+                    "columnId": "AvgUsedVMs",
+                    "label": "Usage (Avg. VMs/day)"
+                  }
+                ]
+              }
             },
-            {
-              "columnId": "RIPotential",
-              "label": "Count (Avg.)"
+            "customWidth": "55",
+            "name": "riPotentialInstances"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend VMSize=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ResourceLocation_s = tolower(ResourceLocation_s)\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| where VMSize == '{VMSize}' and ResourceLocation_s == '{Location}'\r\n| summarize UsedQuantity = round(sum(todouble(Quantity_s)/24)) by todatetime(Date_s)\r\n| extend RIPotential = {RIPotential}\r\n| render timechart",
+              "size": 0,
+              "title": "Instance count for selected size/location (click on a line at the above table)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "UsedQuantity",
+                    "label": "Instance #"
+                  },
+                  {
+                    "seriesName": "RIPotential",
+                    "label": "RI Potential"
+                  }
+                ]
+              }
             },
-            {
-              "columnId": "Fragmentation",
-              "label": "Fragmentation"
+            "customWidth": "70",
+            "name": "riPotentialOverTime"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationReservationsPriceV1_CL\r\n| where TimeGenerated > ago(7d)\r\n| where armSkuName_s =~ '{VMSize}' and tolower(armRegionName_s) =~ '{Location}'\r\n| extend reservationUnitPrice = iif(reservationTerm_s == '1 Year', todouble(unitPrice_s)/12/730, todouble(unitPrice_s)/3/12/730)\r\n| project unitPrice_s, reservationUnitPrice, currencyCode_s, reservationTerm_s, armSkuName_s, armRegionName_s\r\n| join kind=leftouter ( \r\n    AzureOptimizationConsumptionV1_CL\r\n    | where ChargeType_s == 'Usage' and isnotempty(BillingAccountId_s)\r\n    | extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n    | where PricingModel == 'OnDemand'\r\n    | extend armSkuName_s=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n    | extend armRegionName_s = tolower(ResourceLocation_s)\r\n    | summarize OnDemandUnitPrice=max(todouble(UnitPrice_s)) by armSkuName_s, armRegionName_s\r\n) on armRegionName_s, armSkuName_s\r\n| extend savingsPercentage =  (1 - reservationUnitPrice / OnDemandUnitPrice) * 100\r\n| extend commitmentCost = todouble(unitPrice_s) * bin({RIPotential},1)\r\n| extend vmCount = bin({RIPotential},1)\r\n| project reservationTerm_s, vmCount, commitmentCost, currencyCode_s, savingsPercentage",
+              "size": 4,
+              "title": "Estimated Commitment and Savings",
+              "noDataMessage": "No reservations available for this VM size",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "reservationTerm_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "10ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "commitmentCost",
+                    "formatter": 1,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "currencyCode_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "13ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "savingsPercentage",
+                    "formatter": 1,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "15ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ],
+                "labelSettings": [
+                  {
+                    "columnId": "reservationTerm_s",
+                    "label": "Term"
+                  },
+                  {
+                    "columnId": "vmCount",
+                    "label": "VMs"
+                  },
+                  {
+                    "columnId": "commitmentCost",
+                    "label": "Commitment"
+                  },
+                  {
+                    "columnId": "currencyCode_s",
+                    "label": "Currency"
+                  },
+                  {
+                    "columnId": "savingsPercentage",
+                    "label": "Savings"
+                  }
+                ]
+              }
             },
-            {
-              "columnId": "AvgSizeUsageHours",
-              "label": "Usage (Avg. Hrs.)"
-            }
-          ]
-        }
+            "customWidth": "30",
+            "name": "reservationPriceEstimation"
+          }
+        ]
       },
-      "customWidth": "50",
-      "name": "riPotential"
+      "conditionalVisibility": {
+        "parameterName": "UseISF",
+        "comparison": "isEqualTo",
+        "value": "No"
+      },
+      "name": "noISFGroup"
     },
     {
-      "type": 3,
+      "type": 12,
       "content": {
-        "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend VMSize=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| where VMSize == '{VMSize}' and ResourceLocation_s == '{Location}'\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by Date_s, ResourceId, SubscriptionId\r\n| summarize AvgUsedQuantity = round(avg(UsedQuantity),1) by ResourceId, SubscriptionId\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where TimeGenerated > ago(1d) and ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionName=ContainerName_s, SubscriptionId=SubscriptionGuid_g) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder ResourceId, SubscriptionName\r\n| order by ResourceId asc",
-        "size": 0,
-        "title": "Instances usage for selected size/location (click on a line at the left table)",
-        "showExportToExcel": true,
-        "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces",
-        "gridSettings": {
-          "rowLimit": 5000,
-          "labelSettings": [
-            {
-              "columnId": "AvgUsedQuantity",
-              "label": "Usage (Avg. Hrs.)"
-            }
-          ]
-        }
-      },
-      "customWidth": "50",
-      "name": "riPotentialInstances"
-    },
-    {
-      "type": 3,
-      "content": {
-        "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend VMSize=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| where VMSize == '{VMSize}' and ResourceLocation_s == '{Location}'\r\n| summarize UsedQuantity = round(sum(todouble(Quantity_s)/24)) by todatetime(Date_s)\r\n| extend RIPotential = {RIPotential}\r\n| render timechart",
-        "size": 0,
-        "title": "Instance count for selected size/location (click on a line at the above table)",
-        "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces",
-        "chartSettings": {
-          "seriesLabelSettings": [
-            {
-              "seriesName": "UsedQuantity",
-              "label": "Instance #"
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "VMs/instance count for each Instance Size Flexibility Group is proportional to the VM size with the lowest ratio (1).",
+              "style": "warning"
             },
-            {
-              "seriesName": "RIPotential",
-              "label": "RI Potential"
-            }
-          ]
-        }
+            "name": "text - 4"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage' and isnotempty(BillingAccountId_s)\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend VMSize=tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ResourceLocation_s = tolower(ResourceLocation_s)\r\n| where isnotempty(VMSize)\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by ResourceId, Date_s, VMSize, ISFGroup, Ratio, ResourceLocation_s\r\n| summarize RIPotential=sum(UsedQuantity/24*Ratio), AvgSizeUsageHours=avg(UsedQuantity) by Date_s, ISFGroup, ResourceLocation_s\r\n| summarize RIPotential=round(avg(RIPotential),1), AvgSizeUsageHours=round(avg(AvgSizeUsageHours)) by ISFGroup, ResourceLocation_s\r\n| extend Fragmentation = case(AvgSizeUsageHours >= 24.0, 0.0, AvgSizeUsageHours >= 18.0 and AvgSizeUsageHours < 24.0, 0.25, AvgSizeUsageHours >= 12.0 and AvgSizeUsageHours < 18.0, 0.5, AvgSizeUsageHours >= 6.0 and AvgSizeUsageHours < 12.0, 0.75, 1.0)\r\n| project-reorder ISFGroup, ResourceLocation_s, RIPotential, Fragmentation\r\n| order by Fragmentation asc, RIPotential desc",
+              "size": 0,
+              "title": "ISF Group usage and RI potential/fragmentation",
+              "exportedParameters": [
+                {
+                  "fieldName": "ISFGroup",
+                  "parameterName": "ISFGroup",
+                  "parameterType": 1
+                },
+                {
+                  "fieldName": "ResourceLocation_s",
+                  "parameterName": "Location",
+                  "parameterType": 1
+                },
+                {
+                  "fieldName": "RIPotential",
+                  "parameterName": "RIPotential",
+                  "parameterType": 1
+                }
+              ],
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "ISFGroup",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "26ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "ResourceLocation_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "14ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "Fragmentation",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0",
+                          "representation": "green",
+                          "text": "low to none"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0.25",
+                          "representation": "yellow",
+                          "text": "some"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0.5",
+                          "representation": "orange",
+                          "text": "some to high"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0.75",
+                          "representation": "purple",
+                          "text": "high"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "1",
+                          "representation": "red",
+                          "text": "very high"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "blue",
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    },
+                    "tooltipFormat": {
+                      "tooltip": "On-demand usage has {0} fragmentation across multiple VMs with respect to the average count"
+                    }
+                  },
+                  {
+                    "columnMatch": "AvgSizeUsageHours",
+                    "formatter": 5
+                  }
+                ],
+                "rowLimit": 1000,
+                "labelSettings": [
+                  {
+                    "columnId": "ISFGroup",
+                    "label": "ISF Group"
+                  },
+                  {
+                    "columnId": "ResourceLocation_s",
+                    "label": "Region"
+                  },
+                  {
+                    "columnId": "RIPotential",
+                    "label": "VMs # (Avg.)"
+                  },
+                  {
+                    "columnId": "Fragmentation",
+                    "label": "Fragmentation"
+                  },
+                  {
+                    "columnId": "AvgSizeUsageHours",
+                    "label": "Usage (Avg. Hrs.)"
+                  }
+                ]
+              }
+            },
+            "customWidth": "40",
+            "name": "riPotential"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend VMSize=tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ResourceLocation_s = tolower(ResourceLocation_s)\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| where ISFGroup == '{ISFGroup}' and ResourceLocation_s == '{Location}'\r\n| summarize UsedQuantity = sum(todouble(Quantity_s)) by Date_s, ResourceId, SubscriptionId, VMSize, Ratio\r\n| summarize AvgUsedQuantity = round(avg(UsedQuantity),1) by ResourceId, SubscriptionId, VMSize, Ratio\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL | where TimeGenerated > ago(1d) and ContainerType_s =~ 'microsoft.resources/subscriptions' | project SubscriptionName=ContainerName_s, SubscriptionId=SubscriptionGuid_g) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder ResourceId, SubscriptionName\r\n| extend AvgUsedVMs = AvgUsedQuantity / 24\r\n| order by ResourceId asc",
+              "size": 0,
+              "title": "Instances usage for selected ISF Group/location (click on a line at the left table)",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "ResourceId",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "22ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "SubscriptionName",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "VMSize",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "AvgUsedQuantity",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "25ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "AvgUsedVMs",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  }
+                ],
+                "rowLimit": 5000,
+                "labelSettings": [
+                  {
+                    "columnId": "ResourceId",
+                    "label": "Resource"
+                  },
+                  {
+                    "columnId": "SubscriptionName",
+                    "label": "Subscription"
+                  },
+                  {
+                    "columnId": "VMSize",
+                    "label": "Size"
+                  },
+                  {
+                    "columnId": "AvgUsedQuantity",
+                    "label": "Usage (Avg. hrs/day)"
+                  },
+                  {
+                    "columnId": "AvgUsedVMs",
+                    "label": "Usage (Avg. VMs/day)"
+                  }
+                ]
+              }
+            },
+            "customWidth": "60",
+            "name": "riPotentialInstances"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and ChargeType_s == 'Usage'\r\n| where ConsumedService_s in ('Microsoft.Compute','Microsoft.ClassicCompute','Microsoft.Batch','Microsoft.MachineLearningServices','Microsoft.Kusto')\r\n| where MeterCategory_s != 'Virtual Machines Licenses'\r\n| extend VMSize=tolower(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ResourceLocation_s = tolower(ResourceLocation_s)\r\n| join kind=inner ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| where ISFGroup == '{ISFGroup}' and ResourceLocation_s == '{Location}'\r\n| summarize UsedQuantity = round(sum(todouble(Quantity_s)/24*Ratio)) by todatetime(Date_s)\r\n| extend RIPotential = {RIPotential}\r\n| render timechart",
+              "size": 0,
+              "title": "Instance count for selected ISF Group/location (click on a line at the above table)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "UsedQuantity",
+                    "label": "Instance #"
+                  },
+                  {
+                    "seriesName": "RIPotential",
+                    "label": "RI Potential"
+                  }
+                ]
+              }
+            },
+            "customWidth": "70",
+            "name": "riPotentialOverTime"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true);AzureOptimizationReservationsPriceV1_CL\r\n| where TimeGenerated > ago(7d)\r\n| join kind=inner ( ISFGroups ) on $left.armSkuName_s == $right.ArmSKUName\r\n| where ISFGroup =~ '{ISFGroup}' and tolower(armRegionName_s) =~ '{Location}'\r\n| extend reservationUnitPrice = iif(reservationTerm_s == '1 Year', todouble(unitPrice_s)/12/730, todouble(unitPrice_s)/3/12/730)\r\n| project unitPrice_s, reservationUnitPrice, currencyCode_s, reservationTerm_s, armSkuName_s, armRegionName_s, Ratio\r\n| join kind=leftouter ( \r\n    AzureOptimizationConsumptionV1_CL\r\n    | where ChargeType_s == 'Usage' and isnotempty(BillingAccountId_s)\r\n    | extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n    | where PricingModel == 'OnDemand'\r\n    | extend armSkuName_s=tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n    | extend armRegionName_s = tolower(ResourceLocation_s)\r\n    | summarize OnDemandUnitPrice=max(todouble(UnitPrice_s)) by armSkuName_s, armRegionName_s\r\n) on armRegionName_s, armSkuName_s\r\n| extend savingsPercentage =  (1 - reservationUnitPrice / OnDemandUnitPrice) * 100\r\n| extend commitmentCost = todouble(unitPrice_s) * bin({RIPotential}/Ratio,1)\r\n| extend vmCount = bin({RIPotential}/Ratio,1)\r\n| project reservationTerm_s, armSkuName_s, vmCount, commitmentCost, currencyCode_s, savingsPercentage",
+              "size": 4,
+              "title": "Estimated Commitment and Savings",
+              "noDataMessage": "No reservations available for this VM size",
+              "timeContext": {
+                "durationMs": 604800000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "reservationTerm_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "10ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "commitmentCost",
+                    "formatter": 1,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "currencyCode_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "13ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "savingsPercentage",
+                    "formatter": 1,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "15ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ],
+                "labelSettings": [
+                  {
+                    "columnId": "reservationTerm_s",
+                    "label": "Term"
+                  },
+                  {
+                    "columnId": "vmCount",
+                    "label": "VMs"
+                  },
+                  {
+                    "columnId": "commitmentCost",
+                    "label": "Commitment"
+                  },
+                  {
+                    "columnId": "currencyCode_s",
+                    "label": "Currency"
+                  },
+                  {
+                    "columnId": "savingsPercentage",
+                    "label": "Savings"
+                  }
+                ]
+              }
+            },
+            "customWidth": "30",
+            "conditionalVisibility": {
+              "parameterName": "debug",
+              "comparison": "isEqualTo",
+              "value": "true"
+            },
+            "name": "reservationPriceEstimation"
+          }
+        ]
       },
-      "name": "riPotentialOverTime"
+      "conditionalVisibility": {
+        "parameterName": "UseISF",
+        "comparison": "isEqualTo",
+        "value": "Yes"
+      },
+      "name": "yesISFGroup"
     }
   ],
   "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
