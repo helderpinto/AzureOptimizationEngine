@@ -5,6 +5,7 @@ on:
     - cron: '30 17 * * *'
 jobs:
   AOE-CD:
+    environment: dev
     runs-on: ubuntu-latest
     steps:
       - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub for the ${{ github.ref }} branch of the ${{ github.repository }} repository!"
@@ -18,7 +19,9 @@ jobs:
       - name: Login via Az module
         uses: azure/login@v1
         with:
-          creds: ${{secrets.AZURE_CREDENTIALS}}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }} 
           enable-AzPSSession: true 
       - name: Testing PowerShell script call
         shell: pwsh

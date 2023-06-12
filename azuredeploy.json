@@ -1317,7 +1317,7 @@
                             "operationalInsights": "2020-08-01",
                             "automation": "2020-01-13-preview",
                             "storage": "2022-09-01",
-                            "sql": "2019-06-01-preview"
+                            "sql": "2022-05-01-preview"
                         },
                         "Az.Accounts": {
                             "name": "Az.Accounts",
@@ -2150,7 +2150,8 @@
                                 "administratorLogin": "[parameters('sqlAdminLogin')]",
                                 "administratorLoginPassword": "[parameters('sqlAdminPassword')]",
                                 "version": "12.0",
-                                "publicNetworkAccess": "Enabled"
+                                "publicNetworkAccess": "Enabled",
+                                "minimalTlsVersion": "1.2"
                             },
                             "resources": [
                                 {
