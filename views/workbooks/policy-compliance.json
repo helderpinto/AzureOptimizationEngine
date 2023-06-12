@@ -75,7 +75,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct InitiativeId_s, InitiativeName_s, TenantGuid_g\r\n| join kind=inner (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| where isnotempty(InitiativeId_s)\r\n| extend InitiativeName = iif(InitiativeId_s has_any ('managementgroups','subscriptions'),strcat(InitiativeName_s, ' (', Scope_s, ')'), InitiativeName_s)\r\n| project-away TenantGuid_g*, InitiativeName_s, Scope_s\r\n| distinct InitiativeId_s, InitiativeName\r\n| project-reorder Initiative* asc\r\n| order by InitiativeName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct InitiativeId_s, InitiativeName_s, TenantGuid_g\r\n| join kind=leftouter (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| where isnotempty(InitiativeId_s)\r\n| extend InitiativeName = iif(InitiativeId_s has_any ('managementgroups','subscriptions'),strcat(InitiativeName_s, ' (', Scope_s, ')'), InitiativeName_s)\r\n| project-away TenantGuid_g*, InitiativeName_s, Scope_s\r\n| distinct InitiativeId_s, InitiativeName\r\n| project-reorder Initiative* asc\r\n| order by InitiativeName asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -98,7 +98,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where InitiativeId_s in ({Initiative})\r\n| distinct DefinitionId_s, DefinitionName_s, TenantGuid_g\r\n| join kind=inner (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend DefinitionName = iif(DefinitionId_s has_any ('managementgroups','subscriptions'),strcat(DefinitionName_s, ' (', Scope_s, ')'), DefinitionName_s)\r\n| project-away TenantGuid_g*, DefinitionName_s, Scope_s\r\n| project-reorder Definition* asc\r\n| distinct DefinitionId_s, DefinitionName\r\n| order by DefinitionName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where InitiativeId_s in ({Initiative})\r\n| distinct DefinitionId_s, DefinitionName_s, TenantGuid_g\r\n| join kind=leftouter (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend DefinitionName = iif(DefinitionId_s has_any ('managementgroups','subscriptions'),strcat(DefinitionName_s, ' (', Scope_s, ')'), DefinitionName_s)\r\n| project-away TenantGuid_g*, DefinitionName_s, Scope_s\r\n| project-reorder Definition* asc\r\n| distinct DefinitionId_s, DefinitionName\r\n| order by DefinitionName asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -120,7 +120,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition})\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct AssignmentId_s, AssignmentName_s, TenantGuid_g\r\n| join kind=inner (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend AssignmentName = strcat(AssignmentName_s, ' (', Scope_s, ')')\r\n| project-away TenantGuid_g*, AssignmentName_s, Scope_s\r\n| project-reorder Assignment* asc\r\n| order by AssignmentName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition})\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct AssignmentId_s, AssignmentName_s, TenantGuid_g\r\n| join kind=leftouter (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend AssignmentName = strcat(AssignmentName_s, ' (', Scope_s, ')')\r\n| project-away TenantGuid_g*, AssignmentName_s, Scope_s\r\n| project-reorder Assignment* asc\r\n| order by AssignmentName asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
