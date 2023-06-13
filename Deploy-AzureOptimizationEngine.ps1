@@ -511,22 +511,39 @@ if ("Y", "y" -contains $continueInput) {
         }
     
         Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
-        if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
-        }
-        else {
-            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-        }
+        $deploymentTries = 0
+        $maxDeploymentTries = 2
+        $deploymentSucceeded = $false
+        do {
+            $deploymentTries++
+            try {
+                if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
+                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+                }
+                else {
+                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
+                }            
+                $deploymentSucceeded = $true
+            }
+            catch {
+                if ($deploymentTries -ge $maxDeploymentTries) {
+                    Write-Host "Failed deployment. Stop trying." -ForegroundColor Yellow
+                    throw $_
+                }
+                Write-Host "Failed deployment. Trying once more..." -ForegroundColor Yellow
+            }            
+        } while (-not($deploymentSucceeded) -and $deploymentTries -lt $maxDeploymentTries)
+
         $spnId = $deployment.Outputs['automationPrincipalId'].Value 
         #endregion
     }
@@ -1008,6 +1025,11 @@ if ("Y", "y" -contains $continueInput) {
     } while (-not($connectionSuccess) -and $tries -lt 3)
     
     if (-not($connectionSuccess)) {
+        if (-not($sqlServerName -like "*.database.*"))
+        {
+            Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
+            Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName        
+        }    
         throw "Could not establish connection to SQL."
     }
     #endregion
