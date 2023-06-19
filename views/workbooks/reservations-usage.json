@@ -136,10 +136,18 @@
       "name": "text - 7"
     },
     {
+      "type": 1,
+      "content": {
+        "json": "If below tiles are reporting query errors, you must set up Pricesheet exports. See more details [here](https://github.com/helderpinto/AzureOptimizationEngine#enabling-the-reservations-and-benefits-usage-workbooks).",
+        "style": "warning"
+      },
+      "name": "text - 10"
+    },
+    {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and isnotempty(BillingAccountId_s)\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| extend FullCost = todouble(Quantity_s) * todouble(UnitPrice_s)\r\n| summarize FullCost=sum(FullCost) by PricingModel, bin(todatetime(Date_s), 1d)",
+        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and ResourceLocation_s !startswith 'china'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| extend FullCost = todouble(Quantity_s) * todouble(iif(todouble(UnitPrice_s) > 0.0, UnitPrice_s, EffectivePrice_s))\r\n| summarize FullCost=sum(FullCost) by PricingModel, bin(todatetime(Date_s), 1d)",
         "size": 1,
         "title": "Cost of Pricing Model over time",
         "timeContextFromParameter": "LookbackPeriod",

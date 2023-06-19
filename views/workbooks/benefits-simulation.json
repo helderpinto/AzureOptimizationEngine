@@ -84,16 +84,24 @@
     {
       "type": 1,
       "content": {
-        "json": "Unless specified, usage values unit corresponds to your billing currency. Only applies to Virtual Machines usage in Azure Global.",
+        "json": "Unless specified, usage values unit corresponds to your billing currency. **Only applies to Virtual Machines usage in Azure Global**.",
         "style": "info"
       },
       "name": "text - 7"
     },
     {
+      "type": 1,
+      "content": {
+        "json": "If below tabs are reporting query errors, you must set up Pricesheet exports. See more details [here](https://github.com/helderpinto/AzureOptimizationEngine#enabling-the-reservations-and-benefits-usage-workbooks).",
+        "style": "warning"
+      },
+      "name": "text - 6"
+    },
+    {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where todatetime(Date_s) > todatetime('{LookbackPeriod:startISO}') and todatetime(Date_s) < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and MeterCategory_s == 'Virtual Machines'\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > ago(2d)\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | distinct SubscriptionId=SubscriptionGuid_g, SubscriptionName=ContainerName_s, Cloud=Cloud_s\r\n) on SubscriptionId\r\n| where Cloud == 'AzureCloud'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend SubscriptionName = iif(isnotempty(SubscriptionName_s), SubscriptionName_s, SubscriptionName)\r\n| where SubscriptionName in ({Subscriptions})\r\n| extend VMSize = tolower(parse_json(AdditionalInfo_s)['ServiceType'])\r\n| extend SKUName = strcat(VMSize, ' ', ResourceLocation_s)\r\n| project Date_s, QtyHours=todouble(Quantity_s), BillingMeter=MeterName_s, ResourceLocation_s, MeterId=MeterId_g, ResourceId, OnDemandPrice=todouble(UnitPrice_s), SubscriptionName, VMSize, SKUName\r\n| join kind=leftouter ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| extend ISFGroup = strcat(ISFGroup, ' ', ResourceLocation_s)\r\n| extend OnDemandCost = QtyHours * OnDemandPrice\r\n| summarize HourlyCost=sum(OnDemandCost)/24 by bin(todatetime(Date_s), 1d), {GroupBy}",
+        "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where todatetime(Date_s) > todatetime('{LookbackPeriod:startISO}') and todatetime(Date_s) < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and MeterCategory_s == 'Virtual Machines'\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > ago(2d)\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | distinct SubscriptionId=SubscriptionGuid_g, SubscriptionName=ContainerName_s, Cloud=Cloud_s\r\n) on SubscriptionId\r\n| where Cloud == 'AzureCloud'\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| where PricingModel == 'OnDemand'\r\n| extend SubscriptionName = iif(isnotempty(SubscriptionName_s), SubscriptionName_s, SubscriptionName)\r\n| where SubscriptionName in ({Subscriptions})\r\n| extend VMSize = tolower(parse_json(AdditionalInfo_s)['ServiceType'])\r\n| extend SKUName = strcat(VMSize, ' ', ResourceLocation_s)\r\n| project Date_s, QtyHours=todouble(Quantity_s), BillingMeter=MeterName_s, ResourceLocation_s, MeterId=MeterId_g, ResourceId, OnDemandPrice=todouble(iif(todouble(UnitPrice_s) > 0.0, UnitPrice_s, EffectivePrice_s)), SubscriptionName, VMSize, SKUName\r\n| join kind=leftouter ( ISFGroups ) on $left.VMSize == $right.ArmSKUName\r\n| extend ISFGroup = strcat(ISFGroup, ' ', ResourceLocation_s)\r\n| extend OnDemandCost = QtyHours * OnDemandPrice\r\n| summarize HourlyCost=sum(OnDemandCost)/24 by bin(todatetime(Date_s), 1d), {GroupBy}",
         "size": 1,
         "aggregation": 3,
         "title": "Average On-Demand hourly usage (actual cost)",
@@ -344,6 +352,14 @@
         "version": "NotebookGroup/1.0",
         "groupType": "editable",
         "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "Enter the number of reserved instances for a given size and region to estimate your savings according to the lookback period.",
+              "style": "info"
+            },
+            "name": "text - 5"
+          },
           {
             "type": 9,
             "content": {

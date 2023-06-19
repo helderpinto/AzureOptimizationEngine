@@ -344,7 +344,7 @@ The report was built for a scenario where you have an "environment" tag applied 
 
 If some recommendation is not applicable or you want it to be removed from the report while you schedule its mitigation, you can suppress it, either for a specific resource, resource group, subscription or even solution-wide. See [Suppressing recommendations](./docs/suppressing-recommendations.md) for more details.
 
-### Enabling the Reservations and Benefits Usage workbooks (Public Preview, Enterprise Agreement customers-only)
+### Enabling the Reservations and Benefits Usage workbooks
 
 Follow these steps to feed the AOE Log Analytics workspace with the data that is required by the Benefits Usage workbook:
 
