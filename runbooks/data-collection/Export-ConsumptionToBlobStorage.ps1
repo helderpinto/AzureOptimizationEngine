@@ -79,7 +79,7 @@ if ([string]::IsNullOrEmpty($consumptionMetric))
 }
 
 $consumptionAPIOption = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionAPIOption" -ErrorAction SilentlyContinue # CostDetails|UsageDetails
-if ([string]::IsNullOrEmpty($consumptionMetric))
+if ([string]::IsNullOrEmpty($consumptionAPIOption))
 {
     $consumptionAPIOption = "CostDetails"
 }
