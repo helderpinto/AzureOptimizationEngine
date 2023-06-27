@@ -678,13 +678,6 @@
             ],
             "exportSchedule": "AzureOptimization_ExportReservationsDaily",
             "ingestSchedule": "AzureOptimization_IngestReservationsUsageDaily"
-        },
-        {
-            "runbook": {
-                "name": "",
-                "version": "1.0.0.0"
-            },
-            "source": "dataCollectionPublicPreview"
         }
     ],
     "recommendations": [
