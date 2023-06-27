@@ -253,6 +253,31 @@
             "name": "AzureOptimization_CleanUpRecommendationsWeekly",
             "offset": "P6D",
             "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_ExportPricesWeekly",
+            "offset": "PT1H30M",
+            "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_IngestPricesheetWeekly",
+            "offset": "PT2H",
+            "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_IngestReservationsPriceWeekly",
+            "offset": "PT2H",
+            "frequency": "Week"
+        },
+        {
+            "name": "AzureOptimization_ExportReservationsDaily",
+            "offset": "PT2H",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestReservationsUsageDaily",
+            "offset": "PT2H30M",
+            "frequency": "Day"
         }
     ],
     "baseIngest": [
@@ -294,27 +319,6 @@
             },
             "source": "maintenance",
             "schedule": "AzureOptimization_CleanUpRecommendationsWeekly"
-        },
-        {
-            "runbook": {
-                "name": "runbooks/data-collection/Export-ReservationsUsageToBlobStorage.ps1",
-                "version": "1.0.0.0"
-            },
-            "source": "dataCollectionPublicPreview"
-        },
-        {
-            "runbook": {
-                "name": "runbooks/data-collection/Export-ReservationsPriceToBlobStorage.ps1",
-                "version": "1.0.0.0"
-            },
-            "source": "dataCollectionPublicPreview"
-        },
-        {
-            "runbook": {
-                "name": "runbooks/data-collection/Export-PriceSheetToBlobStorage.ps1",
-                "version": "1.0.0.0"
-            },
-            "source": "dataCollectionPublicPreview"
         }
     ],
     "dataCollection": [
@@ -637,6 +641,50 @@
                 }
             ],
             "ingestSchedule": "AzureOptimization_IngestAzMonitorMetricsHourly"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/data-collection/Export-PriceSheetToBlobStorage.ps1",
+                "version": "1.1.0.0"
+            },
+            "container": "pricesheetexports",
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_PriceSheetMeterCategories",
+                    "defaultValue": "Virtual Machines"
+                }
+            ],
+            "exportSchedule": "AzureOptimization_ExportPricesWeekly",
+            "ingestSchedule": "AzureOptimization_IngestPricesheetWeekly"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/data-collection/Export-ReservationsPriceToBlobStorage.ps1",
+                "version": "1.0.0.0"
+            },
+            "container": "reservationspriceexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportPricesWeekly",
+            "ingestSchedule": "AzureOptimization_IngestReservationsPriceWeekly"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/data-collection/Export-ReservationsUsageToBlobStorage.ps1",
+                "version": "1.0.0.0"
+            },
+            "container": "reservationsexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportReservationsDaily",
+            "ingestSchedule": "AzureOptimization_IngestReservationsUsageDaily"
+        },
+        {
+            "runbook": {
+                "name": "",
+                "version": "1.0.0.0"
+            },
+            "source": "dataCollectionPublicPreview"
         }
     ],
     "recommendations": [
