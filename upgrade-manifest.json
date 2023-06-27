@@ -664,6 +664,10 @@
             },
             "container": "reservationspriceexports",
             "requiredVariables": [
+                {
+                    "name": "AzureOptimization_RetailPricesCurrencyCode",
+                    "defaultValue": "EUR"
+                }
             ],
             "exportSchedule": "AzureOptimization_ExportPricesWeekly",
             "ingestSchedule": "AzureOptimization_IngestReservationsPriceWeekly"
