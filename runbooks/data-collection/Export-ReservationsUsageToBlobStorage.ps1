@@ -6,6 +6,9 @@ param(
     [string] $BillingAccountID,
 
     [Parameter(Mandatory = $false)]
+    [string] $BillingProfileID,
+
+    [Parameter(Mandatory = $false)]
     [string] $externalCloudEnvironment = "",
 
     [Parameter(Mandatory = $false)]
@@ -45,6 +48,7 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 }
 
 $BillingAccountIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID" -ErrorAction SilentlyContinue
+$BillingProfileIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingProfileID" -ErrorAction SilentlyContinue
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
@@ -52,6 +56,20 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 }
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
+
+if (-not([string]::IsNullOrEmpty($BillingAccountIDVar)))
+{
+    $BillingAccountID = $BillingAccountIDVar
+}
+
+if (-not([string]::IsNullOrEmpty($BillingProfileIDVar)))
+{
+    $BillingProfileID = $BillingProfileIDVar
+}
+
+$mcaBillingAccountIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+):([A-Za-z0-9]+(-[A-Za-z0-9]+)+)_[0-9]{4}-[0-9]{2}-[0-9]{2}"
+$mcaBillingProfileIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
+
 
 Write-Output "Logging in to Azure with $authenticationOption..."
 
@@ -98,17 +116,26 @@ if (-not([string]::IsNullOrEmpty($TargetScope)))
 }
 else
 {
-    if (-not([string]::IsNullOrEmpty($BillingAccountIDVar)))
-    {
-        $BillingAccountID = $BillingAccountIDVar
-    }
-
     if ([string]::IsNullOrEmpty($BillingAccountID))
     {
         throw "Billing Account ID undefined. Use either the AzureOptimization_BillingAccountID variable or the BillingAccountID parameter"
     }
-
-    $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID"
+    if ($BillingAccountID -match $mcaBillingAccountIdRegex)
+    {
+        if ([string]::IsNullOrEmpty($BillingProfileID))
+        {
+            throw "Billing Profile ID undefined for MCA. Use either the AzureOptimization_BillingProfileID variable or the BillingProfileID parameter"
+        }
+        if (-not($BillingProfileID -match $mcaBillingProfileIdRegex))
+        {
+            throw "Billing Profile ID does not follow pattern for MCA: ([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
+        }
+        $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID/billingProfiles/$BillingProfileID"
+    }
+    else
+    {
+        $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID"
+    }
 }
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
@@ -196,7 +223,14 @@ foreach ($usage in $reservationsUsage)
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Generated $($reservations.Count) entries..."
 
-$csvExportPath = "$targetStartDate-$BillingAccountID-$($scope.Split('/')[-1]).csv"
+if ($BillingAccountID -match $mcaBillingAccountIdRegex)
+{
+    $csvExportPath = "$targetStartDate-$BillingProfileID.csv"   
+}
+else
+{
+    $csvExportPath = "$targetStartDate-$BillingAccountID-$($scope.Split('/')[-1]).csv"
+}
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploading CSV to Storage"
