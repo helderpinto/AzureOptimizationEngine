@@ -105,12 +105,12 @@ if ([string]::IsNullOrEmpty($billingPeriod))
 
 $exportDate = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
 
-if (-not([string]::IsNullOrEmpty($BillingAccountIDVar)))
+if ([string]::IsNullOrEmpty($BillingAccountID) -and -not([string]::IsNullOrEmpty($BillingAccountIDVar)))
 {
     $BillingAccountID = $BillingAccountIDVar
 }
 
-if (-not([string]::IsNullOrEmpty($BillingProfileIDVar)))
+if ([string]::IsNullOrEmpty($BillingProfileID) -and -not([string]::IsNullOrEmpty($BillingProfileIDVar)))
 {
     $BillingProfileID = $BillingProfileIDVar
 }

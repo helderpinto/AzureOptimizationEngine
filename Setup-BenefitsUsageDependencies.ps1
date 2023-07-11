@@ -35,6 +35,98 @@ if (-not($scheduledRunbooks)) {
     throw "The $AutomationAccountName Automation Account does not contain any scheduled runbook. It might not be associated to the Azure Optimization Engine."
 }
 
-# TODO : Check if the runbooks are the ones from the Azure Optimization Engine
+$automationAccount = Get-AzAutomationAccount -ResourceGroupName $ResourceGroupName -Name $AutomationAccountName
+$principalId = $automationAccount.Identity.PrincipalId
+$tenantId = $automationAccount.Identity.TenantId
+
+if (-not($principalId))
+{
+    throw "The $AutomationAccountName Automation Account does not have a managed identity and probably is not associated to the latest version of Azure Optimization Engine. Please, upgrade it before setting up benefits usage dependencies (more details: https://github.com/helderpinto/AzureOptimizationEngine#upgrade)."
+}
+
+$pricesheetSchedule = Get-AzAutomationSchedule -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name "AzureOptimization_ExportPricesWeekly" -ErrorAction SilentlyContinue
+if (-not($pricesheetSchedule)) {
+    throw "The Azure Optimization Engine is in an older version. Please, upgrade it before setting up benefits usage dependencies (more details: https://github.com/helderpinto/AzureOptimizationEngine#upgrade)."
+}
+
+$mcaBillingAccountIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+):([A-Za-z0-9]+(-[A-Za-z0-9]+)+)_[0-9]{4}-[0-9]{2}-[0-9]{2}"
+$mcaBillingProfileIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
+
+$customerType = Read-Host "Are you an Enterprise Agreement (EA), Microsoft Customer Agreement (MCA), or other type (Other) of customer? Please, type EA, MCA, or Other"
+
+switch ($customerType) {
+    "EA" {  
+        $billingAccountId = Read-Host "Please, enter your Enterprise Agreement Billing Account ID (e.g. 12345678)"
+        try
+        {
+            [int32]::Parse($billingAccountId) | Out-Null
+        }
+        catch
+        {
+            throw "The Enterprise Agreement Billing Account ID must be a number (e.g. 12345678)."
+        }
+        Write-Output "Granting the Enterprise Enrollment Reader role to the AOE Managed Identity..."
+        $billingRoleAssignmentName = ([System.Guid]::NewGuid()).Guid
+        $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments/$($billingRoleAssignmentName)?api-version=2019-10-01-preview"
+        $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e`"}"
+        $roleAssignmentResponse = Invoke-AzRestMethod -Method PUT -Uri $uri -Payload $body
+        if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+        {
+            throw "The Enterprise Enrollment Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+        }
+        break
+    }
+    "MCA" {
+        $billingAccountId = Read-Host "Please, enter your Microsoft Customer Agreement Billing Account ID (e.g. <guid>:<guid>_YYYY-MM-DD)"
+        if (-not($billingAccountId -match $mcaBillingAccountIdRegex))
+        {
+            throw "The Microsoft Customer Agreement Billing Account ID must be in the format <guid>:<guid>_YYYY-MM-DD."
+        }
+        $billingProfileId = Read-Host "Please, enter your Billing Profile ID (e.g. ABCD-DEF-GHI-JKL)"
+        if (-not($billingProfileId -match $mcaBillingProfileIdRegex))
+        {
+            throw "The Microsoft Customer Agreement Billing Profile ID must be in the format ABCD-DEF-GHI-JKL."
+        }
+        Write-Output "Granting the Billing Profile Reader role to the AOE Managed Identity..."
+        $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/createBillingRoleAssignment?api-version=2020-12-15-privatepreview"
+        $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002`"}"
+        $roleAssignmentResponse = Invoke-AzRestMethod -Method POST -Uri $uri -Payload $body
+        if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+        {
+            throw "The Billing Profile Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+        }
+        break
+    }
+    Default {
+        throw "Only EA and MCA customers are supported at this time."
+    }
+}
+
+Write-Output "Setting up the Billing Account ID variable..."
+$billingAccountIdVarName = "AzureOptimization_BillingAccountID"
+$billingAccountIdVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingAccountIdVarName -ErrorAction SilentlyContinue
+if (-not($billingAccountIdVar))
+{
+    New-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingAccountIdVarName -Value $billingAccountId -Encrypted $false | Out-Null
+}
+else
+{
+    Set-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingAccountIdVarName -Value $billingAccountId -Encrypted $false | Out-Null
+}
+
+if ($billingProfileId)
+{
+    Write-Output "Setting up the Billing Profile ID variable..."
+    $billingProfileIdVarName = "AzureOptimization_BillingProfileID"
+    $billingProfileIdVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingProfileIdVarName -ErrorAction SilentlyContinue
+    if (-not($billingProfileIdVar))
+    {
+        New-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingProfileIdVarName -Value $billingProfileId -Encrypted $false | Out-Null
+    }
+    else
+    {
+        Set-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingProfileIdVarName -Value $billingProfileId -Encrypted $false | Out-Null
+    }    
+}
 
 Write-Host "DONE" -ForegroundColor Green

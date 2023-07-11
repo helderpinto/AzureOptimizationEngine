@@ -57,12 +57,12 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
 
-if (-not([string]::IsNullOrEmpty($BillingAccountIDVar)))
+if ([string]::IsNullOrEmpty($BillingAccountID) -and -not([string]::IsNullOrEmpty($BillingAccountIDVar)))
 {
     $BillingAccountID = $BillingAccountIDVar
 }
 
-if (-not([string]::IsNullOrEmpty($BillingProfileIDVar)))
+if ([string]::IsNullOrEmpty($BillingProfileID) -and -not([string]::IsNullOrEmpty($BillingProfileIDVar)))
 {
     $BillingProfileID = $BillingProfileIDVar
 }
