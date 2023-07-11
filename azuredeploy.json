@@ -418,6 +418,27 @@
                                 "description": "GUID for the ARG App Service Plan Export job schedule creation - create a unique before deploy"
                             }
                         },
+                        "pricesheetExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Pricesheet Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationPricesExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Prices Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationUsageExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Usage Export job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "argDiskIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -563,6 +584,27 @@
                             "defaultValue": "[newGuid()]",
                             "metadata": {
                                 "description": "GUID for the ARG App Service Plan Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "pricesheetIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Pricesheet Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationPricesIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Prices Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationUsageIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Usage Ingest job schedule creation - create a unique before deploy"
                             }
                         },
                         "unattachedDisksRecommendationJobId": {
@@ -733,6 +775,8 @@
                         "monitorAppServiceCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
                         "monitorAppServiceMemoryMaxExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
                         "monitorAppServiceMemoryAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
+                        "priceExportsScheduleName": "AzureOptimization_ExportPricesWeekly",
+                        "reservationsUsageExportsScheduleName": "AzureOptimization_ExportReservationsDaily",
                         "csvExportsSchedules": [
                             {
                                 "exportSchedule": "[variables('argExportsScheduleName')]",
@@ -823,6 +867,18 @@
                                 "exportDescription": "Hourly Azure Monitor metrics exports for App Service Percentage RAM (Max.)",
                                 "exportTimeOffset": "PT1H15M",
                                 "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('priceExportsScheduleName')]",
+                                "exportDescription": "Weekly Pricesheet and Reservation Prices exports",
+                                "exportTimeOffset": "PT1H30M",
+                                "exportFrequency": "Week"
+                            },
+                            {
+                                "exportSchedule": "[variables('reservationsUsageExportsScheduleName')]",
+                                "exportDescription": "Daily Reservation Usagge exports",
+                                "exportTimeOffset": "PT2H",
+                                "exportFrequency": "Day"
                             }
                         ],
                         "csvExports": [
@@ -1104,6 +1160,48 @@
                                 "ingestJobId": "[parameters('argAppServicePlanIngestJobId')]",
                                 "exportSchedule": "[variables('argExportsScheduleName')]",
                                 "exportJobId": "[parameters('argAppServicePlanExportJobId')]"
+                            },
+                            {
+                                "runbookName": "[variables('priceSheetExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "pricesheetexports",
+                                "variableName": "AzureOptimization_PriceSheetContainer",
+                                "variableDescription": "The Storage Account container where Pricesheet exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestPricesheetWeekly",
+                                "ingestDescription": "Weekly Pricesheet ingests",
+                                "ingestTimeOffset": "PT2H",
+                                "ingestFrequency": "Week",
+                                "ingestJobId": "[parameters('pricesheetIngestJobId')]",
+                                "exportSchedule": "[variables('priceExportsScheduleName')]",
+                                "exportJobId": "[parameters('pricesheetExportJobId')]"
+                            },
+                            {
+                                "runbookName": "[variables('reservationsPriceExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "reservationspriceexports",
+                                "variableName": "AzureOptimization_ReservationsPriceContainer",
+                                "variableDescription": "The Storage Account container where Reservations Prices exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestReservationsPriceWeekly",
+                                "ingestDescription": "Weekly Reservations Prices ingests",
+                                "ingestTimeOffset": "PT2H",
+                                "ingestFrequency": "Week",
+                                "ingestJobId": "[parameters('reservationPricesIngestJobId')]",
+                                "exportSchedule": "[variables('priceExportsScheduleName')]",
+                                "exportJobId": "[parameters('reservationPricesExportJobId')]"
+                            },
+                            {
+                                "runbookName": "[variables('reservationsExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "reservationsexports",
+                                "variableName": "AzureOptimization_ReservationsContainer",
+                                "variableDescription": "The Storage Account container where Reservations Usage exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestReservationsUsageDaily",
+                                "ingestDescription": "Daily Reservations Usage ingests",
+                                "ingestTimeOffset": "PT2H30M",
+                                "ingestFrequency": "Day",
+                                "ingestJobId": "[parameters('reservationUsageIngestJobId')]",
+                                "exportSchedule": "[variables('reservationsUsageExportsScheduleName')]",
+                                "exportJobId": "[parameters('reservationUsageExportJobId')]"
                             }
                         ],
                         "csvParameterizedExports": [
@@ -1516,7 +1614,7 @@
                             },
                             {
                                 "name": "[variables('reservationsExportsRunbookName')]",
-                                "version": "1.0.0.0",
+                                "version": "1.1.0.0",
                                 "description": "Exports Reservations Usage to Blob Storage using the Enterprise Enrollment APIs",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('reservationsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1530,7 +1628,7 @@
                             },
                             {
                                 "name": "[variables('priceSheetExportsRunbookName')]",
-                                "version": "1.0.0.0",
+                                "version": "1.1.0.0",
                                 "description": "Exports Price Sheet to Blob Storage using the Enterprise Enrollment APIs",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('priceSheetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1975,6 +2073,16 @@
                                 "name": "AzureOptimization_RecommendationStorageAcountGrowthLookbackDays",
                                 "description": "The lookback period (in days) for analyzing Storage Account growth",
                                 "value": 30
+                            },
+                            {
+                                "name": "AzureOptimization_PriceSheetMeterCategories",
+                                "description": "The comma-separated Meter Categories to be included in the Price Sheet (remove the variable to include all categories)",
+                                "value": "Virtual Machines"
+                            },
+                            {
+                                "name": "AzureOptimization_RetailPricesCurrencyCode",
+                                "description": "The currency code to be used for the retail prices exports (used for Reservations prices)",
+                                "value": "EUR"
                             }
                         ],
                         "roleContributor": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]"
