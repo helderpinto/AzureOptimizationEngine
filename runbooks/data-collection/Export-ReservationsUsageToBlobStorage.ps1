@@ -155,7 +155,10 @@ do
     }
 
     $reservationsDetailsResponse = (Invoke-AzRestMethod -Path $reservationsDetailsPath -Method GET).Content | ConvertFrom-Json
-    $reservationsDetails += $reservationsDetailsResponse.value
+    if ($reservationsDetailsResponse.value)
+    {
+        $reservationsDetails += $reservationsDetailsResponse.value
+    }
 }
 while (-not([string]::IsNullOrEmpty($reservationsDetailsResponse.nextLink)))
 
@@ -165,9 +168,19 @@ Write-Output "[$now] Found $($reservationsDetails.Count) reservation details."
 # get reservations usage
 
 $reservationsUsage = @()
-$reservationsUsagePath = "$scope/providers/Microsoft.Consumption/reservationSummaries?api-version=2021-10-01&`$filter=properties/UsageDate ge $targetStartDate and properties/UsageDate le $targetEndDate&grain=daily"
+if ($BillingAccountID -match $mcaBillingAccountIdRegex)
+{
+    $reservationsUsagePath = "$scope/providers/Microsoft.Consumption/reservationSummaries?api-version=2023-05-01&startDate=$targetStartDate&endDate=$targetEndDate&grain=daily"
+}
+else
+{
+    $reservationsUsagePath = "$scope/providers/Microsoft.Consumption/reservationSummaries?api-version=2023-05-01&`$filter=properties/UsageDate ge $targetStartDate and properties/UsageDate le $targetEndDate&grain=daily"
+}
 $reservationsUsageResponse = (Invoke-AzRestMethod -Path $reservationsUsagePath -Method GET).Content | ConvertFrom-Json
-$reservationsUsage += $reservationsUsageResponse.value
+if ($reservationsUsageResponse.value)
+{
+    $reservationsUsage += $reservationsUsageResponse.value
+}
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Found $($reservationsUsage.Count) reservation usages."
