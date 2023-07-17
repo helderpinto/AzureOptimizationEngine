@@ -129,4 +129,17 @@ if ($billingProfileId)
     }    
 }
 
+$currencyCode = Read-Host "Please, enter your consumption currency code (e.g. EUR, USD, etc.)"
+Write-Output "Setting up the consumption currency code variable..."
+$currencyCodeVarName = "AzureOptimization_RetailPricesCurrencyCode"
+$currencyCodeVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -ErrorAction SilentlyContinue
+if (-not($currencyCodeVar))
+{
+    New-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -Value $currencyCode -Encrypted $false | Out-Null
+}
+else
+{
+    Set-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -Value $currencyCode -Encrypted $false | Out-Null
+}
+
 Write-Host "DONE" -ForegroundColor Green

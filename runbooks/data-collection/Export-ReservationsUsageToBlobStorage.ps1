@@ -154,7 +154,14 @@ do
         $reservationsDetailsPath = $reservationsDetailsResponse.nextLink.Substring($reservationsDetailsResponse.nextLink.IndexOf("/providers/"))
     }
 
-    $reservationsDetailsResponse = (Invoke-AzRestMethod -Path $reservationsDetailsPath -Method GET).Content | ConvertFrom-Json
+    $result = Invoke-AzRestMethod -Path $reservationsDetailsPath -Method GET
+
+    if (-not($result.StatusCode -in (200, 201, 202)))
+    {
+        throw "Error while getting reservations details: $($result.Content)"
+    }
+
+    $reservationsDetailsResponse = $result.Content | ConvertFrom-Json
     if ($reservationsDetailsResponse.value)
     {
         $reservationsDetails += $reservationsDetailsResponse.value
@@ -176,7 +183,15 @@ else
 {
     $reservationsUsagePath = "$scope/providers/Microsoft.Consumption/reservationSummaries?api-version=2023-05-01&`$filter=properties/UsageDate ge $targetStartDate and properties/UsageDate le $targetEndDate&grain=daily"
 }
-$reservationsUsageResponse = (Invoke-AzRestMethod -Path $reservationsUsagePath -Method GET).Content | ConvertFrom-Json
+
+$result = Invoke-AzRestMethod -Path $reservationsUsagePath -Method GET
+
+if (-not($result.StatusCode -in (200, 201, 202)))
+{
+    throw "Error while getting reservations usage: $($result.Content)"
+}
+
+$reservationsUsageResponse = $result.Content | ConvertFrom-Json
 if ($reservationsUsageResponse.value)
 {
     $reservationsUsage += $reservationsUsageResponse.value
