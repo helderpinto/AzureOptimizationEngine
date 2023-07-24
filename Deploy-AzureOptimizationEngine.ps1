@@ -125,7 +125,7 @@ else {
 #region Azure subscription choice
 
 Write-Host "Getting Azure subscriptions..." -ForegroundColor Yellow
-$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
+$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
 
 if ($subscriptions.Count -gt 1) {
 
