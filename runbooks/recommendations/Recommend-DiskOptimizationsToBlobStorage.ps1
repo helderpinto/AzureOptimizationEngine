@@ -240,7 +240,7 @@ $baseQuery = @"
     let BilledDisks = $consumptionTableName
     | where todatetime(Date_s) between (stime..etime) and ResourceId contains '/disks/' and MeterCategory_s == 'Storage' and MeterSubCategory_s has 'Premium' and MeterName_s has 'Disk'
     | extend DiskConsumedQuantity = todouble(Quantity_s)
-    | extend DiskPrice = todouble(UnitPrice_s)
+    | extend DiskPrice = todouble(EffectivePrice_s)
     | extend FinalCost = DiskPrice * DiskConsumedQuantity
     | extend ResourceId = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(DiskConsumedQuantity) by ResourceId;

@@ -325,7 +325,7 @@ $baseQuery = @"
     let BilledVMs = $consumptionTableName 
     | where todatetime(Date_s) between (stime..etime) and ResourceId contains 'virtualmachinescalesets'
     | extend VMConsumedQuantity = iif(ResourceId contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(Quantity_s), 0.0)
-    | extend VMPrice = iif(ResourceId contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(UnitPrice_s), 0.0)
+    | extend VMPrice = iif(ResourceId contains 'virtualmachinescalesets' and MeterCategory_s == 'Virtual Machines', todouble(EffectivePrice_s), 0.0)
     | extend FinalCost = VMPrice * VMConsumedQuantity
     | extend InstanceId_s = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(VMConsumedQuantity) by InstanceId_s;

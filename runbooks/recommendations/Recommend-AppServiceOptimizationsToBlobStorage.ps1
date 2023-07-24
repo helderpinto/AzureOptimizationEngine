@@ -185,7 +185,7 @@ $baseQuery = @"
     let BilledPlans = $consumptionTableName 
     | where todatetime(Date_s) between (stime..etime) and ResourceId has 'microsoft.web/serverfarms'
     | extend ConsumedQuantity = todouble(Quantity_s)
-    | extend FinalCost = todouble(UnitPrice_s) * ConsumedQuantity
+    | extend FinalCost = todouble(EffectivePrice_s) * ConsumedQuantity
     | extend InstanceId_s = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(ConsumedQuantity) by InstanceId_s;
 
