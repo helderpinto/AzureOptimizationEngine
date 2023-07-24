@@ -75,7 +75,7 @@ $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization
 $consumptionMetric = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionMetric" -ErrorAction SilentlyContinue # AmortizedCost|ActualCost
 if ([string]::IsNullOrEmpty($consumptionMetric))
 {
-    $consumptionMetric = "ActualCost"
+    $consumptionMetric = "AmortizedCost"
 }
 
 $consumptionAPIOption = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionAPIOption" -ErrorAction SilentlyContinue # CostDetails|UsageDetails
