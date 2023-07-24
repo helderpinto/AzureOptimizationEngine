@@ -245,6 +245,16 @@
             "frequency": "Hour"
         },
         {
+            "name": "AzureOptimization_ExportMonitorDiskIOPSHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
+            "name": "AzureOptimization_ExportMonitorDiskMBPsHourly",
+            "offset": "PT1H15M",
+            "frequency": "Hour"
+        },
+        {
             "name": "AzureOptimization_IngestAzMonitorMetricsHourly",
             "offset": "PT2H",
             "frequency": "Hour"
@@ -638,6 +648,30 @@
                         "MetricNames": "MemoryPercentage",
                         "TimeGrain": "00:01:00"
                     }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorDiskIOPSHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/disks",
+                        "ARGFilter": "sku.name =~ 'Premium_LRS' and properties.diskState != 'Unattached'",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Average",
+                        "AggregationOfType": "Maximum",
+                        "MetricNames": "Composite Disk Read Operations/sec,Composite Disk Write Operations/sec",
+                        "TimeGrain": "00:01:00"
+                    }
+                },
+                {
+                    "schedule": "AzureOptimization_ExportMonitorDiskMBPsHourly",
+                    "parameters": {
+                        "ResourceType": "microsoft.compute/disks",
+                        "ARGFilter": "sku.name =~ 'Premium_LRS' and properties.diskState != 'Unattached'",
+                        "TimeSpan": "01:00:00",
+                        "aggregationType": "Average",
+                        "AggregationOfType": "Maximum",
+                        "MetricNames": "Composite Disk Read Bytes/sec,Composite Disk Write Bytes/sec",
+                        "TimeGrain": "00:01:00"
+                    }
                 }
             ],
             "ingestSchedule": "AzureOptimization_IngestAzMonitorMetricsHourly"
@@ -907,6 +941,23 @@
                 {
                     "name": "AzureOptimization_PerfThresholdMemoryDegradedPercentage",
                     "defaultValue": 90
+                }
+            ],
+            "exportSchedule": "AzureOptimization_RecommendationsWeekly"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/recommendations/Recommend-DiskOptimizationsToBlobStorage.ps1",
+                "version": "1.0.0.0"
+            },
+            "requiredVariables": [
+                {
+                    "name": "AzureOptimization_PerfThresholdDiskIOPSPercentage",
+                    "defaultValue": 5
+                },
+                {
+                    "name": "AzureOptimization_PerfThresholdDiskMBsPercentage",
+                    "defaultValue": 5
                 }
             ],
             "exportSchedule": "AzureOptimization_RecommendationsWeekly"

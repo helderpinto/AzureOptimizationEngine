@@ -411,6 +411,20 @@
                                 "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
                             }
                         },
+                        "monitorDiskIOPSAvgExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "monitorDiskMBPsAvgExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "argAppServicePlanExportJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -705,6 +719,13 @@
                                 "description": "GUID for the App Service Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
                             }
                         },
+                        "diskOptimizationsRecommendationJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Disk Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "recommendationsIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -775,6 +796,8 @@
                         "monitorAppServiceCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
                         "monitorAppServiceMemoryMaxExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
                         "monitorAppServiceMemoryAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
+                        "monitorDiskIOPSAvgExportsScheduleName": "AzureOptimization_ExportMonitorDiskIOPSHourly",
+                        "monitorDiskMBPsAvgExportsScheduleName": "AzureOptimization_ExportMonitorDiskMBPsHourly",
                         "priceExportsScheduleName": "AzureOptimization_ExportPricesWeekly",
                         "reservationsUsageExportsScheduleName": "AzureOptimization_ExportReservationsDaily",
                         "csvExportsSchedules": [
@@ -865,6 +888,18 @@
                             {
                                 "exportSchedule": "[variables('monitorAppServiceMemoryMaxExportsScheduleName')]",
                                 "exportDescription": "Hourly Azure Monitor metrics exports for App Service Percentage RAM (Max.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorDiskIOPSAvgExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for Disk IOPS (Avg.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorDiskMBPsAvgExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for Disk MBPs (Avg.)",
                                 "exportTimeOffset": "PT1H15M",
                                 "exportFrequency": "Hour"
                             },
@@ -1321,6 +1356,34 @@
                                     "MetricNames": "MemoryPercentage",
                                     "TimeGrain": "00:01:00"
                                 }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorDiskIOPSAvgExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorDiskIOPSAvgExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.compute/disks",
+                                    "ARGFilter": "sku.name =~ 'Premium_LRS' and properties.diskState != 'Unattached'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Average",
+                                    "AggregationOfType": "Maximum",
+                                    "MetricNames": "Composite Disk Read Operations/sec,Composite Disk Write Operations/sec",
+                                    "TimeGrain": "00:01:00"
+                                }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorDiskMBPsAvgExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorDiskMBPsAvgExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.compute/disks",
+                                    "ARGFilter": "sku.name =~ 'Premium_LRS' and properties.diskState != 'Unattached'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Average",
+                                    "AggregationOfType": "Maximum",
+                                    "MetricNames": "Composite Disk Read Bytes/sec,Composite Disk Write Bytes/sec",
+                                    "TimeGrain": "00:01:00"
+                                }
                             }
                         ],
                         // recommendations runbooks
@@ -1338,6 +1401,7 @@
                         "sqldbOptimizationsRecommendationsRunbookName": "Recommend-SqlDbOptimizationsToBlobStorage",
                         "storageOptimizationsRecommendationsRunbookName": "Recommend-StorageAccountOptimizationsToBlobStorage",
                         "appServiceOptimizationsRecommendationsRunbookName": "Recommend-AppServiceOptimizationsToBlobStorage",
+                        "diskOptimizationsRecommendationsRunbookName": "Recommend-DiskOptimizationsToBlobStorage",
                         "cleanUpOlderRecommendationsRunbookName": "CleanUp-OlderRecommendationsFromSqlServer",
                         "recommendations": [
                             {
@@ -1395,6 +1459,10 @@
                             {
                                 "recommendationJobId": "[parameters('appServiceOptimizationsRecommendationJobId')]",
                                 "runbookName": "[variables('appServiceOptimizationsRecommendationsRunbookName')]"
+                            },
+                            {
+                                "recommendationJobId": "[parameters('diskOptimizationsRecommendationJobId')]",
+                                "runbookName": "[variables('diskOptimizationsRecommendationsRunbookName')]"
                             }
                         ],
                         "remediationLogsContainerName": "remediationlogs",
@@ -1739,6 +1807,13 @@
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('appServiceOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
+                                "name": "[variables('diskOptimizationsRecommendationsRunbookName')]",
+                                "version": "1.0.0.0",
+                                "description": "Generates Disk optimizations recommendations",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('diskOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
                                 "name": "[variables('recommendationsIngestRunbookName')]",
                                 "version": "1.6.3.0",
                                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
@@ -1963,6 +2038,16 @@
                                 "name": "AzureOptimization_PerfThresholdDtuDegradedPercentage",
                                 "description": "The DTU usage percentage threshold above which a SQL Database instance is considered performance degraded",
                                 "value": 75
+                            },
+                            {
+                                "name": "AzureOptimization_PerfThresholdDiskIOPSPercentage",
+                                "description": "The IOPS usage percentage threshold below which a Disk is considered underutilized",
+                                "value": 5
+                            },
+                            {
+                                "name": "AzureOptimization_PerfThresholdDiskMBsPercentage",
+                                "description": "The throughput (MBps) usage percentage threshold below which a Disk is considered underutilized",
+                                "value": 5
                             },
                             {
                                 "name": "AzureOptimization_RemediateRightSizeMinFitScore",
