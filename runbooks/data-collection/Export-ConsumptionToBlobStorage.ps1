@@ -19,6 +19,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$global:hadErrors = $false
 
 function Authenticate-AzureWithOption {
     param (
@@ -44,119 +45,14 @@ function Authenticate-AzureWithOption {
     }        
 }
 
-$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
-if ([string]::IsNullOrEmpty($cloudEnvironment))
-{
-    $cloudEnvironment = "AzureCloud"
-}
-$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
-if ([string]::IsNullOrEmpty($authenticationOption))
-{
-    $authenticationOption = "ManagedIdentity"
-}
-
-# get Consumption exports sink (storage account) details
-$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
-$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
-$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
-$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionContainer" -ErrorAction SilentlyContinue
-if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
-{
-    $storageAccountSinkContainer = "consumptionexports"
-}
-
-if (-not([string]::IsNullOrEmpty($externalCredentialName)))
-{
-    $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
-}
-
-$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
-
-$consumptionMetric = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionMetric" -ErrorAction SilentlyContinue # AmortizedCost|ActualCost
-if ([string]::IsNullOrEmpty($consumptionMetric))
-{
-    $consumptionMetric = "AmortizedCost"
-}
-
-$consumptionAPIOption = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionAPIOption" -ErrorAction SilentlyContinue # CostDetails|UsageDetails
-if ([string]::IsNullOrEmpty($consumptionAPIOption))
-{
-    $consumptionAPIOption = "CostDetails"
-}
-
-$consumptionScope = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionScope" -ErrorAction SilentlyContinue # Subscription|BillingAccount
-if ([string]::IsNullOrEmpty($consumptionScope))
-{
-    Write-Output "Consumption Scope not specified, defaulting to Subscription"
-    $consumptionScope = "Subscription"
-}
-else
-{
-    Write-Output "Consumption Scope is $consumptionScope"
-    if ($consumptionScope -eq "BillingAccount")
-    {
-        $BillingAccountID = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID"        
-    }
-    else
-    {
-        throw "Invalid value for AzureOptimization_ConsumptionScope. Valid values are 'Subscription' or 'BillingAccount'."
-    }
-}
-
-Write-Output "Logging in to Azure with $authenticationOption..."
-
-Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
-
-# get reference to storage sink
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
-
-if (-not([string]::IsNullOrEmpty($externalCredentialName)))
-{
-    Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
-    $cloudEnvironment = $externalCloudEnvironment   
-}
-
-# compute start+end dates
-
-if ([string]::IsNullOrEmpty($targetStartDate) -or [string]::IsNullOrEmpty($targetEndDate))
-{
-    $targetStartDate = (Get-Date).Date.AddDays($consumptionOffsetDays * -1).ToString("yyyy-MM-dd")
-    $targetEndDate = $targetStartDate    
-}
-
-if ($consumptionScope -eq "Subscription")
-{
-    if (-not([string]::IsNullOrEmpty($TargetSubscription)))
-    {
-        $subscriptions = Get-AzSubscription -SubscriptionId $TargetSubscription
-    }
-    else
-    {
-        $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
-    }    
-    Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for $($subscriptions.Count) subscriptions..."
-}
-else
-{
-    Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for Billing Account ID $BillingAccountID..."
-}
-
-
-# for each subscription, get billing data
-
-$datetime = (get-date).ToUniversalTime()
-$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
-
-$hadErrors = $false
-
 function Generate-CostDetails {
     param (        
         [string] $ScopeId,
         [string] $ScopeName 
     )
 
-    $MaxTries = 9 # The typical Retry-After is set to 20 seconds. We'll give 3 minutes overall to download the cost details report
+    $MaxTries = 20 # The typical Retry-After is set to 20 seconds. We'll give ~6 minutes overall to download the cost details report
+    $hadErrors = $false
 
     $CostDetailsApiPath = "$ScopeId/providers/Microsoft.CostManagement/generateCostDetailsReport?api-version=2022-05-01"
     $body = "{ `"metric`": `"$consumptionMetric`", `"timePeriod`": { `"start`": `"$targetStartDate`", `"end`": `"$targetEndDate`" } }"
@@ -325,7 +221,7 @@ function Generate-CostDetails {
             }
             else
             {
-                $hadErrors = $true
+                $global:hadErrors = $true
                 Write-Warning "Got an unexpected response code: $($downloadResult.StatusCode)"
             }
         } 
@@ -333,8 +229,15 @@ function Generate-CostDetails {
 
         if (-not($requestSuccess))
         {
-            $hadErrors = $true
-            Write-Warning "Error returned by the Download Cost Details API. Status Code: $($downloadResult.StatusCode). Message: $($downloadResult.Content)"
+            $global:hadErrors = $true
+            if ($tries -eq $MaxTries)
+            {
+                Write-Warning "Reached maximum number of tries. Aborting..."
+            }
+            else
+            {
+                Write-Warning "Error returned by the Download Cost Details API. Status Code: $($downloadResult.StatusCode). Message: $($downloadResult.Content)"    
+            }
         }
         else
         {
@@ -345,15 +248,119 @@ function Generate-CostDetails {
     {
         if ($result.StatusCode -ne 204)
         {
-            $hadErrors = $true
+            $global:hadErrors = $true
             Write-Warning "Error returned by the Generate Cost Details API. Status Code: $($result.StatusCode). Message: $($result.Content)"
         }
         else
         {
             Write-Output "Request returned 204 No Content"
         }
-    }    
+    }
 }
+
+$cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
+if ([string]::IsNullOrEmpty($cloudEnvironment))
+{
+    $cloudEnvironment = "AzureCloud"
+}
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+if ([string]::IsNullOrEmpty($authenticationOption))
+{
+    $authenticationOption = "ManagedIdentity"
+}
+
+# get Consumption exports sink (storage account) details
+$storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
+$storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
+$storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionContainer" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
+{
+    $storageAccountSinkContainer = "consumptionexports"
+}
+
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
+}
+
+$consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
+
+$consumptionMetric = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionMetric" -ErrorAction SilentlyContinue # AmortizedCost|ActualCost
+if ([string]::IsNullOrEmpty($consumptionMetric))
+{
+    $consumptionMetric = "AmortizedCost"
+}
+
+$consumptionAPIOption = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionAPIOption" -ErrorAction SilentlyContinue # CostDetails|UsageDetails
+if ([string]::IsNullOrEmpty($consumptionAPIOption))
+{
+    $consumptionAPIOption = "CostDetails"
+}
+
+$consumptionScope = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionScope" -ErrorAction SilentlyContinue # Subscription|BillingAccount
+if ([string]::IsNullOrEmpty($consumptionScope))
+{
+    Write-Output "Consumption Scope not specified, defaulting to Subscription"
+    $consumptionScope = "Subscription"
+}
+else
+{
+    Write-Output "Consumption Scope is $consumptionScope"
+    if ($consumptionScope -eq "BillingAccount")
+    {
+        $BillingAccountID = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID"        
+    }
+    else
+    {
+        throw "Invalid value for AzureOptimization_ConsumptionScope. Valid values are 'Subscription' or 'BillingAccount'."
+    }
+}
+
+Write-Output "Logging in to Azure with $authenticationOption..."
+
+Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
+
+# get reference to storage sink
+Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
+    $cloudEnvironment = $externalCloudEnvironment   
+}
+
+# compute start+end dates
+
+if ([string]::IsNullOrEmpty($targetStartDate) -or [string]::IsNullOrEmpty($targetEndDate))
+{
+    $targetStartDate = (Get-Date).Date.AddDays($consumptionOffsetDays * -1).ToString("yyyy-MM-dd")
+    $targetEndDate = $targetStartDate    
+}
+
+if ($consumptionScope -eq "Subscription")
+{
+    if (-not([string]::IsNullOrEmpty($TargetSubscription)))
+    {
+        $subscriptions = Get-AzSubscription -SubscriptionId $TargetSubscription
+    }
+    else
+    {
+        $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
+    }    
+    Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for $($subscriptions.Count) subscriptions..."
+}
+else
+{
+    Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for Billing Account ID $BillingAccountID..."
+}
+
+
+# for each subscription, get billing data
+
+$datetime = (get-date).ToUniversalTime()
+$timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
 if ($consumptionScope -eq "Subscription")
 {
@@ -495,7 +502,7 @@ if ($consumptionScope -eq "Subscription")
             }
             else
             {
-                $hadErrors = $true
+                $global:hadErrors = $true
                 Write-Warning "Failed to get consumption data for subscription $($subscription.Name)..."
             }
         }
@@ -506,7 +513,7 @@ if ($consumptionScope -eq "Subscription")
         }
         else
         {
-            $hadErrors = $true
+            $global:hadErrors = $true
             Write-Warning "Subscription quota $subscriptionQuotaID not supported"
         }
     }    
@@ -517,7 +524,7 @@ else
     Generate-CostDetails -ScopeId "/providers/Microsoft.Billing/billingAccounts/$BillingAccountID" -ScopeName $BillingAccountID
 }
 
-if ($hadErrors)
+if ($global:hadErrors)
 {
     throw "There were errors during the export process. Please check the output for details."
 }
