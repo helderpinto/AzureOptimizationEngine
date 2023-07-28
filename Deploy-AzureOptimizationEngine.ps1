@@ -15,7 +15,10 @@ param (
     [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
-    [string] $SilentDeploymentSettingsPath
+    [string] $SilentDeploymentSettingsPath,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $SilentUpgrade
 )
 
 function ConvertTo-Hashtable {
@@ -50,18 +53,135 @@ function ConvertTo-Hashtable {
     }
 }
 
+function Test-SqlPasswordComplexity {
+    param (
+        [string]$Username,    
+        [string]$Password
+    )
+
+    # Check if the username is present in the password
+    if ($Password -match $Username) {
+        throw "SQL password cannot contain the SQL username."
+        return $false
+    }
+
+    # Password must be minimum 8 characters, contains at least one uppercase, lowercase letter, contains at least one digit, contains at least one special character
+    $regex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$'
+    if ($Password -match $regex) {
+        Write-Host "SQL password is valid." -ForegroundColor Green
+        return $true
+    } else {
+        throw "Password does not meet the complexity requirements."
+        return $false
+    }
+}
+
 $ErrorActionPreference = "Stop"
 
 #region Deployment environment settings
 
 $lastDeploymentStatePath = ".\last-deployment-state.json"
 $deploymentOptions = @{}
+$silentDeploy = $false
+
+# DoPartialUpgrade and SilentDeploymentSettingsPath are mutually exclusive
+if ($DoPartialUpgrade -and $SilentDeploymentSettingsPath)
+{
+    throw "DoPartialUpgrade and SilentDeploymentSettingsPath are mutually exclusive."
+}
+# SilentUpgrade and SilentDeploymentSettingsPath are mutually exclusive
+if ($SilentUpgrade -and $SilentDeploymentSettingsPath)
+{
+    throw "SilentUpgrade and SilentDeploymentSettingsPath are mutually exclusive."
+}
+
+# Check if silent deployment settings file exists
+if(Test-Path -Path $SilentDeploymentSettingsPath)
+{
+    # Get the deployment details from the silent deployment settings file
+    $silentDeploy = $true
+    $silentDepOptions = Get-Content -Path $SilentDeploymentSettingsPath | ConvertFrom-Json
+    Write-Host $silentDepOptions -ForegroundColor Green
+    $silentDepOptions = ConvertTo-Hashtable -InputObject $silentDepOptions
+    $silentDepOptions.Keys | ForEach-Object {
+        $deploymentOptions[$_] = $silentDepOptions[$_]
+    }
+
+    # Validate the silent deployment settings
+    if (-not($deploymentOptions["SubscriptionId"]))
+    {
+        throw "SubscriptionId is required for silent deployment."
+    }
+    if (-not($deploymentOptions["NamePrefix"]))
+    {
+        throw "NamePrefix is required for silent deployment. Set to 'EmptyNamePrefix' to use own naming convention and specify the needed resource names."
+    }
+    if ($deploymentOptions["NamePrefix"].Length -gt 21) {
+        throw "Name prefix length is larger than the 21 characters limit ($($deploymentOptions["NamePrefix"]))"
+    }
+    if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
+    {
+        if(-not($deploymentOptions["ResourceGroupName"]))
+        {
+            throw "ResourceGroupName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if(-not($deploymentOptions["StorageAccountName"]))
+        {
+            throw "StorageAccountName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if(-not($deploymentOptions["AutomationAccountName"]))
+        {
+            throw "AutomationAccountName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if(-not($deploymentOptions["SqlServerName"]))
+        {
+            throw "SqlServerName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if(-not($deploymentOptions["SqlDatabaseName"]))
+        {
+            throw "SqlDatabaseName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+    }
+    if(-not($deploymentOptions["WorkspaceReuse"]) -or ($deploymentOptions["WorkspaceReuse"] -ne "y" -and $deploymentOptions["WorkspaceReuse"] -ne "n"))
+    {
+        throw "WorkspaceReuse set to 'y' or 'n' is required for silent deployment."
+    }
+    if($deploymentOptions["WorkspaceReuse"] -eq "y")
+    {
+        if(-not($deploymentOptions["WorkspaceName"]))
+        {
+            throw "WorkspaceName is required for silent deployment when WorkspaceReuse is set to 'y'."
+        }
+        if(-not($deploymentOptions["WorkspaceResourceGroupName"]))
+        {
+            throw "WorkspaceResourceGroupName is required for silent deployment when WorkspaceReuse is set to 'y'."
+        }
+    }
+    if(-not($deploymentOptions["SqlAdmin"]))
+    {
+        throw "SqlAdmin is required for silent deployment."
+    }
+    if(-not($deploymentOptions["SqlPass"]))
+    {
+        throw "SqlPass is required for silent deployment."
+    }
+    if(-not($deploymentOptions["TargetLocation"]))
+    {
+        throw "TargetLocation is required for silent deployment."
+    }
+}
 
 if (Test-Path -Path $lastDeploymentStatePath)
 {
     $depOptions = Get-Content -Path $lastDeploymentStatePath | ConvertFrom-Json
     Write-Host $depOptions -ForegroundColor Green
-    $depOptionsReuse = Read-Host "Found last deployment options above. Do you want to repeat/upgrade last deployment (Y/N)?"
+    if ($SilentUpgrade)
+    {
+        $depOptionsReuse = "Y"
+    }
+    else {
+        $depOptionsReuse = Read-Host "Found last deployment options above. Do you want to repeat/upgrade last deployment (Y/N)?"
+    }
     if ("Y", "y" -contains $depOptionsReuse)
     {
         foreach ($property in $depOptions.PSObject.Properties)
@@ -125,7 +245,7 @@ else {
 #region Azure subscription choice
 
 Write-Host "Getting Azure subscriptions..." -ForegroundColor Yellow
-$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
+$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
 
 if ($subscriptions.Count -gt 1) {
 
@@ -188,7 +308,13 @@ if ($ctx.Subscription.Id -ne $subscriptionId) {
 #endregion
 
 #region Resource naming options
-$workspaceReuse = $null
+if($silentDeploy)
+{
+    $workspaceReuse = $deploymentOptions["WorkspaceReuse"]
+}
+else { 
+    $workspaceReuse = $null 
+}
 
 $deploymentNameTemplate = "{0}" + (Get-Date).ToString("yyMMddHHmmss")
 $resourceGroupNameTemplate = "{0}-rg"
@@ -266,13 +392,27 @@ if (-not($deploymentOptions["ResourceGroupName"]))
 }
 else
 {
-    $resourceGroupName = $deploymentOptions["ResourceGroupName"]
-    $storageAccountName = $deploymentOptions["StorageAccountName"]
-    $automationAccountName = $deploymentOptions["AutomationAccountName"]
-    $sqlServerName = $deploymentOptions["SqlServerName"]
-    $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
-    $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
-    $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+    
+    # With a silent deploy, overrule any custom resource naming if a NamePrefix is provided
+    if($silentDeploy -and $namePrefix -ne "EmptyNamePrefix")
+    {
+        $deploymentName = $deploymentNameTemplate -f $namePrefix
+        $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
+        $storageAccountName = $storageAccountNameTemplate -f $namePrefix
+        $automationAccountName = $automationAccountNameTemplate -f $namePrefix
+        $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
+        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        $sqlDatabaseName = "azureoptimization"
+    }
+    else {
+        $resourceGroupName = $deploymentOptions["ResourceGroupName"]
+        $storageAccountName = $deploymentOptions["StorageAccountName"]
+        $automationAccountName = $deploymentOptions["AutomationAccountName"]
+        $sqlServerName = $deploymentOptions["SqlServerName"]
+        $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
+        $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
+        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+    }
 }
 #endregion
 
@@ -400,7 +540,24 @@ else
 {
     $sqlAdmin = $deploymentOptions["SqlAdmin"]    
 }
-$sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
+if (-not($deploymentOptions["SqlPass"]))
+{
+    $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
+    $deploymentOptions["SqlPass"] = $sqlPass
+}
+else
+{
+    $sqlPass = $deploymentOptions["SqlPass"]
+    if(Test-SqlPasswordComplexity -Username $sqlAdmin -Password $sqlPass -ErrorAction SilentlyContinue)
+    {
+        Write-Host "Password complexity check passed" -ForegroundColor Green
+        $sqlPass = ConvertTo-SecureString -AsPlainText $sqlPass -Force
+    }
+    else
+    {
+        throw "SQL password complexity check failed. Please, fix the password and try again."
+    }
+}
 #endregion
 
 #region Partial upgrade dependent resource checks
@@ -473,11 +630,22 @@ if ($upgrading)
     $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
 }
 
-$continueInput = Read-Host "$deploymentMessage $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
+if ($SilentUpgrade -or $silentDeploy)
+{
+    $continueInput = "Y"
+}
+else
+{
+    $continueInput = Read-Host "$deploymentMessage $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
+}
 if ("Y", "y" -contains $continueInput) {
 
+    # If we deploy silently, be sure to strip the SQL password from the output
+    if ($silentDeploy)
+    {
+        $deploymentOptions.Remove("SqlPass")
+    }
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
-    
     #region Computing schedules base time
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
     $upgradingSchedules = $false

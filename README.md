@@ -268,9 +268,32 @@ If you choose to deploy all the dependencies from your own local repository, you
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://aoesa.blob.core.windows.net/files/azuredeploy.json" -ArtifactsSasToken "?sv=2019-10-10&ss=bfqt&srt=o&sp=rwdlacupx&se=2020-06-13T23:27:18Z&st=2020-06-13T15:27:18Z&spr=https&sig=4cvPayBlF67aYvifwu%2BIUw8Ldh5txpFGgXlhzvKF3%2BI%3D"
 ```
 
+Optionally, you can use the `SilentDeploymentSettingsPath` input parameter to deploy AOE in a more automated way.  
+The file referencing should be a json file with the needed attributes defined.  
+An example of the content of such silent deployment file is:
+
+```json
+{
+    "SubscriptionId": "<<SubscriptionId>>",                         // mandatory, subscription where AOE needs to be deployed
+    "NamePrefix": "<<CustomNamePrefix>>",                           // mandatory, prefix for all resources. Fill in 'EmptyNamePrefix' to specify the resource names
+    "WorkspaceReuse": "n",                                          // mandatory, y/n, y = reuse existing workspace, n = create new workspace
+    "ResourceGroupName": "<<CustomName>>-rg",                       // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "StorageAccountName": "<<CustomName>>sa",                       // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "AutomationAccountName": "<<CustomName>>-auto",                 // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "SqlServerName": "<<CustomName>>-sql",                          // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "SqlDatabaseName": "<<CustomName>>-db",                         // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "WorkspaceName": "<<ExistingName>>",                            // mandatory if workspaceReuse is set to 'n', otherwise optional
+    "WorkspaceResourceGroupName": "<<ExistingName>>",               // mandatory if workspaceReuse is set to 'n', otherwise optional
+    "SqlAdmin": "<<sqlaAdmin>>",                                    // mandatory
+    "SqlPass": "<<sqlPass>>",                                       // mandatory
+    "TargetLocation": "westeurope"                                  // mandatory
+  }
+  
+```
+
 ### <a id="upgrade"></a>Upgrading AOE ##
 
-If you have a previous version of AOE and wish to upgrade, it's as simple as re-running the deployment script with the resource naming options you chose at the initial deployment. It will re-deploy the ARM template, adding new resources and updating existing ones. 
+If you have a previous version of AOE and wish to upgrade, it's as simple as re-running the deployment script with the resource naming options you chose at the initial deployment. It will re-deploy the ARM template, adding new resources and updating existing ones.
 
 However, if you previously customized components such as Automation variables or schedules, improved job execution performance with Hybrid Workers, or hardened the solution with Private Link, then you should run the deployment script with the `DoPartialUpgrade` switch, e.g.:
 
@@ -287,6 +310,8 @@ With the `DoPartialUpgrade` switch, the deployment will only:
 * Update Log Analytics Workbooks
 
 Some customers may also customize the SQL Server deployment, for example, migrating from SQL Database to a SQL Managed Instance. There is no tooling available to assist in the migration, but once the database migration is done manually, the AOE upgrade script supports future `DoPartialUpgrade` upgrades with the `IgnoreNamingAvailabilityErrors` switch on (skips SQL Server naming/existence validation).
+
+For a silent upgrade, you can use the `SilentUpgrade` switch.
 
 ## <a id="usage"></a>Usage instructions ##
 
