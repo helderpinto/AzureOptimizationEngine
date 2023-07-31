@@ -73,16 +73,21 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 Write-Output "Getting subscriptions target $TargetSubscription"
 
+$tenantId = (Get-AzContext).Tenant.Id
+
+$ARGPageSize = 1000
+
 if (-not([string]::IsNullOrEmpty($TargetSubscription)))
 {
     $subscriptions = $TargetSubscription
+    $scope = $TargetSubscription
 }
 else
 {
-    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" } | ForEach-Object { "$($_.Id)"}
+    $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" } | ForEach-Object { "$($_.Id)"}
+    $scope = $tenantId
 }
 
-$tenantId = (Get-AzContext).Tenant.Id
 
 <#
    Getting Advisor recommendations for each subscription and building CSV entries
@@ -91,145 +96,119 @@ $tenantId = (Get-AzContext).Tenant.Id
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
 
-$refreshResultsURLs = @()
+$recommendationsARG = @()
 
-foreach ($subscription in $subscriptions)
+$resultsSoFar = 0
+
+$filter = ""
+if ($advisorFilter -ne "all" -and -not([string]::IsNullOrEmpty($advisorFilter)))
 {
-    Write-Output "Generating fresh recommendations for subscription $subscription..."
+    $filter = " and properties.category =~ '$advisorFilter'"
+}
 
-    # refresh recommendations cache
-    
-    $generateApiPath = "/subscriptions/$subscription/providers/Microsoft.Advisor/generateRecommendations?api-version=2020-01-01"
-    $result = Invoke-AzRestMethod -Path $generateApiPath -Method POST
-    if ($result.StatusCode -in (200,202))
+$argQuery = @"
+advisorresources
+| where type == 'microsoft.advisor/recommendations'
+| where isnull(properties.suppressionIds)$filter
+| project id, category = properties.category, impact = properties.impact, impactedArea = properties.impactedField,
+    description = properties.shortDescription.problem, recommendationText = properties.shortDescription.solution,
+    recommendationTypeId = properties.recommendationTypeId, instanceName = properties.impactedValue,
+    additionalInfo = properties.extendedProperties
+| order by id asc
+"@
+
+do
+{
+    if ($resultsSoFar -eq 0)
     {
-        $refreshResultsURLs += $result.Headers.Location.PathAndQuery
+        $recs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Subscription $subscriptions
     }
     else
     {
-        Write-Output "Failed to kick off recommendations generation for subscription $subscription. Status code: $($result.StatusCode); Message: $($result.Content)"
+        $recs = Search-AzGraph -Query $argQuery -First $ARGPageSize -Skip $resultsSoFar -Subscription $subscriptions
     }
-}
+    if ($recs -and $recs.GetType().Name -eq "PSResourceGraphResponse")
+    {
+        $recs = $recs.Data
+    }
+    $resultsCount = $recs.Count
+    $resultsSoFar += $resultsCount
+    $recommendationsARG += $recs
 
-Write-Output "Waiting 60 seconds to finish refreshing the recommendations..."
-Start-Sleep -Seconds 60
+} while ($resultsCount -eq $ARGPageSize)
 
-foreach ($refreshResultsURL in $refreshResultsURLs)
+Write-Output "Building $($recommendationsARG.Count) recommendations entries"
+
+$recommendations = @()
+
+foreach ($advisorRecommendation in $recommendationsARG)
 {
-    $generateResult = Invoke-AzRestMethod -Method GET -Path $refreshResultsURL
-    if (-not($generateResult.StatusCode -in (202,204)))
+    $resourceIdParts = $advisorRecommendation.id.Split('/')
+    if ($resourceIdParts.Count -ge 9)
     {
-        Write-Output "Failed to generate recommendations for $refreshResultsURL. Status code: $($generateResult.StatusCode); Message: $($generateResult.Content)"
+        # if the Resource ID is made of 9 parts, then the recommendation is relative to a specific Azure resource
+        $realResourceIdParts = $resourceIdParts[0..8]
+        $instanceId = ($realResourceIdParts -join "/").ToLower()
+        $resourceGroup = $realResourceIdParts[4].ToLower()
+        $subscriptionId = $realResourceIdParts[2]
     }
-    if ($generateResult.StatusCode -eq 202)
+    else
     {
-        Write-Output "Recommendations not yet refreshed for $refreshResultsURL"
+        # otherwise it is not a resource-specific recommendation (e.g., reservations)
+        $resourceGroup = "notavailable"
+        $instanceId = $advisorRecommendation.id.ToLower()
+        $subscriptionId = $resourceIdParts[2]
     }
+
+    if (-not([string]::IsNullOrEmpty($advisorRecommendation.additionalInfo)))
+    {
+        $additionalInfo = $advisorRecommendation.additionalInfo | ConvertTo-Json
+    }
+    else
+    {
+        $additionalInfo = $null
+    }
+    
+    $recommendation = New-Object PSObject -Property @{
+        Timestamp = $timestamp
+        Cloud = $cloudEnvironment
+        Category = $advisorRecommendation.category
+        Impact = $advisorRecommendation.impact
+        ImpactedArea = $advisorRecommendation.impactedArea
+        Description = $advisorRecommendation.description
+        RecommendationText = $advisorRecommendation.recommendationText
+        RecommendationTypeId = $advisorRecommendation.recommendationTypeId
+        InstanceId = $instanceId
+        InstanceName = $advisorRecommendation.instanceName
+        AdditionalInfo = $additionalInfo
+        ResourceGroup = $resourceGroup
+        SubscriptionGuid = $subscriptionId
+        TenantGuid = $tenantId
+    }
+
+    $recommendations += $recommendation    
 }
 
-foreach ($subscription in $subscriptions)
-{
-    $recommendations = @()
+Write-Output "Found $($recommendations.Count) ($advisorFilter) recommendations..."
 
-    # list recommendations from cache
-    $filter = ""
-    if ($advisorFilter -ne "all" -and -not([string]::IsNullOrEmpty($advisorFilter)))
-    {
-        $filter = "&`$filter=Category eq '$advisorFilter'"
-    }
+$fileDate = $datetime.ToString("yyyyMMdd")
+$advisorFilter = $advisorFilter.ToLower()
+$csvExportPath = "$fileDate-$advisorFilter-$scope.csv"
 
-    $listApiPath = "/subscriptions/$subscription/providers/Microsoft.Advisor/recommendations?api-version=2020-01-01$filter"
+$recommendations | Export-Csv -NoTypeInformation -Path $csvExportPath
+Write-Output "Export to $csvExportPath"
 
-    do
-    {
-        $result = Invoke-AzRestMethod -Path $listApiPath -Method GET
+$csvBlobName = $csvExportPath
+$csvProperties = @{"ContentType" = "text/csv"};
 
-        if ($result.StatusCode -eq 200)
-        {
-            $recommendationsJson = $result.Content | ConvertFrom-Json
+Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
-            foreach ($advisorRecommendation in $recommendationsJson.value)
-            {
-                if (-not($advisorRecommendation.properties.suppressionIds))
-                {
-                    $resourceIdParts = $advisorRecommendation.id.Split('/')
-                    if ($resourceIdParts.Count -ge 9)
-                    {
-                        # if the Resource ID is made of 9 parts, then the recommendation is relative to a specific Azure resource
-                        $realResourceIdParts = $resourceIdParts[0..8]
-                        $instanceId = ($realResourceIdParts -join "/").ToLower()
-                        $resourceGroup = $realResourceIdParts[4].ToLower()
-                        $subscriptionId = $realResourceIdParts[2]
-                    }
-                    else
-                    {
-                        # otherwise it is not a resource-specific recommendation (e.g., reservations)
-                        $resourceGroup = "notavailable"
-                        $instanceId = $advisorRecommendation.id.ToLower()
-                        $subscriptionId = $resourceIdParts[2]
-                    }
-                            
-                    $recommendation = New-Object PSObject -Property @{
-                        Timestamp = $timestamp
-                        Cloud = $cloudEnvironment
-                        Category = $advisorRecommendation.properties.category
-                        Impact = $advisorRecommendation.properties.impact
-                        ImpactedArea = $advisorRecommendation.properties.impactedField
-                        Description = $advisorRecommendation.properties.shortDescription.problem
-                        RecommendationText = $advisorRecommendation.properties.shortDescription.solution
-                        RecommendationTypeId = $advisorRecommendation.properties.recommendationTypeId
-                        InstanceId = $instanceId
-                        InstanceName = $advisorRecommendation.properties.impactedValue
-                        AdditionalInfo = $advisorRecommendation.properties.extendedProperties
-                        ResourceGroup = $resourceGroup
-                        SubscriptionGuid = $subscriptionId
-                        TenantGuid = $tenantId
-                    }
-                
-                    $recommendations += $recommendation    
-                }
-            }
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
 
-            $listApiPath = ([Uri] $recommendationsJson.nextLink).PathAndQuery
-        }
-        else
-        {
-            Write-Output "Failed to get recommendations listing. Status code: $($result.StatusCode); Message: $($result.Content)"
-        }
-    }
-    while ($recommendationsJson.nextLink)
+Remove-Item -Path $csvExportPath -Force
 
-    Write-Output "Found $($recommendations.Count) ($advisorFilter) recommendations (filtered out suppressed ones)..."
-
-    $fileDate = $datetime.ToString("yyyyMMdd")
-    $advisorFilter = $advisorFilter.ToLower()
-    $jsonExportPath = "$fileDate-$advisorFilter-$subscription.json"
-    $csvExportPath = "$fileDate-$advisorFilter-$subscription.csv"
-
-    $recommendations | ConvertTo-Json -Depth 10 | Out-File $jsonExportPath
-    Write-Output "Exported to JSON: $($recommendations.Count) lines"
-    $recommendationsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-    Write-Output "JSON Import: $($recommendationsJson.Count) lines"
-    $recommendationsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-    Write-Output "Export to $csvExportPath"
-
-    $csvBlobName = $csvExportPath
-    $csvProperties = @{"ContentType" = "text/csv"};
-
-    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
-    
-    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
-    
-    Remove-Item -Path $csvExportPath -Force
-    
-    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $csvExportPath from local disk..."    
-    
-    Remove-Item -Path $jsonExportPath -Force
-    
-    $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
-}
+$now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
+Write-Output "[$now] Removed $csvExportPath from local disk..."    
 
 Write-Output "DONE!"
