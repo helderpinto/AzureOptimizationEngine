@@ -251,7 +251,7 @@ foreach ($result in $results) {
     $additionalInfoDictionary = @{}
     if (-not([string]::IsNullOrEmpty($result.AdditionalInfo_s)))
     {
-        $additionalInfoDictionary = $result.AdditionalInfo_s | ConvertFrom-Json -AsHashtable    
+        ($result.AdditionalInfo_s | ConvertFrom-Json).PsObject.Properties | ForEach-Object { $additionalInfoDictionary[$_.Name] = $_.Value }
     }
     
     $fitScore = 5
