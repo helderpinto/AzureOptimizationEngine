@@ -15,10 +15,7 @@ param (
     [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
-    [string] $SilentDeploymentSettingsPath,
-
-    [Parameter(Mandatory = $false)]
-    [switch] $SilentUpgrade
+    [string] $SilentDeploymentSettingsPath
 )
 
 function ConvertTo-Hashtable {
@@ -84,24 +81,13 @@ $lastDeploymentStatePath = ".\last-deployment-state.json"
 $deploymentOptions = @{}
 $silentDeploy = $false
 
-# DoPartialUpgrade and SilentDeploymentSettingsPath are mutually exclusive
-if ($DoPartialUpgrade -and $SilentDeploymentSettingsPath)
-{
-    throw "DoPartialUpgrade and SilentDeploymentSettingsPath are mutually exclusive."
-}
-# SilentUpgrade and SilentDeploymentSettingsPath are mutually exclusive
-if ($SilentUpgrade -and $SilentDeploymentSettingsPath)
-{
-    throw "SilentUpgrade and SilentDeploymentSettingsPath are mutually exclusive."
-}
-
 # Check if silent deployment settings file exists
 if(Test-Path -Path $SilentDeploymentSettingsPath)
 {
-    # Get the deployment details from the silent deployment settings file
     $silentDeploy = $true
+    # Get the deployment details from the silent deployment settings file
     $silentDepOptions = Get-Content -Path $SilentDeploymentSettingsPath | ConvertFrom-Json
-    Write-Host $silentDepOptions -ForegroundColor Green
+    Write-Host "Silent deployment options found." -ForegroundColor Green
     $silentDepOptions = ConvertTo-Hashtable -InputObject $silentDepOptions
     $silentDepOptions.Keys | ForEach-Object {
         $deploymentOptions[$_] = $silentDepOptions[$_]
@@ -121,67 +107,87 @@ if(Test-Path -Path $SilentDeploymentSettingsPath)
     }
     if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
     {
-        if(-not($deploymentOptions["ResourceGroupName"]))
+        if (-not($deploymentOptions["ResourceGroupName"]))
         {
             throw "ResourceGroupName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
         }
-        if(-not($deploymentOptions["StorageAccountName"]))
+        if (-not($deploymentOptions["StorageAccountName"]))
         {
             throw "StorageAccountName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
         }
-        if(-not($deploymentOptions["AutomationAccountName"]))
+        if (-not($deploymentOptions["AutomationAccountName"]))
         {
             throw "AutomationAccountName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
         }
-        if(-not($deploymentOptions["SqlServerName"]))
+        if (-not($deploymentOptions["SqlServerName"]))
         {
             throw "SqlServerName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
         }
-        if(-not($deploymentOptions["SqlDatabaseName"]))
+        if (-not($deploymentOptions["SqlDatabaseName"]))
         {
             throw "SqlDatabaseName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
         }
     }
-    if(-not($deploymentOptions["WorkspaceReuse"]) -or ($deploymentOptions["WorkspaceReuse"] -ne "y" -and $deploymentOptions["WorkspaceReuse"] -ne "n"))
+    if (-not($deploymentOptions["WorkspaceReuse"]) -or ($deploymentOptions["WorkspaceReuse"] -ne "y" -and $deploymentOptions["WorkspaceReuse"] -ne "n"))
     {
         throw "WorkspaceReuse set to 'y' or 'n' is required for silent deployment."
     }
-    if($deploymentOptions["WorkspaceReuse"] -eq "y")
+    if ($deploymentOptions["WorkspaceReuse"] -eq "y")
     {
-        if(-not($deploymentOptions["WorkspaceName"]))
+        if (-not($deploymentOptions["WorkspaceName"]))
         {
             throw "WorkspaceName is required for silent deployment when WorkspaceReuse is set to 'y'."
         }
-        if(-not($deploymentOptions["WorkspaceResourceGroupName"]))
+        if (-not($deploymentOptions["WorkspaceResourceGroupName"]))
         {
             throw "WorkspaceResourceGroupName is required for silent deployment when WorkspaceReuse is set to 'y'."
         }
     }
-    if(-not($deploymentOptions["SqlAdmin"]))
+    if (-not($deploymentOptions["SqlAdmin"]))
     {
         throw "SqlAdmin is required for silent deployment."
     }
-    if(-not($deploymentOptions["SqlPass"]))
+    if (-not($deploymentOptions["SqlPass"]))
     {
         throw "SqlPass is required for silent deployment."
     }
-    if(-not($deploymentOptions["TargetLocation"]))
+    if (-not($deploymentOptions["TargetLocation"]))
     {
         throw "TargetLocation is required for silent deployment."
     }
+    if (-not($deploymentOptions["DeployBenefitsUsageDependencies"]))
+    {
+        throw "DeployBenefitsUsageDependencies is required for silent deployment."
+    }
+    if ($deploymentOptions["DeployBenefitsUsageDependencies"] -eq "y")
+    {
+        if (-not($deploymentOptions["CustomerType"]))
+        {
+            throw "CustomerType is required for silent deployment when DeployBenefitsUsageDependencies is set to 'y'."
+        }
+        if (-not($deploymentOptions["BillingAccountId"]))
+        {
+            throw "BillingAccountId is required for silent deployment when DeployBenefitsUsageDependencies is set to 'y'."
+        }
+        if (-not($deploymentOptions["CurrencyCode"]))
+        {
+            throw "CurrencyCode is required for silent deployment when DeployBenefitsUsageDependencies is set to 'y'."
+        }
+        if ($deploymentOptions["CustomerType"] -eq "MCA")
+        {
+            if (-not($deploymentOptions["BillingProfileId"]))
+            {
+                throw "BillingProfileId is required for silent deployment when CustomerType is set to 'MCA'."
+            }
+        }
+    }
 }
 
-if (Test-Path -Path $lastDeploymentStatePath)
+if ((Test-Path -Path $lastDeploymentStatePath) -and !$silentDeploy)
 {
     $depOptions = Get-Content -Path $lastDeploymentStatePath | ConvertFrom-Json
     Write-Host $depOptions -ForegroundColor Green
-    if ($SilentUpgrade)
-    {
-        $depOptionsReuse = "Y"
-    }
-    else {
-        $depOptionsReuse = Read-Host "Found last deployment options above. Do you want to repeat/upgrade last deployment (Y/N)?"
-    }
+    $depOptionsReuse = Read-Host "Found last deployment options above. Do you want to repeat/upgrade last deployment (Y/N)?"
     if ("Y", "y" -contains $depOptionsReuse)
     {
         foreach ($property in $depOptions.PSObject.Properties)
@@ -392,7 +398,6 @@ if (-not($deploymentOptions["ResourceGroupName"]))
 }
 else
 {
-    
     # With a silent deploy, overrule any custom resource naming if a NamePrefix is provided
     if($silentDeploy -and $namePrefix -ne "EmptyNamePrefix")
     {
@@ -630,7 +635,7 @@ if ($upgrading)
     $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
 }
 
-if ($SilentUpgrade -or $silentDeploy)
+if ($silentDeploy)
 {
     $continueInput = "Y"
 }
@@ -1314,7 +1319,14 @@ if ("Y", "y" -contains $continueInput) {
     Write-Host "Azure Optimization Engine deployment completed! We're almost there..." -ForegroundColor Green
 
     #region Benefits Usage dependencies
-    $benefitsUsageDependenciesOption = Read-Host "Do you also want to deploy the dependencies for the Azure Benefits usage workbooks (EA/MCA customers only + agreement administrator role required)? (Y/N)"
+    if (-not($deploymentOptions["DeployBenefitsUsageDependencies"]))
+    {
+        $benefitsUsageDependenciesOption = Read-Host "Do you also want to deploy the dependencies for the Azure Benefits usage workbooks (EA/MCA customers only + agreement administrator role required)? (Y/N)"
+    } 
+    else 
+    {
+        $benefitsUsageDependenciesOption = $deploymentOptions["DeployBenefitsUsageDependencies"]
+    }
     if ("Y", "y" -contains $benefitsUsageDependenciesOption) 
     {
         $automationAccount = Get-AzAutomationAccount -ResourceGroupName $ResourceGroupName -Name $AutomationAccountName
@@ -1324,11 +1336,25 @@ if ("Y", "y" -contains $continueInput) {
         $mcaBillingAccountIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+):([A-Za-z0-9]+(-[A-Za-z0-9]+)+)_[0-9]{4}-[0-9]{2}-[0-9]{2}"
         $mcaBillingProfileIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
         
-        $customerType = Read-Host "Are you an Enterprise Agreement (EA) or Microsoft Customer Agreement (MCA) customer? Please, type EA or MCA"
+        if (-not($deploymentOptions["CustomerType"]))
+        {   
+            $customerType = Read-Host "Are you an Enterprise Agreement (EA) or Microsoft Customer Agreement (MCA) customer? Please, type EA or MCA"
+        }
+        else 
+        {
+            $customerType = $deploymentOptions["CustomerType"]
+        }
         
         switch ($customerType) {
             "EA" {  
-                $billingAccountId = Read-Host "Please, enter your Enterprise Agreement Billing Account ID (e.g. 12345678)"
+                if (-not($deploymentOptions["BillingAccountId"]))
+                {
+                    $billingAccountId = Read-Host "Please, enter your Enterprise Agreement Billing Account ID (e.g. 12345678)"
+                }
+                else 
+                {
+                    $billingAccountId = $deploymentOptions["BillingAccountId"]
+                }
                 try
                 {
                     [int32]::Parse($billingAccountId) | Out-Null
@@ -1349,12 +1375,26 @@ if ("Y", "y" -contains $continueInput) {
                 break
             }
             "MCA" {
-                $billingAccountId = Read-Host "Please, enter your Microsoft Customer Agreement Billing Account ID (e.g. <guid>:<guid>_YYYY-MM-DD)"
+                if (-not($deploymentOptions["BillingAccountId"]))
+                {
+                    $billingAccountId = Read-Host "Please, enter your Microsoft Customer Agreement Billing Account ID (e.g. <guid>:<guid>_YYYY-MM-DD)"
+                }
+                else 
+                {
+                    $billingAccountId = $deploymentOptions["BillingAccountId"]
+                }
                 if (-not($billingAccountId -match $mcaBillingAccountIdRegex))
                 {
                     throw "The Microsoft Customer Agreement Billing Account ID must be in the format <guid>:<guid>_YYYY-MM-DD."
                 }
-                $billingProfileId = Read-Host "Please, enter your Billing Profile ID (e.g. ABCD-DEF-GHI-JKL)"
+                if (-not($deploymentOptions["BillingProfileId"]))
+                {
+                    $billingProfileId = Read-Host "Please, enter your Billing Profile ID (e.g. ABCD-DEF-GHI-JKL)"
+                }
+                else 
+                {
+                    $billingProfileId = $deploymentOptions["BillingProfileId"]
+                }
                 if (-not($billingProfileId -match $mcaBillingProfileIdRegex))
                 {
                     throw "The Microsoft Customer Agreement Billing Profile ID must be in the format ABCD-DEF-GHI-JKL."
@@ -1401,7 +1441,14 @@ if ("Y", "y" -contains $continueInput) {
             }    
         }    
 
-        $currencyCode = Read-Host "Please, enter your consumption currency code (e.g. EUR, USD, etc.)"
+        if (-not $deploymentOptions["CurrencyCode"])
+        {
+            $currencyCode = Read-Host "Please, enter your consumption currency code (e.g. EUR, USD, etc.)"
+        }
+        else 
+        {
+            $currencyCode = $deploymentOptions["CurrencyCode"]
+        }
         Write-Output "Setting up the consumption currency code variable..."
         $currencyCodeVarName = "AzureOptimization_RetailPricesCurrencyCode"
         $currencyCodeVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -ErrorAction SilentlyContinue

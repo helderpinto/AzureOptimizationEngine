@@ -286,7 +286,12 @@ An example of the content of such silent deployment file is:
     "WorkspaceResourceGroupName": "<<ExistingName>>",               // mandatory if workspaceReuse is set to 'n', otherwise optional
     "SqlAdmin": "<<sqlaAdmin>>",                                    // mandatory
     "SqlPass": "<<sqlPass>>",                                       // mandatory
-    "TargetLocation": "westeurope"                                  // mandatory
+    "TargetLocation": "westeurope",                                 // mandatory
+    "DeployBenefitsUsageDependencies": "y",                         // mandatory, y/n, deploy the dependencies for the Azure Benefits usage workbooks (EA/MCA customers only + agreement administrator role required
+    "CustomerType": "MCA",                                          // mandatory if DeployBenefitsUsageDependencies is set to 'y', MCA/EA
+    "BillingAccountId": "12345678",                                 // mandatory if DeployBenefitsUsageDependencies is set to 'y', MCA or EA Billing Account ID
+    "BillingProfileId": "ABCD-DEF-GHI-JKL",                         // mandatory if CustomerType is set to 'MCA", otherwise optional
+    "CurrencyCode": "EUR"                                           // mandatory if DeployBenefitsUsageDependencies is set to 'y', EUR/USD/...
   }
   
 ```
@@ -310,8 +315,6 @@ With the `DoPartialUpgrade` switch, the deployment will only:
 * Update Log Analytics Workbooks
 
 Some customers may also customize the SQL Server deployment, for example, migrating from SQL Database to a SQL Managed Instance. There is no tooling available to assist in the migration, but once the database migration is done manually, the AOE upgrade script supports future `DoPartialUpgrade` upgrades with the `IgnoreNamingAvailabilityErrors` switch on (skips SQL Server naming/existence validation).
-
-For a silent upgrade, you can use the `SilentUpgrade` switch.
 
 ## <a id="usage"></a>Usage instructions ##
 
