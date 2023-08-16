@@ -332,11 +332,15 @@ $sqlServerNameTemplate = "{0}-sql"
 $nameAvailable = $true
 if (-not($deploymentOptions["NamePrefix"]))
 {
-    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
-    if (-not($namePrefix))
+    do
     {
-        $namePrefix = "EmptyNamePrefix"
-    }
+        $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment (max. 21 chars) or existing prefix if updating deployment. If you want instead to individually name all resources, just press ENTER"
+        if (-not($namePrefix))
+        {
+            $namePrefix = "EmptyNamePrefix"
+        }
+    } 
+    while ($namePrefix.Length -gt 21)
     $deploymentOptions["NamePrefix"] = $namePrefix
 }
 else {
@@ -376,10 +380,6 @@ if (-not($deploymentOptions["ResourceGroupName"]))
         }
     }
     else {
-        if ($namePrefix.Length -gt 21) {
-            throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
-        }
-    
         $deploymentName = $deploymentNameTemplate -f $namePrefix
         $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
         $storageAccountName = $storageAccountNameTemplate -f $namePrefix
