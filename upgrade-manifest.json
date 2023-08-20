@@ -685,7 +685,7 @@
             "requiredVariables": [
                 {
                     "name": "AzureOptimization_PriceSheetMeterCategories",
-                    "defaultValue": "Virtual Machines"
+                    "defaultValue": "Virtual Machines,Storage"
                 }
             ],
             "exportSchedule": "AzureOptimization_ExportPricesWeekly",

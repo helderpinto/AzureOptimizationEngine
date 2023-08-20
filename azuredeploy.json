@@ -2162,7 +2162,7 @@
                             {
                                 "name": "AzureOptimization_PriceSheetMeterCategories",
                                 "description": "The comma-separated Meter Categories to be included in the Price Sheet (remove the variable to include all categories)",
-                                "value": "Virtual Machines"
+                                "value": "Virtual Machines,Storage"
                             },
                             {
                                 "name": "AzureOptimization_RetailPricesCurrencyCode",

@@ -16,9 +16,9 @@ function Find-SkuHourlyPrice {
         {
             $skuNameFilter = "*" + $skuNameParts[1] + " *"
             $skuVersionFilter = "*" + $skuNameParts[2]
-            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterName -like $skuNameFilter `
-             -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
-             -and $_.MeterDetails.MeterName -like $skuVersionFilter -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
+            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterName_s -like $skuNameFilter `
+             -and $_.MeterName_s -notlike '*Low Priority' -and $_.MeterName_s -notlike '*Expired' `
+             -and $_.MeterName_s -like $skuVersionFilter -and $_.MeterSubCategory_s -notlike '*Windows' -and $_.UnitPrice_s -ne 0 }
             
             if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
@@ -27,7 +27,7 @@ function Find-SkuHourlyPrice {
             if ($skuPrices.Count -gt 2) # D1-like scenarios
             {
                 $skuFilter = "*" + $skuNameParts[1] + " " + $skuNameParts[2] + "*"
-                $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilter }
+                $skuPrices = $skuPrices | Where-Object { $_.MeterName_s -like $skuFilter }
     
                 if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
@@ -40,9 +40,9 @@ function Find-SkuHourlyPrice {
         {
             $skuNameFilter = "*" + $skuNameParts[1] + "*"
     
-            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterDetails.MeterName -like $skuNameFilter `
-             -and $_.MeterDetails.MeterName -notlike '*Low Priority' -and $_.MeterDetails.MeterName -notlike '*Expired' `
-             -and $_.MeterDetails.MeterName -notlike '* v*' -and $_.MeterDetails.MeterSubCategory -notlike '*Windows' -and $_.UnitPrice -ne 0 }
+            $skuPrices = $SKUPriceSheet | Where-Object { $_.MeterName_s -like $skuNameFilter `
+             -and $_.MeterName_s -notlike '*Low Priority' -and $_.MeterName_s -notlike '*Expired' `
+             -and $_.MeterName_s -notlike '* v*' -and $_.MeterSubCategory_s -notlike '*Windows' -and $_.UnitPrice_s -ne 0 }
             
             if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
             {
@@ -52,7 +52,7 @@ function Find-SkuHourlyPrice {
             {
                 $skuFilterLeft = "*" + $skuNameParts[1] + "/*"
                 $skuFilterRight = "*/" + $skuNameParts[1] + "*"
-                $skuPrices = $skuPrices | Where-Object { $_.MeterDetails.MeterName -like $skuFilterLeft -or $_.MeterDetails.MeterName -like $skuFilterRight }
+                $skuPrices = $skuPrices | Where-Object { $_.MeterName_s -like $skuFilterLeft -or $_.MeterName_s -like $skuFilterRight }
                 
                 if (($skuPrices -or $skuPrices.Count -ge 1) -and $skuPrices.Count -le 2)
                 {
@@ -65,10 +65,10 @@ function Find-SkuHourlyPrice {
     $targetHourlyPrice = [double]::MaxValue
     if ($null -ne $skuPriceObject)
     {
-        $targetUnitHours = [int] (Select-String -InputObject $skuPriceObject.UnitOfMeasure -Pattern "^\d+").Matches[0].Value
+        $targetUnitHours = [int] (Select-String -InputObject $skuPriceObject.UnitOfMeasure_s -Pattern "^\d+").Matches[0].Value
         if ($targetUnitHours -gt 0)
         {
-            $targetHourlyPrice = [double] ($skuPriceObject.UnitPrice / $targetUnitHours)
+            $targetHourlyPrice = [double] ($skuPriceObject.UnitPrice_s / $targetUnitHours)
         }
     }
 
@@ -253,8 +253,9 @@ $vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType
 $advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
+$pricesheetTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'Pricesheet' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmsTableName, $subscriptionsTableName, $advisorTableName and $consumptionTableName"
+Write-Output "Will run query against tables $vmsTableName, $subscriptionsTableName, $advisorTableName, $pricesheetTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -320,53 +321,26 @@ if ($cloudEnvironment -eq "AzureCloud")
 
 try 
 {
-    $pricesheet = $null
     $pricesheetEntries = @()
-    $subscription = $workspaceSubscriptionId
-    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2021-10-01&%24expand=properties%2FmeterDetails"
 
-    do
-    {
-        if (-not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
-        {
-            $PriceSheetApiPath = $pricesheet.properties.nextLink.Substring($pricesheet.properties.nextLink.IndexOf("/subscriptions/"))
-        }
-        $tries = 0
-        $requestSuccess = $false
-        do 
-        {        
-            try {
-                $tries++
-                $pricesheet = (Invoke-AzRestMethod -Path $PriceSheetApiPath -Method GET).Content | ConvertFrom-Json
+    $baseQuery = @"
+    $pricesheetTableName
+    | where TimeGenerated > ago(14d)
+    | where MeterCategory_s == 'Virtual Machines' and MeterRegion_s == '$pricesheetRegion'
+    | distinct MeterName_s, MeterSubCategory_s, MeterCategory_s, MeterRegion_s, UnitPrice_s, UnitOfMeasure_s
+"@    
 
-                if ($pricesheet.error)
-                {
-                    throw "Cost Management not available ($($pricesheet.error.message))"
-                }    
-
-                $requestSuccess = $true
-            }
-            catch {
-                $ErrorMessage = $_.Exception.Message
-                Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 30 seconds..."
-                Start-Sleep -s 30   
-            }
-        } while ( -not($requestSuccess) -and $tries -lt 3 )
-
-        if ($pricesheet.error)
-        {
-            throw "Cost Management not available"
-        }
-
-        $pricesheetEntries += $pricesheet.properties.pricesheets | Where-Object { $_.meterDetails.meterLocation -eq $pricesheetRegion -and $_.meterDetails.meterCategory -eq "Virtual Machines" }
-
-    }
-    while ($requestSuccess -and -not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days 14) -Wait 600 -IncludeStatistics
+    $pricesheetEntries = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    
+    Write-Output "Query finished with $($pricesheetEntries.Count) results."   
+    Write-Output "Query statistics: $($queryResults.Statistics.query)"    
 }
 catch
 {
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
     Write-Output "Consumption pricesheet not available, will estimate savings based in cores count..."
-    $pricesheet = $null
 }
 
 $linuxMemoryPerfAdditionalWorkspaces = ""
