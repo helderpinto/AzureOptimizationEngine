@@ -1717,7 +1717,7 @@
                             },
                             {
                                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                                "version": "2.8.7.0",
+                                "version": "2.9.0.0",
                                 "description": "Generates augmented Advisor Cost recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1780,7 +1780,7 @@
                             },
                             {
                                 "name": "[variables('vmssOptimizationsRecommendationsRunbookName')]",
-                                "version": "1.0.5.0",
+                                "version": "1.1.0.0",
                                 "description": "Generates VM Scale Set optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmssOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1808,7 +1808,7 @@
                             },
                             {
                                 "name": "[variables('diskOptimizationsRecommendationsRunbookName')]",
-                                "version": "1.0.0.0",
+                                "version": "1.1.0.0",
                                 "description": "Generates Disk optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('diskOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
