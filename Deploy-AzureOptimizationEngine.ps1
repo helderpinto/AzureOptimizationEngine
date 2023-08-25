@@ -1329,6 +1329,7 @@ if ("Y", "y" -contains $continueInput) {
     }
     if ("Y", "y" -contains $benefitsUsageDependenciesOption) 
     {
+        $deploymentOptions["DeployBenefitsUsageDependencies"] = $benefitsUsageDependenciesOption        
         $automationAccount = Get-AzAutomationAccount -ResourceGroupName $ResourceGroupName -Name $AutomationAccountName
         $principalId = $automationAccount.Identity.PrincipalId
         $tenantId = $automationAccount.Identity.TenantId
@@ -1339,6 +1340,7 @@ if ("Y", "y" -contains $continueInput) {
         if (-not($deploymentOptions["CustomerType"]))
         {   
             $customerType = Read-Host "Are you an Enterprise Agreement (EA) or Microsoft Customer Agreement (MCA) customer? Please, type EA or MCA"
+            $deploymentOptions["CustomerType"] = $customerType        
         }
         else 
         {
@@ -1350,6 +1352,7 @@ if ("Y", "y" -contains $continueInput) {
                 if (-not($deploymentOptions["BillingAccountId"]))
                 {
                     $billingAccountId = Read-Host "Please, enter your Enterprise Agreement Billing Account ID (e.g. 12345678)"
+                    $deploymentOptions["BillingAccountId"] = $billingAccountId
                 }
                 else 
                 {
@@ -1378,6 +1381,7 @@ if ("Y", "y" -contains $continueInput) {
                 if (-not($deploymentOptions["BillingAccountId"]))
                 {
                     $billingAccountId = Read-Host "Please, enter your Microsoft Customer Agreement Billing Account ID (e.g. <guid>:<guid>_YYYY-MM-DD)"
+                    $deploymentOptions["BillingAccountId"] = $billingAccountId
                 }
                 else 
                 {
@@ -1390,6 +1394,7 @@ if ("Y", "y" -contains $continueInput) {
                 if (-not($deploymentOptions["BillingProfileId"]))
                 {
                     $billingProfileId = Read-Host "Please, enter your Billing Profile ID (e.g. ABCD-DEF-GHI-JKL)"
+                    $deploymentOptions["BillingProfileId"] = $billingProfileId
                 }
                 else 
                 {
@@ -1444,11 +1449,15 @@ if ("Y", "y" -contains $continueInput) {
         if (-not $deploymentOptions["CurrencyCode"])
         {
             $currencyCode = Read-Host "Please, enter your consumption currency code (e.g. EUR, USD, etc.)"
+            $deploymentOptions["CurrencyCode"] = $currencyCode
         }
         else 
         {
             $currencyCode = $deploymentOptions["CurrencyCode"]
         }
+
+        $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
+
         Write-Output "Setting up the consumption currency code variable..."
         $currencyCodeVarName = "AzureOptimization_RetailPricesCurrencyCode"
         $currencyCodeVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -ErrorAction SilentlyContinue
