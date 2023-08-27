@@ -1373,7 +1373,7 @@ if ("Y", "y" -contains $continueInput) {
                     throw "The Enterprise Enrollment Reader role could not be verified. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
                 }
                 $roleAssignments = ($roleAssignmentResponse.Content | ConvertFrom-Json).value
-                if (-not($roleAssignments | Where-Object { $_.principalId -eq $principalId -and $_.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e" }))
+                if (-not($roleAssignments | Where-Object { $_.properties.principalId -eq $principalId -and $_.properties.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e" }))
                 {
                     $billingRoleAssignmentName = ([System.Guid]::NewGuid()).Guid
                     $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments/$($billingRoleAssignmentName)?api-version=2019-10-01-preview"
@@ -1425,7 +1425,7 @@ if ("Y", "y" -contains $continueInput) {
                     throw "The Billing Profile Reader role could not be verified. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
                 }
                 $roleAssignments = ($roleAssignmentResponse.Content | ConvertFrom-Json).value
-                if (-not($roleAssignments | Where-Object { $_.principalId -eq $principalId -and $_.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002" }))
+                if (-not($roleAssignments | Where-Object { $_.properties.principalId -eq $principalId -and $_.properties.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002" }))
                 {
                     $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/createBillingRoleAssignment?api-version=2020-12-15-privatepreview"
                     $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002`"}"
