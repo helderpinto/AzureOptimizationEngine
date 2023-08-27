@@ -20,6 +20,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $global:hadErrors = $false
+$global:scopesWithErrors = @()
 
 function Authenticate-AzureWithOption {
     param (
@@ -222,6 +223,7 @@ function Generate-CostDetails {
             else
             {
                 $global:hadErrors = $true
+                $global:scopesWithErrors += $ScopeName
                 Write-Warning "Got an unexpected response code: $($downloadResult.StatusCode)"
             }
         } 
@@ -230,6 +232,7 @@ function Generate-CostDetails {
         if (-not($requestSuccess))
         {
             $global:hadErrors = $true
+            $global:scopesWithErrors += $ScopeName
             if ($tries -eq $MaxTries)
             {
                 Write-Warning "Reached maximum number of tries. Aborting..."
@@ -249,6 +252,7 @@ function Generate-CostDetails {
         if ($result.StatusCode -ne 204)
         {
             $global:hadErrors = $true
+            $global:scopesWithErrors += $ScopeName
             Write-Warning "Error returned by the Generate Cost Details API. Status Code: $($result.StatusCode). Message: $($result.Content)"
         }
         else
@@ -503,6 +507,7 @@ if ($consumptionScope -eq "Subscription")
             else
             {
                 $global:hadErrors = $true
+                $global:scopesWithErrors += $ScopeName
                 Write-Warning "Failed to get consumption data for subscription $($subscription.Name)..."
             }
         }
@@ -514,6 +519,7 @@ if ($consumptionScope -eq "Subscription")
         else
         {
             $global:hadErrors = $true
+            $global:scopesWithErrors += $ScopeName
             Write-Warning "Subscription quota $subscriptionQuotaID not supported"
         }
     }    
@@ -526,5 +532,6 @@ else
 
 if ($global:hadErrors)
 {
-    throw "There were errors during the export process. Please check the output for details."
+    $scopesWithErrorsString = $global:scopesWithErrors -join ","
+    throw "There were errors during the export process with the following scopes: $scopesWithErrorsString. Please check the output for details."
 }

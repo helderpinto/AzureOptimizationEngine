@@ -166,6 +166,14 @@
       "name": "parameters - 7"
     },
     {
+      "type": 1,
+      "content": {
+        "json": "Adjust the filters above according to what you consider being the appropriate thresholds for an abnormal consumption growth. If the first tile below (\"Top Growing/Outliers\") shows results, select each line to analyze the details of the costs growth over time for the specific line item.",
+        "style": "info"
+      },
+      "name": "infoText"
+    },
+    {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
