@@ -548,7 +548,6 @@ else
 if (-not($deploymentOptions["SqlPass"]))
 {
     $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
-    $deploymentOptions["SqlPass"] = $sqlPass
 }
 else
 {
