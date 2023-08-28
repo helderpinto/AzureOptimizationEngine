@@ -600,12 +600,11 @@ foreach ($result in $results)
     | where toint(NumberOfSites_s) == 0
     | distinct InstanceId_s, AppServicePlanName_s, TimeGenerated
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, AppServicePlanName_s
-    | join kind=inner (
+    | join kind=leftouter (
         $consumptionTableName
         | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where todatetime(Date_s) > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(CostInBillingCurrency_s)) by AppServicePlanName_s, FirstUnusedDate
+    | summarize CostsSinceUnused = sumif(todouble(CostInBillingCurrency_s), todatetime(Date_s) > FirstUnusedDate) by AppServicePlanName_s, FirstUnusedDate
 "@
 
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)

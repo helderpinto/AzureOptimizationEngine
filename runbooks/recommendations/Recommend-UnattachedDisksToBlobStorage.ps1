@@ -182,12 +182,11 @@ foreach ($result in $results)
     | where InstanceId_s == '$queryInstanceId' and isempty(OwnerVMId_s)
     | distinct InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s, TimeGenerated
     | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, DiskName_s, DiskSizeGB_s, SKU_s
-    | join kind=inner (
+    | join kind=leftouter (
         $consumptionTableName
         | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where todatetime(Date_s) > LastAttachedDate
-    | summarize CostsSinceDetached = sum(todouble(CostInBillingCurrency_s)) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
+    | summarize CostsSinceDetached = sumif(todouble(CostInBillingCurrency_s), todatetime(Date_s) > LastAttachedDate) by DiskName_s, LastAttachedDate, DiskSizeGB_s, SKU_s    
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate
