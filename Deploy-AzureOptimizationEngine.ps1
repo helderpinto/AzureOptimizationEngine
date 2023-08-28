@@ -405,8 +405,13 @@ else
         $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
         $storageAccountName = $storageAccountNameTemplate -f $namePrefix
         $automationAccountName = $automationAccountNameTemplate -f $namePrefix
-        $sqlServerName = $sqlServerNameTemplate -f $namePrefix            
-        $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        $sqlServerName = $sqlServerNameTemplate -f $namePrefix
+        if ("Y", "y" -contains $workspaceReuse) {
+            $laWorkspaceName = $deploymentOptions["WorkspaceName"]
+        }
+        else {
+            $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        }
         $sqlDatabaseName = "azureoptimization"
     }
     else {
