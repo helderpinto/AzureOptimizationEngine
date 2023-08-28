@@ -65,14 +65,28 @@ switch ($customerType) {
         {
             throw "The Enterprise Agreement Billing Account ID must be a number (e.g. 12345678)."
         }
-        Write-Output "Granting the Enterprise Enrollment Reader role to the AOE Managed Identity..."
-        $billingRoleAssignmentName = ([System.Guid]::NewGuid()).Guid
-        $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments/$($billingRoleAssignmentName)?api-version=2019-10-01-preview"
-        $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e`"}"
-        $roleAssignmentResponse = Invoke-AzRestMethod -Method PUT -Uri $uri -Payload $body
-        if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+        Write-Host "Granting the Enterprise Enrollment Reader role to the AOE Managed Identity..." -ForegroundColor Green
+        $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments?api-version=2019-10-01-preview"
+        $roleAssignmentResponse = Invoke-AzRestMethod -Method GET -Uri $uri
+        if (-not($roleAssignmentResponse.StatusCode -eq 200))
         {
-            throw "The Enterprise Enrollment Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+            throw "The Enterprise Enrollment Reader role could not be verified. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+        }
+        $roleAssignments = ($roleAssignmentResponse.Content | ConvertFrom-Json).value
+        if (-not($roleAssignments | Where-Object { $_.properties.principalId -eq $principalId -and $_.properties.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e" }))
+        {
+            $billingRoleAssignmentName = ([System.Guid]::NewGuid()).Guid
+            $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments/$($billingRoleAssignmentName)?api-version=2019-10-01-preview"
+            $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e`"}"
+            $roleAssignmentResponse = Invoke-AzRestMethod -Method PUT -Uri $uri -Payload $body
+            if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+            {
+                throw "The Enterprise Enrollment Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+            }
+        }
+        else
+        {
+            Write-Host "Role was already granted before." -ForegroundColor Green
         }
         break
     }
@@ -87,13 +101,27 @@ switch ($customerType) {
         {
             throw "The Microsoft Customer Agreement Billing Profile ID must be in the format ABCD-DEF-GHI-JKL."
         }
-        Write-Output "Granting the Billing Profile Reader role to the AOE Managed Identity..."
-        $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/createBillingRoleAssignment?api-version=2020-12-15-privatepreview"
-        $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002`"}"
-        $roleAssignmentResponse = Invoke-AzRestMethod -Method POST -Uri $uri -Payload $body
-        if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+        Write-Host "Granting the Billing Profile Reader role to the AOE Managed Identity..." -ForegroundColor Green
+        $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleAssignments?api-version=2019-10-01-preview"
+        $roleAssignmentResponse = Invoke-AzRestMethod -Method GET -Uri $uri
+        if (-not($roleAssignmentResponse.StatusCode -eq 200))
         {
-            throw "The Billing Profile Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+            throw "The Billing Profile Reader role could not be verified. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+        }
+        $roleAssignments = ($roleAssignmentResponse.Content | ConvertFrom-Json).value
+        if (-not($roleAssignments | Where-Object { $_.properties.principalId -eq $principalId -and $_.properties.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002" }))
+        {
+            $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/createBillingRoleAssignment?api-version=2020-12-15-privatepreview"
+            $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002`"}"
+            $roleAssignmentResponse = Invoke-AzRestMethod -Method POST -Uri $uri -Payload $body
+            if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+            {
+                throw "The Billing Profile Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+            }    
+        }
+        else
+        {
+            Write-Host "Role was already granted before." -ForegroundColor Green
         }
         break
     }
