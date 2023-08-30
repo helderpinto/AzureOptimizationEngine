@@ -184,7 +184,7 @@ try
     $baseQuery = @"
     $pricesheetTableName
     | where TimeGenerated > ago(14d)
-    | where MeterCategory_s == 'Storage' and MeterSubCategory_s endswith "Managed Disks" and MeterName_s endswith "Disks" and MeterRegion_s == '$pricesheetRegion'
+    | where MeterCategory_s == 'Storage' and MeterSubCategory_s endswith "Managed Disks" and MeterName_s endswith "Disks" and MeterRegion_s == '$pricesheetRegion' and PriceType_s == 'Consumption'
     | distinct MeterName_s, MeterSubCategory_s, MeterCategory_s, MeterRegion_s, UnitPrice_s, UnitOfMeasure_s
 "@    
 
@@ -439,6 +439,8 @@ foreach ($result in $results)
 
         $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
 
+        $tentativeTargetSkuSavingsMonthly = -1
+
         if ($targetSku -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
         {
             $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
@@ -446,12 +448,17 @@ foreach ($result in $results)
             if ($skuPricesFound[$currentDiskTier] -lt [double]::MaxValue)
             {
                 $currentSkuPrice = $skuPricesFound[$currentDiskTier]    
-                $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                $tentativeTargetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
             }
             else
             {
-                $targetSkuSavingsMonthly = $result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                $tentativeTargetSkuSavingsMonthly = $result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
             }
+        }
+
+        if ($tentativeTargetSkuSavingsMonthly -ge 0)
+        {
+            $targetSkuSavingsMonthly = $tentativeTargetSkuSavingsMonthly
         }
 
         $tags = @{}

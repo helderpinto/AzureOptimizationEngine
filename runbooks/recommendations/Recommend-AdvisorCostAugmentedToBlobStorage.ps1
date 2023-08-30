@@ -326,7 +326,7 @@ try
     $baseQuery = @"
     $pricesheetTableName
     | where TimeGenerated > ago(14d)
-    | where MeterCategory_s == 'Virtual Machines' and MeterRegion_s == '$pricesheetRegion'
+    | where MeterCategory_s == 'Virtual Machines' and MeterRegion_s == '$pricesheetRegion' and PriceType_s == 'Consumption'
     | distinct MeterName_s, MeterSubCategory_s, MeterCategory_s, MeterRegion_s, UnitPrice_s, UnitOfMeasure_s
 "@    
 
@@ -679,6 +679,8 @@ foreach ($result in $results) {
                 $skuPricesFound[$targetSku.Name] = Find-SkuHourlyPrice -SKUName $targetSku.Name -SKUPriceSheet $pricesheetEntries
             }
 
+            $tentativeTargetSkuSavingsMonthly = -1
+
             if ($targetSku -and $skuPricesFound[$targetSku.Name] -gt 0 -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
             {
                 $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
@@ -691,14 +693,19 @@ foreach ($result in $results) {
                 if ($skuPricesFound[$currentSku.Name] -gt 0)
                 {
                     $currentSkuPrice = $skuPricesFound[$currentSku.Name]    
-                    $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                    $tentativeTargetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
                 }
                 else
                 {
-                    $targetSkuSavingsMonthly = [double]$result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                    $tentativeTargetSkuSavingsMonthly = [double]$result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
                 }
             }
 
+            if ($tentativeTargetSkuSavingsMonthly -ge 0)
+            {
+                $targetSkuSavingsMonthly = $tentativeTargetSkuSavingsMonthly
+            }
+    
             if ($targetSkuSavingsMonthly -eq [double]::PositiveInfinity)
             {
                 $targetSkuSavingsMonthly = [double] $result.Last30DaysCost / 2
