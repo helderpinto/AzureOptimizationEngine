@@ -15,7 +15,10 @@ param (
     [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
-    [string] $SilentDeploymentSettingsPath
+    [string] $SilentDeploymentSettingsPath,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $DeployWorkbooks = $true
 )
 
 function ConvertTo-Hashtable {
@@ -142,6 +145,10 @@ if(Test-Path -Path $SilentDeploymentSettingsPath)
         {
             throw "WorkspaceResourceGroupName is required for silent deployment when WorkspaceReuse is set to 'y'."
         }
+    }
+    if (-not($deploymentOptions["DeployWorkbooks"]) -or ($deploymentOptions["DeployWorkbooks"] -ne "y" -and $deploymentOptions["DeployWorkbooks"] -ne "n"))
+    {
+        throw "DeployWorkbooks set to 'y' or 'n' is required for silent deployment."
     }
     if (-not($deploymentOptions["SqlAdmin"]))
     {
@@ -1220,19 +1227,22 @@ if ("Y", "y" -contains $continueInput) {
     #endregion
 
     #region Workbooks deployment
-    Write-Host "Publishing workbooks..." -ForegroundColor Green
-    $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
-    $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
-    foreach ($workbook in $workbooks)
+    if ($DeployWorkbooks)
     {
-        $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
-        Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
-        try {
-            New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
-                -workbookSourceId $la.ResourceId | Out-Null        
-        }
-        catch {
-            Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+        Write-Host "Publishing workbooks..." -ForegroundColor Green
+        $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
+        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
+        foreach ($workbook in $workbooks)
+        {
+            $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
+            Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
+            try {
+                New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
+                    -workbookSourceId $la.ResourceId | Out-Null        
+            }
+            catch {
+                Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+            }
         }
     }
     #endregion
