@@ -15,10 +15,7 @@ param (
     [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
-    [string] $SilentDeploymentSettingsPath,
-
-    [Parameter(Mandatory = $false)]
-    [switch] $DeployWorkbooks = $true
+    [string] $SilentDeploymentSettingsPath
 )
 
 function ConvertTo-Hashtable {
@@ -1227,8 +1224,11 @@ if ("Y", "y" -contains $continueInput) {
     #endregion
 
     #region Workbooks deployment
-    if ($DeployWorkbooks)
+    if (-not($deploymentOptions["DeployWorkbooks"]))
     {
+        $deployWorkbooks = Read-Host "Do you want to deploy the workbooks? (Y/N)"
+    }
+    if ("Y", "y" -contains $deployWorkbooks) {
         Write-Host "Publishing workbooks..." -ForegroundColor Green
         $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
         $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
