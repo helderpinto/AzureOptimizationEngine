@@ -1229,6 +1229,8 @@ if ("Y", "y" -contains $continueInput) {
         $deployWorkbooks = Read-Host "Do you want to deploy the workbooks with additional insights (recommended)? (Y/N)"
     }
     if ("Y", "y" -contains $deployWorkbooks) {
+        $deploymentOptions["DeployWorkbooks"] = "Y"
+        $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
         Write-Host "Publishing workbooks..." -ForegroundColor Green
         $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
         $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
