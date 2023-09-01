@@ -1950,6 +1950,16 @@
                                 "value": "[concat('\"', subscription().tenantId, '\"')]"
                             },
                             {
+                                "name": "AzureOptimization_PriceSheetMeterCategories",
+                                "description": "The comma-separated Meter Categories to be included in the Price Sheet (remove variable to include all categories)",
+                                "value": "Virtual Machines,Storage"
+                            },
+                            {
+                                "name": "AzureOptimization_RetailPricesCurrencyCode",
+                                "description": "The currency code to be used for the retail prices exports (used for Reservations prices)",
+                                "value": "EUR"
+                            },
+                            {
                                 "name": "AzureOptimization_RecommendAdvisorPeriodInDays",
                                 "description": "The period (in days) to look back for Advisor exported recommendations",
                                 "value": 7
@@ -2158,16 +2168,6 @@
                                 "name": "AzureOptimization_RecommendationStorageAcountGrowthLookbackDays",
                                 "description": "The lookback period (in days) for analyzing Storage Account growth",
                                 "value": 30
-                            },
-                            {
-                                "name": "AzureOptimization_PriceSheetMeterCategories",
-                                "description": "The comma-separated Meter Categories to be included in the Price Sheet (remove the variable to include all categories)",
-                                "value": "Virtual Machines,Storage"
-                            },
-                            {
-                                "name": "AzureOptimization_RetailPricesCurrencyCode",
-                                "description": "The currency code to be used for the retail prices exports (used for Reservations prices)",
-                                "value": "EUR"
                             }
                         ],
                         "roleContributor": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]"
