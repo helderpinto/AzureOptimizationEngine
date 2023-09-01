@@ -284,6 +284,7 @@ An example of the content of such silent deployment file is:
     "SqlDatabaseName": "<<CustomName>>-db",                         // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
     "WorkspaceName": "<<ExistingName>>",                            // mandatory if workspaceReuse is set to 'n', otherwise optional
     "WorkspaceResourceGroupName": "<<ExistingName>>",               // mandatory if workspaceReuse is set to 'n', otherwise optional
+    "DeployWorkbooks": "y",                                         // mandatory, y/n, y = deploy the workbooks, n = don't deploy the workbooks
     "SqlAdmin": "<<sqlaAdmin>>",                                    // mandatory
     "SqlPass": "<<sqlPass>>",                                       // mandatory
     "TargetLocation": "westeurope",                                 // mandatory
