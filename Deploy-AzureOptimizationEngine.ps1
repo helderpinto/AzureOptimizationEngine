@@ -1226,7 +1226,7 @@ if ("Y", "y" -contains $continueInput) {
     #region Workbooks deployment
     if (-not($deploymentOptions["DeployWorkbooks"]))
     {
-        $deployWorkbooks = Read-Host "Do you want to deploy the workbooks? (Y/N)"
+        $deployWorkbooks = Read-Host "Do you want to deploy the workbooks with additional insights (recommended)? (Y/N)"
     }
     if ("Y", "y" -contains $deployWorkbooks) {
         Write-Host "Publishing workbooks..." -ForegroundColor Green

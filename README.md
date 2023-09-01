@@ -34,6 +34,7 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Storage Accounts without retention policy in place
     * Underutilized App Service Plans
     * App Service Plans without any application
+    * Premium SSD disk has been underutilized
 * High Availability
     * Virtual Machine high availability (availability zones count, availability set, managed disks, storage account distribution when using unmanaged disks)
     * VM Scale Set high availability (availability zones count, managed disks)
@@ -102,6 +103,18 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ## <a id="releases"></a>Releases ##
 
+* 09/2023
+    * Added support for MCA, CSP Modern and other customer agreement types
+    * New Cost recommendation added
+        * Premium SSD disk has been underutilized
+    * New workbooks
+        * Benefits Simulation
+        * Benefits Usage
+        * Reservations Potential
+        * Reservations Usage
+    * Support for silent deployment/upgrade and optional Workbooks deployment (thanks to @wpouseele)
+    * Policy Compliance workbook: filtering/grouping by tags
+    * Several bug fixes and performance and security improvements
 * 12/2022
     * Migrated from the deprecated Consumption API to the new Cost Details API
     * Recommendations report available also in Azure Workbook (besides Power BI)
@@ -223,7 +236,7 @@ read the whole blog series dedicated to this project, starting [here](https://te
 * Microsoft.Graph.Authentication and Microsoft.Graph.Identity.DirectoryManagement PowerShell modules
 * A user account with Owner permissions over the chosen subscription, so that the Automation Managed Identity is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
 * (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Managed Identity is granted the required privileges over Azure AD (Global Reader)
-* (Optional) A user account with administrative privileges over the Enterprise Agreement (Enterprise Enrollment Administrator) or the Microsoft Customer Agreement (Billing Profile Owner), so that the Managed Identity is granted the required privileges over customer's consumption agreement
+* (Optional) A user account with administrative privileges over the Enterprise Agreement (Enterprise Enrollment Administrator) or the Microsoft Customer Agreement (Billing Profile Owner), so that the Managed Identity is granted the required privileges over your consumption agreement
 
 During deployment, you'll be asked several questions. You must plan for the following:
 
@@ -231,7 +244,7 @@ During deployment, you'll be asked several questions. You must plan for the foll
 * An Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
 * A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
 * Azure region
-* (Optional) Enterprise Agreement Billing Account ID (EA customers) or the Billing Account and Billing Profile IDs (MCA customers) 
+* (Optional) Enterprise Agreement Billing Account ID (EA/MCA customers) and the Billing Profile IDs (MCA customers) 
 
 Bear in mind that the AOE deployment creates the following (you cannot reuse any existing resource, except the Resource Group and the Log Analytics workspace):
 
@@ -269,7 +282,7 @@ If you choose to deploy all the dependencies from your own local repository, you
 ```
 
 Optionally, you can use the `SilentDeploymentSettingsPath` input parameter to deploy AOE in a more automated way.  
-The file referencing should be a json file with the needed attributes defined.  
+The file referencing should be a JSON file with the needed attributes defined.  
 An example of the content of such silent deployment file is:
 
 ```json
@@ -290,7 +303,7 @@ An example of the content of such silent deployment file is:
     "TargetLocation": "westeurope",                                 // mandatory
     "DeployBenefitsUsageDependencies": "y",                         // mandatory, y/n, deploy the dependencies for the Azure Benefits usage workbooks (EA/MCA customers only + agreement administrator role required
     "CustomerType": "MCA",                                          // mandatory if DeployBenefitsUsageDependencies is set to 'y', MCA/EA
-    "BillingAccountId": "12345678",                                 // mandatory if DeployBenefitsUsageDependencies is set to 'y', MCA or EA Billing Account ID
+    "BillingAccountId": "<guid>:<guid>_YYYY-MM-DD",                 // mandatory if DeployBenefitsUsageDependencies is set to 'y', MCA or EA Billing Account ID
     "BillingProfileId": "ABCD-DEF-GHI-JKL",                         // mandatory if CustomerType is set to 'MCA", otherwise optional
     "CurrencyCode": "EUR"                                           // mandatory if DeployBenefitsUsageDependencies is set to 'y', EUR/USD/...
   }
