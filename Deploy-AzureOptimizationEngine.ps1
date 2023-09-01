@@ -1298,7 +1298,7 @@ if ("Y", "y" -contains $continueInput) {
             }
         }
         
-        Connect-MgGraph -Environment $graphEnvironment -NoWelcome
+        Connect-MgGraph -Scopes "RoleManagement.ReadWrite.Directory","Directory.Read.All" -UseDeviceAuthentication -Environment $graphEnvironment -NoWelcome
         
         $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
             | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
