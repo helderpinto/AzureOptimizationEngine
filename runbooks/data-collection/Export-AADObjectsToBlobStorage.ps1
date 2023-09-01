@@ -168,26 +168,25 @@ Import-Module Microsoft.Graph.Users
 Import-Module Microsoft.Graph.Applications
 Import-Module Microsoft.Graph.Groups
 
-$graphEnvironment = "Global"
-$graphEndpointUri = "https://graph.microsoft.com"  
-if ($cloudEnvironment -eq "AzureUSGovernment")
-{
-    $graphEnvironment = "USGov"
-    $graphEndpointUri = "https://graph.microsoft.us"
-}
-if ($cloudEnvironment -eq "AzureChinaCloud")
-{
-    $graphEnvironment = "China"
-    $graphEndpointUri = "https://microsoftgraph.chinacloudapi.cn"
-}
-if ($cloudEnvironment -eq "AzureGermanCloud")
-{
-    $graphEnvironment = "Germany"
-    $graphEndpointUri = "https://graph.microsoft.de"
+switch ($cloudEnvironment) {
+    "AzureUSGovernment" {  
+        $graphEnvironment = "USGov"
+        break
+    }
+    "AzureChinaCloud" {  
+        $graphEnvironment = "China"
+        break
+    }
+    "AzureGermanCloud" {  
+        $graphEnvironment = "Germany"
+        break
+    }
+    Default {
+        $graphEnvironment = "Global"
+    }
 }
 
-$token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
-Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
+Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
     
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")

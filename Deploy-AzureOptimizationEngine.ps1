@@ -1269,7 +1269,7 @@ if ("Y", "y" -contains $continueInput) {
         Import-Module Microsoft.Graph.Authentication
         Import-Module Microsoft.Graph.Identity.DirectoryManagement
 
-        Write-Host "Granting Azure AD Global Reader role to the Automation Account..." -ForegroundColor Green
+        Write-Host "Granting Azure AD Global Reader role to the Automation Account (requires administrative permissions in Azure AD and MS Graph PowerShell SDK >= 2.4.0)..." -ForegroundColor Green
 
         #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
         $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
@@ -1278,27 +1278,26 @@ if ("Y", "y" -contains $continueInput) {
             New-Item -Type Directory "$localPath\.graph"
         }
         
-        $graphEnvironment = "Global"
-        $graphEndpointUri = "https://graph.microsoft.com"  
-        if ($AzureEnvironment -eq "AzureUSGovernment")
-        {
-            $graphEnvironment = "USGov"
-            $graphEndpointUri = "https://graph.microsoft.us"
-        }
-        if ($AzureEnvironment -eq "AzureChinaCloud")
-        {
-            $graphEnvironment = "China"
-            $graphEndpointUri = "https://microsoftgraph.chinacloudapi.cn"
-        }
-        if ($AzureEnvironment -eq "AzureGermanCloud")
-        {
-            $graphEnvironment = "Germany"
-            $graphEndpointUri = "https://graph.microsoft.de"
+        switch ($cloudEnvironment) {
+            "AzureUSGovernment" {  
+                $graphEnvironment = "USGov"
+                break
+            }
+            "AzureChinaCloud" {  
+                $graphEnvironment = "China"
+                break
+            }
+            "AzureGermanCloud" {  
+                $graphEnvironment = "Germany"
+                break
+            }
+            Default {
+                $graphEnvironment = "Global"
+            }
         }
         
-        $token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
-        Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
-
+        Connect-MgGraph -Environment $graphEnvironment -NoWelcome
+        
         $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
             | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = $globalReaderRole.Members.Id
