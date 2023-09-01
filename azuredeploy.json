@@ -1863,8 +1863,6 @@
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/maintenance/',variables('cleanupOlderRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             }
                         ],
-                        "pricesheetMeterCategories": "Virtual Machines,Storage",
-                        "currencyCode": "EUR",
                         "automationVariables": [
                             {
                                 "name": "AzureOptimization_CloudEnvironment",
@@ -1954,12 +1952,12 @@
                             {
                                 "name": "AzureOptimization_PriceSheetMeterCategories",
                                 "description": "Comma-separated meter categories to be included in the Price Sheet (remove variable to include all categories)",
-                                "value": "[variables('pricesheetMeterCategories')]"
+                                "value": "\"Virtual Machines,Storage\""
                             },
                             {
                                 "name": "AzureOptimization_RetailPricesCurrencyCode",
                                 "description": "The currency code to be used for the retail prices exports (used for Reservations prices)",
-                                "value": "[variables('currencyCode')]"
+                                "value": "\"EUR\""
                             },
                             {
                                 "name": "AzureOptimization_RecommendAdvisorPeriodInDays",
