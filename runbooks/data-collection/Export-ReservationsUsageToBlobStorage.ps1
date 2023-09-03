@@ -18,10 +18,10 @@ param(
     [string] $externalCredentialName = "",
 
     [Parameter(Mandatory = $false)] 
-    [string] $targetStartDate = "", # YYYY-MM-DD format
+    [string] $targetStartDate, # YYYY-MM-DD format
 
     [Parameter(Mandatory = $false)] 
-    [string] $targetEndDate = "" # YYYY-MM-DD format
+    [string] $targetEndDate # YYYY-MM-DD format
 )
 
 $ErrorActionPreference = "Stop"
