@@ -1231,6 +1231,10 @@ if ("Y", "y" -contains $continueInput) {
     {
         $deployWorkbooks = Read-Host "Do you want to deploy the workbooks with additional insights (recommended)? (Y/N)"
     }
+    else
+    {
+        $deployWorkbooks = $deploymentOptions["DeployWorkbooks"]
+    }
     if ("Y", "y" -contains $deployWorkbooks) {
         $deploymentOptions["DeployWorkbooks"] = "Y"
         $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
