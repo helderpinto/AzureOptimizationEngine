@@ -269,6 +269,13 @@ If the deployment fails for some reason, you can simply repeat it, as it is idem
 
 If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)) and also the Microsoft.Graph modules (instructions [here](https://docs.microsoft.com/en-us/graph/powershell/installation)).
 
+Optionally, you can specify the set of tags you want to assign to your AOE resources, by using the `ResourceTags` input parameter. For example:
+
+```powershell
+$tags = @{"Service"="aoe";"Environment"="Demo"}
+.\Deploy-AzureOptimizationEngine.ps1 -ResourceTags $tags
+```
+
 If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token (see syntax and example below)
 
 ```powershell
@@ -281,7 +288,7 @@ If you choose to deploy all the dependencies from your own local repository, you
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://aoesa.blob.core.windows.net/files/azuredeploy.json" -ArtifactsSasToken "?sv=2019-10-10&ss=bfqt&srt=o&sp=rwdlacupx&se=2020-06-13T23:27:18Z&st=2020-06-13T15:27:18Z&spr=https&sig=4cvPayBlF67aYvifwu%2BIUw8Ldh5txpFGgXlhzvKF3%2BI%3D"
 ```
 
-Optionally, you can use the `SilentDeploymentSettingsPath` input parameter to deploy AOE in a more automated way.  
+Optionally, you can also use the `SilentDeploymentSettingsPath` input parameter to deploy AOE in a more automated way.  
 The file referencing should be a JSON file with the needed attributes defined.  
 An example of the content of such silent deployment file is:
 
