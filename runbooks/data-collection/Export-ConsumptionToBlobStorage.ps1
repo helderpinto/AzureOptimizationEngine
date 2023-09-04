@@ -1,15 +1,15 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $TargetSubscription = $null,
+    [string] $TargetSubscription,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
+    [string] $externalTenantId,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = "",
+    [string] $externalCredentialName,
 
     [Parameter(Mandatory = $false)] 
     [string] $targetStartDate, # YYYY-MM-DD format
@@ -305,12 +305,12 @@ if ([string]::IsNullOrEmpty($consumptionAPIOption))
 $consumptionScope = Get-AutomationVariable -Name  "AzureOptimization_ConsumptionScope" -ErrorAction SilentlyContinue # Subscription|BillingAccount
 if ([string]::IsNullOrEmpty($consumptionScope))
 {
-    Write-Output "Consumption Scope not specified, defaulting to Subscription"
+    "Consumption Scope not specified, defaulting to Subscription"
     $consumptionScope = "Subscription"
 }
 else
 {
-    Write-Output "Consumption Scope is $consumptionScope"
+    "Consumption Scope is $consumptionScope"
     if ($consumptionScope -eq "BillingAccount")
     {
         $BillingAccountID = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID"        
@@ -321,7 +321,7 @@ else
     }
 }
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
 
@@ -353,11 +353,11 @@ if ($consumptionScope -eq "Subscription")
     {
         $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
     }    
-    Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for $($subscriptions.Count) subscriptions..."
+    "Exporting consumption data from $targetStartDate to $targetEndDate for $($subscriptions.Count) subscriptions..."
 }
 else
 {
-    Write-Output "Exporting consumption data from $targetStartDate to $targetEndDate for Billing Account ID $BillingAccountID..."
+    "Exporting consumption data from $targetStartDate to $targetEndDate for Billing Account ID $BillingAccountID..."
 }
 
 
@@ -382,7 +382,7 @@ if ($consumptionScope -eq "Subscription")
         
             $ConsumptionApiPath = "/subscriptions/$($subscription.Id)/providers/Microsoft.Consumption/usageDetails?api-version=2021-10-01&metric=$($consumptionMetric.ToLower())&%24expand=properties%2FmeterDetails%2Cproperties%2FadditionalInfo&%24filter=properties%2FusageStart%20ge%20%27$targetStartDate%27%20and%20properties%2FusageEnd%20le%20%27$targetEndDate%27"
         
-            Write-Output "Starting consumption export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
+            "Starting consumption export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
         
             do
             {
@@ -476,14 +476,14 @@ if ($consumptionScope -eq "Subscription")
         
             if ($requestSuccess)
             {
-                Write-Output "Generated $($billingEntries.Count) entries..."
+                "Generated $($billingEntries.Count) entries..."
             
-                Write-Output "Uploading CSV to Storage"
+                "Uploading CSV to Storage"
             
                 $ci = [CultureInfo]::new([System.Threading.Thread]::CurrentThread.CurrentCulture.Name)
                 if ($ci.NumberFormat.NumberDecimalSeparator -ne '.')
                 {
-                    Write-Output "Current culture ($($ci.Name)) does not use . as decimal separator"    
+                    "Current culture ($($ci.Name)) does not use . as decimal separator"    
                     $ci.NumberFormat.NumberDecimalSeparator = '.'
                     [System.Threading.Thread]::CurrentThread.CurrentCulture = $ci
                 }
@@ -497,12 +497,12 @@ if ($consumptionScope -eq "Subscription")
                 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
                 
                 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-                Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+                "[$now] Uploaded $csvBlobName to Blob Storage..."
             
                 Remove-Item -Path $csvExportPath -Force
             
                 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-                Write-Output "[$now] Removed $csvExportPath from local disk..."        
+                "[$now] Removed $csvExportPath from local disk..."        
             }
             else
             {
@@ -513,7 +513,7 @@ if ($consumptionScope -eq "Subscription")
         }
         elseif ($subscriptionQuotaID -in $CostDetailsSupportedQuotaIDs -or $consumptionAPIOption -eq "CostDetails")
         {
-            Write-Output "Starting cost details export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
+            "Starting cost details export process from $targetStartDate to $targetEndDate for subscription $($subscription.Name)..."
             Generate-CostDetails -ScopeId "/subscriptions/$($subscription.Id)" -ScopeName $subscription.Id
         }
         else
@@ -526,7 +526,7 @@ if ($consumptionScope -eq "Subscription")
 }
 else
 {
-    Write-Output "Starting cost details export process from $targetStartDate to $targetEndDate for Billing Account ID $BillingAccountID..."
+    "Starting cost details export process from $targetStartDate to $targetEndDate for Billing Account ID $BillingAccountID..."
     Generate-CostDetails -ScopeId "/providers/Microsoft.Billing/billingAccounts/$BillingAccountID" -ScopeName $BillingAccountID
 }
 

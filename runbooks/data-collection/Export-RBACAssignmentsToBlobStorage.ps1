@@ -1,12 +1,12 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
+    [string] $externalTenantId,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = ""
+    [string] $externalCredentialName
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,7 +37,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
 }
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
     "RunAsAccount" { 
@@ -73,14 +73,14 @@ $subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
 
 $roleAssignments = @()
 
-Write-Output "Iterating through all reachable subscriptions..."
+"Iterating through all reachable subscriptions..."
 
 foreach ($subscription in $subscriptions) {
 
     Select-AzSubscription -SubscriptionId $subscription.Id -TenantId $tenantId | Out-Null
 
     $assignments = Get-AzRoleAssignment -IncludeClassicAdministrators -ErrorAction Continue
-    Write-Output "Found $($assignments.Count) assignments for $($subscription.Name) subscription..."
+    "Found $($assignments.Count) assignments for $($subscription.Name) subscription..."
 
     foreach ($assignment in $assignments) {
         if ($null -eq $assignment.ObjectId -and $assignment.Scope.Contains($subscription.Id))
@@ -121,11 +121,11 @@ $jsonExportPath = "$fileDate-$tenantId-rbacassignments.json"
 $csvExportPath = "$fileDate-$tenantId-rbacassignments.csv"
 
 $roleAssignments | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-Write-Output "Exported to JSON: $($roleAssignments.Count) lines"
+"Exported to JSON: $($roleAssignments.Count) lines"
 $rbacObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-Write-Output "JSON Import: $($rbacObjectsJson.Count) lines"
+"JSON Import: $($rbacObjectsJson.Count) lines"
 $rbacObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-Write-Output "Export to $csvExportPath"
+"Export to $csvExportPath"
 
 $csvBlobName = $csvExportPath
 $csvProperties = @{"ContentType" = "text/csv"};
@@ -133,21 +133,21 @@ $csvProperties = @{"ContentType" = "text/csv"};
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+"[$now] Uploaded $csvBlobName to Blob Storage..."
 
 Remove-Item -Path $csvExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Removed $csvExportPath from local disk..."    
+"[$now] Removed $csvExportPath from local disk..."    
 
 Remove-Item -Path $jsonExportPath -Force
     
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Removed $jsonExportPath from local disk..."    
+"[$now] Removed $jsonExportPath from local disk..."    
 
 $roleAssignments = @()
 
-Write-Output "Getting Azure AD roles..."
+"Getting Azure AD roles..."
 
 #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
 $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
@@ -204,11 +204,11 @@ $jsonExportPath = "$fileDate-$tenantId-aadrbacassignments.json"
 $csvExportPath = "$fileDate-$tenantId-aadrbacassignments.csv"
 
 $roleAssignments | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-Write-Output "Exported to JSON: $($roleAssignments.Count) lines"
+"Exported to JSON: $($roleAssignments.Count) lines"
 $rbacObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-Write-Output "JSON Import: $($rbacObjectsJson.Count) lines"
+"JSON Import: $($rbacObjectsJson.Count) lines"
 $rbacObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-Write-Output "Export to $csvExportPath"
+"Export to $csvExportPath"
 
 $csvBlobName = $csvExportPath
 $csvProperties = @{"ContentType" = "text/csv"};
@@ -216,14 +216,14 @@ $csvProperties = @{"ContentType" = "text/csv"};
 Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force    
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+"[$now] Uploaded $csvBlobName to Blob Storage..."
 
 Remove-Item -Path $csvExportPath -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Removed $csvExportPath from local disk..."    
+"[$now] Removed $csvExportPath from local disk..."    
 
 Remove-Item -Path $jsonExportPath -Force
     
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-Write-Output "[$now] Removed $jsonExportPath from local disk..."    
+"[$now] Removed $jsonExportPath from local disk..."    

@@ -113,6 +113,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
         * Reservations Potential
         * Reservations Usage
     * Support for silent deployment/upgrade and optional Workbooks deployment (thanks to @wpouseele)
+    * Support for AOE resources tags assignment at deployment/upgrade time
     * Policy Compliance workbook: filtering/grouping by tags
     * Several bug fixes and performance and security improvements
 * 12/2022

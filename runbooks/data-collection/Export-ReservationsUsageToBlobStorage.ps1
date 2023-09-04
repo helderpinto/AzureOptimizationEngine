@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $TargetScope = $null,
+    [string] $TargetScope,
 
     [Parameter(Mandatory = $false)]
     [string] $BillingAccountID,
@@ -9,13 +9,13 @@ param(
     [string] $BillingProfileID,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
+    [string] $externalTenantId,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = "",
+    [string] $externalCredentialName,
 
     [Parameter(Mandatory = $false)] 
     [string] $targetStartDate, # YYYY-MM-DD format
@@ -70,8 +70,7 @@ if ([string]::IsNullOrEmpty($BillingProfileID) -and -not([string]::IsNullOrEmpty
 $mcaBillingAccountIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+):([A-Za-z0-9]+(-[A-Za-z0-9]+)+)_[0-9]{4}-[0-9]{2}-[0-9]{2}"
 $mcaBillingProfileIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
 
-
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
     "RunAsAccount" { 
