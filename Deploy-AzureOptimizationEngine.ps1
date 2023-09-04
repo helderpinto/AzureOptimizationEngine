@@ -15,7 +15,10 @@ param (
     [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
-    [string] $SilentDeploymentSettingsPath
+    [string] $SilentDeploymentSettingsPath,
+
+    [Parameter(Mandatory = $false)]
+    [hashtable] $ResourceTags = @{}
 )
 
 function ConvertTo-Hashtable {
@@ -704,7 +707,7 @@ if ("Y", "y" -contains $continueInput) {
                         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                         -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
                         -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
+                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags
                 }
                 else {
                     $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
@@ -712,7 +715,7 @@ if ("Y", "y" -contains $continueInput) {
                         -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                         -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
                         -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
+                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
                 }            
                 $deploymentSucceeded = $true
             }
@@ -756,7 +759,7 @@ if ("Y", "y" -contains $continueInput) {
                 Invoke-WebRequest -Uri ($runbookBaseUri + $allRunbooks[$i].name) | Out-Null
                 $runbookName = [System.IO.Path]::GetFilenameWithoutExtension($allRunbooks[$i].name)
                 $runbookJson = "{ `"name`": `"$automationAccountName/$runbookName`", `"type`": `"Microsoft.Automation/automationAccounts/runbooks`", " + `
-                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"tags`": $ResourceTags, `"properties`": { " + `
                 "`"runbookType`": `"PowerShell`", `"logProgress`": false, `"logVerbose`": false, " + `
                 "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i].name)`", `"version`": `"$runbookBaseUri$($allRunbooks[$i].version)`" } } }"
                 $runbookDeploymentTemplateJson += $runbookJson
@@ -782,7 +785,7 @@ if ("Y", "y" -contains $continueInput) {
         for ($i = 0; $i -lt $allModules.Count; $i++)
         {
             $moduleJson = "{ `"name`": `"$automationAccountName/$($allModules[$i].name)`", `"type`": `"Microsoft.Automation/automationAccounts/modules`", " + `
-                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"tags`": $ResourceTags, `"properties`": { " + `
                 "`"contentLink`": { `"uri`": `"$($allModules[$i].url)`" } } "
             if ($allModules[$i].name -ne "Az.Accounts" -and $allModules[$i].name -ne "Microsoft.Graph.Authentication")
             {
@@ -1240,7 +1243,7 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
             try {
                 New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
-                    -workbookSourceId $la.ResourceId | Out-Null        
+                    -workbookSourceId $la.ResourceId -resourceTags $ResourceTags | Out-Null        
             }
             catch {
                 Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            

@@ -27,6 +27,9 @@
       "metadata": {
         "description": "The unique guid for this workbook instance"
       }
+    },
+    "resourceTags": {
+      "type": "object"
     }
   },
   "resources": [
@@ -34,6 +37,7 @@
       "name": "[parameters('workbookId')]",
       "type": "microsoft.insights/workbooks",
       "location": "[resourceGroup().location]",
+      "tags": "[parameters('resourceTags')]",
       "apiVersion": "2022-04-01",
       "dependsOn": [],
       "kind": "shared",

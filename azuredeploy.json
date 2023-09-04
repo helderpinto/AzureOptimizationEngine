@@ -80,6 +80,9 @@
             "metadata": {
                 "description": "Base time for all automation runbook schedules."
             }
+        },
+        "resourceTags": {
+            "type": "object"
         }
     },
     "functions": [],
@@ -93,7 +96,7 @@
             "apiVersion": "2021-04-01",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [],
-            "tags": {}
+            "tags": "[parameters('resourceTags')]"
         },
         {
             "name": "resourcesDeployment",
@@ -162,6 +165,9 @@
                     },
                     "contributorRoleAssignmentGuid": {
                         "value": "[parameters('contributorRoleAssignmentGuid')]"
+                    },
+                    "resourceTags": {
+                        "value": "[parameters('resourceTags')]"
                     }
                 },
                 "template": {
@@ -218,6 +224,9 @@
                         },
                         "baseTime": {
                             "type": "string"
+                        },
+                        "resourceTags": {
+                            "type": "object"
                         },
                         "contributorRoleAssignmentGuid": {
                             "type": "string"
@@ -2180,6 +2189,7 @@
                             "apiVersion": "[variables('apiVersions').operationalInsights]",
                             "name": "[parameters('logAnalyticsWorkspaceName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "properties": {
                                 "sku": {
                                     "name": "pergb2018"
@@ -2193,6 +2203,7 @@
                             "apiVersion": "[variables('apiVersions').storage]",
                             "name": "[parameters('storageAccountName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "sku": {
                                 "name": "Standard_LRS",
                                 "tier": "Standard"
@@ -2338,6 +2349,7 @@
                             "apiVersion": "[variables('apiVersions').sql]",
                             "name": "[parameters('sqlServerName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "kind": "v12.0",
                             "properties": {
                                 "administratorLogin": "[parameters('sqlAdminLogin')]",
@@ -2368,6 +2380,7 @@
                             "apiVersion": "[variables('apiVersions').sql]",
                             "name": "[concat(parameters('sqlServerName'), '/', parameters('sqlDatabaseName'))]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
                             ],
@@ -2407,6 +2420,7 @@
                             "apiVersion": "[variables('apiVersions').automation]",
                             "name": "[parameters('automationAccountName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "identity": {
                                 "type": "SystemAssigned"
                             },
@@ -2421,6 +2435,7 @@
                             "comments": "provision the Az.Accounts module first since others are dependent on it",
                             "name": "[concat(parameters('automationAccountName'), '/', variables('Az.Accounts').name)]",
                             "type": "Microsoft.Automation/automationAccounts/modules",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
@@ -2436,6 +2451,7 @@
                             "comments": "provision the Microsoft.Graph.Authentication module first since others are dependent on it",
                             "name": "[concat(parameters('automationAccountName'), '/', variables('Microsoft.Graph.Authentication').name)]",
                             "type": "Microsoft.Automation/automationAccounts/modules",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
@@ -2450,6 +2466,7 @@
                         {
                             "name": "[concat(parameters('automationAccountName'), '/', variables('psModules')[copyIndex()].name)]",
                             "type": "Microsoft.Automation/automationAccounts/modules",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
@@ -2469,6 +2486,7 @@
                         {
                             "name": "[concat(parameters('automationAccountName'), '/', variables('runbooks')[copyIndex()].name)]",
                             "type": "Microsoft.Automation/automationAccounts/runbooks",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "location": "[parameters('projectLocation')]",
                             "dependsOn": [
