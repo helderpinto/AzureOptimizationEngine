@@ -107,7 +107,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
     * Added support for MCA, CSP Modern and other customer agreement types
     * New Cost recommendation added
         * Premium SSD disk has been underutilized
-    * New workbooks
+    * New workbooks (see [how to enable them](#enabling-the-reservations-and-benefits-usage-workbooks))
         * Benefits Simulation
         * Benefits Usage
         * Reservations Potential
@@ -404,7 +404,9 @@ In order to leverage the Workbooks that allow you to analyze your Azure benefits
 ./Setup-BenefitsUsageDependencies.ps1 -AutomationAccountName <AOE automation account> -ResourceGroupName <AOE resource group> [-AzureEnvironment <AzureUSGovernment|AzureGermanCloud|AzureCloud>]
 ```
 
-If you run into issues with the Azure Pricesheet ingestion (due to the large size of the CVS export), you can create the following Azure Automation variable, to filter in the Price Sheet regions: `AzureOptimization_PriceSheetMeterRegions` set to the comma-separated billing regions of your virtual machines (e.g. *EU West,EU North*)
+If you run into issues with the Azure Pricesheet ingestion (due to the large size of the CVS export), you can create the following Azure Automation variable, to filter in the Price Sheet regions: `AzureOptimization_PriceSheetMeterRegions` set to the comma-separated billing regions of your virtual machines (e.g. *EU West,EU North*).
+
+The Reservations Usage Workbook has a couple of "Unused Reservations" tiles that require AOE to export Consumption data at the EA/MCA scope (instead of the default Subscription scope). You can switch to EA/MCA scope consumption by creating/updating the `AzureOptimization_ConsumptionScope` Automation variable with `BillingAccount` as value. Be aware that this option may generate a very large single consumption export which may lead to errors due to lack of memory (this would in turn require [deploying AOE with a Hybrid Worker](#changing-the-runbooks-execution-context-to-hybrid-worker)).
 
 ## <a id="faq"></a>Frequently Asked Questions ##
 

@@ -85,7 +85,7 @@ $deploymentOptions = @{}
 $silentDeploy = $false
 
 # Check if silent deployment settings file exists
-if(Test-Path -Path $SilentDeploymentSettingsPath)
+if(-not([string]::IsNullOrEmpty($SilentDeploymentSettingsPath)) -and (Test-Path -Path $SilentDeploymentSettingsPath))
 {
     $silentDeploy = $true
     # Get the deployment details from the silent deployment settings file
@@ -1082,11 +1082,19 @@ if ("Y", "y" -contains $continueInput) {
     #region Open SQL Server firewall rule
     if (-not($sqlServerName -like "*.database.*"))
     {
-        $myPublicIp = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+        $myPublicIp = (Invoke-WebRequest -uri "https://ifconfig.me/ip").Content.Trim()
+        if (-not($myPublicIp -like "*.*.*.*"))
+        {
+            $myPublicIp = (Invoke-WebRequest -uri "https://ipv4.icanhazip.com").Content.Trim()
+            if (-not($myPublicIp -like "*.*.*.*"))
+            {
+                $myPublicIp = (Invoke-WebRequest -uri "https://ipinfo.io/ip").Content.Trim()
+            }
+        }
 
         Write-Host "Opening SQL Server firewall temporarily to your public IP ($myPublicIp)..." -ForegroundColor Green
         $tempFirewallRuleName = "InitialDeployment"            
-        New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction SilentlyContinue    
+        New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction Continue    
     }
     #endregion
     
@@ -1212,7 +1220,7 @@ if ("Y", "y" -contains $continueInput) {
         if (-not($sqlServerName -like "*.database.*"))
         {
             Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
-            Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName        
+            Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -ErrorAction Continue
         }    
         throw "Could not establish connection to SQL."
     }
@@ -1222,7 +1230,7 @@ if ("Y", "y" -contains $continueInput) {
     if (-not($sqlServerName -like "*.database.*"))
     {
         Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
-        Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName        
+        Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -ErrorAction Continue  
     }    
     #endregion
 

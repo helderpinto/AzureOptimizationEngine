@@ -53,3 +53,4 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_RecommendationsMaxAgeInDays` - The maximum age (in days) for a recommendation to be kept in the SQL database. Default: 365.
 * `AzureOptimization_RetailPricesCurrencyCode` - The currency code (e.g., EUR, USD, etc.) used to collect the Reservations retail prices.
 * `AzureOptimization_PriceSheetMeterCategories` - The comma-separated meter categories used for Pricesheet filtering, in order to avoid ingesting unnecessary data. Defaults to "Virtual Machines,Storage"
+* `AzureOptimization_ConsumptionScope` - The scope of the consumption exports: `Subscription` (default) or `BillingAccount`. See [more details](#enabling-the-reservations-and-benefits-usage-workbooks).
