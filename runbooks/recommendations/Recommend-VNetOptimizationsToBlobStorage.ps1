@@ -1235,12 +1235,11 @@ foreach ($result in $results)
     | where InstanceId_s == '$queryInstanceId' and isempty(AssociatedResourceId_s)
     | distinct InstanceId_s, Name_s, AllocationMethod_s, SkuName_s, TimeGenerated
     | summarize LastAttachedDate = min(TimeGenerated) by InstanceId_s, Name_s, AllocationMethod_s, SkuName_s
-    | join kind=inner (
+    | join kind=leftouter (
         $consumptionTableName
         | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where todatetime(Date_s) > LastAttachedDate
-    | summarize CostsSinceDetached = sum(todouble(CostInBillingCurrency_s)) by Name_s, LastAttachedDate, AllocationMethod_s, SkuName_s
+    | summarize CostsSinceDetached = sumif(todouble(CostInBillingCurrency_s), todatetime(Date_s) > LastAttachedDate) by Name_s, LastAttachedDate, AllocationMethod_s, SkuName_s
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate

@@ -190,12 +190,11 @@ foreach ($result in $results)
     | where toint(LbRulesCount_s) != 0 or toint(InboundNatRulesCount_s) != 0 or toint(OutboundRulesCount_s) != 0
     | distinct InstanceId_s, InstanceName_s, SkuName_s, TimeGenerated
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s, SkuName_s
-    | join kind=inner (
+    | join kind=leftouter (
         $consumptionTableName
         | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where todatetime(Date_s) > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(CostInBillingCurrency_s)) by InstanceName_s, FirstUnusedDate, SkuName_s
+    | summarize CostsSinceUnused = sumif(todouble(CostInBillingCurrency_s), todatetime(Date_s) > FirstUnusedDate) by InstanceName_s, FirstUnusedDate, SkuName_s
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate

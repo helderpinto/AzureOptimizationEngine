@@ -15,7 +15,10 @@ param (
     [switch] $IgnoreNamingAvailabilityErrors,
 
     [Parameter(Mandatory = $false)]
-    [string] $SilentDeploymentSettingsPath
+    [string] $SilentDeploymentSettingsPath,
+
+    [Parameter(Mandatory = $false)]
+    [hashtable] $ResourceTags = @{}
 )
 
 function ConvertTo-Hashtable {
@@ -50,14 +53,144 @@ function ConvertTo-Hashtable {
     }
 }
 
+function Test-SqlPasswordComplexity {
+    param (
+        [string]$Username,    
+        [string]$Password
+    )
+
+    # Check if the username is present in the password
+    if ($Password -match $Username) {
+        throw "SQL password cannot contain the SQL username."
+        return $false
+    }
+
+    # Password must be minimum 8 characters, contains at least one uppercase, lowercase letter, contains at least one digit, contains at least one special character
+    $regex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$'
+    if ($Password -match $regex) {
+        Write-Host "SQL password is valid." -ForegroundColor Green
+        return $true
+    } else {
+        throw "Password does not meet the complexity requirements."
+        return $false
+    }
+}
+
 $ErrorActionPreference = "Stop"
 
 #region Deployment environment settings
 
 $lastDeploymentStatePath = ".\last-deployment-state.json"
 $deploymentOptions = @{}
+$silentDeploy = $false
 
-if (Test-Path -Path $lastDeploymentStatePath)
+# Check if silent deployment settings file exists
+if(Test-Path -Path $SilentDeploymentSettingsPath)
+{
+    $silentDeploy = $true
+    # Get the deployment details from the silent deployment settings file
+    $silentDepOptions = Get-Content -Path $SilentDeploymentSettingsPath | ConvertFrom-Json
+    Write-Host "Silent deployment options found." -ForegroundColor Green
+    $silentDepOptions = ConvertTo-Hashtable -InputObject $silentDepOptions
+    $silentDepOptions.Keys | ForEach-Object {
+        $deploymentOptions[$_] = $silentDepOptions[$_]
+    }
+
+    # Validate the silent deployment settings
+    if (-not($deploymentOptions["SubscriptionId"]))
+    {
+        throw "SubscriptionId is required for silent deployment."
+    }
+    if (-not($deploymentOptions["NamePrefix"]))
+    {
+        throw "NamePrefix is required for silent deployment. Set to 'EmptyNamePrefix' to use own naming convention and specify the needed resource names."
+    }
+    if ($deploymentOptions["NamePrefix"].Length -gt 21) {
+        throw "Name prefix length is larger than the 21 characters limit ($($deploymentOptions["NamePrefix"]))"
+    }
+    if ($deploymentOptions["NamePrefix"] -eq "EmptyNamePrefix")
+    {
+        if (-not($deploymentOptions["ResourceGroupName"]))
+        {
+            throw "ResourceGroupName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if (-not($deploymentOptions["StorageAccountName"]))
+        {
+            throw "StorageAccountName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if (-not($deploymentOptions["AutomationAccountName"]))
+        {
+            throw "AutomationAccountName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if (-not($deploymentOptions["SqlServerName"]))
+        {
+            throw "SqlServerName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+        if (-not($deploymentOptions["SqlDatabaseName"]))
+        {
+            throw "SqlDatabaseName is required for silent deployment when NamePrefix is set to 'EmptyNamePrefix'."
+        }
+    }
+    if (-not($deploymentOptions["WorkspaceReuse"]) -or ($deploymentOptions["WorkspaceReuse"] -ne "y" -and $deploymentOptions["WorkspaceReuse"] -ne "n"))
+    {
+        throw "WorkspaceReuse set to 'y' or 'n' is required for silent deployment."
+    }
+    if ($deploymentOptions["WorkspaceReuse"] -eq "y")
+    {
+        if (-not($deploymentOptions["WorkspaceName"]))
+        {
+            throw "WorkspaceName is required for silent deployment when WorkspaceReuse is set to 'y'."
+        }
+        if (-not($deploymentOptions["WorkspaceResourceGroupName"]))
+        {
+            throw "WorkspaceResourceGroupName is required for silent deployment when WorkspaceReuse is set to 'y'."
+        }
+    }
+    if (-not($deploymentOptions["DeployWorkbooks"]) -or ($deploymentOptions["DeployWorkbooks"] -ne "y" -and $deploymentOptions["DeployWorkbooks"] -ne "n"))
+    {
+        throw "DeployWorkbooks set to 'y' or 'n' is required for silent deployment."
+    }
+    if (-not($deploymentOptions["SqlAdmin"]))
+    {
+        throw "SqlAdmin is required for silent deployment."
+    }
+    if (-not($deploymentOptions["SqlPass"]))
+    {
+        throw "SqlPass is required for silent deployment."
+    }
+    if (-not($deploymentOptions["TargetLocation"]))
+    {
+        throw "TargetLocation is required for silent deployment."
+    }
+    if (-not($deploymentOptions["DeployBenefitsUsageDependencies"]))
+    {
+        throw "DeployBenefitsUsageDependencies is required for silent deployment."
+    }
+    if ($deploymentOptions["DeployBenefitsUsageDependencies"] -eq "y")
+    {
+        if (-not($deploymentOptions["CustomerType"]))
+        {
+            throw "CustomerType is required for silent deployment when DeployBenefitsUsageDependencies is set to 'y'."
+        }
+        if (-not($deploymentOptions["BillingAccountId"]))
+        {
+            throw "BillingAccountId is required for silent deployment when DeployBenefitsUsageDependencies is set to 'y'."
+        }
+        if (-not($deploymentOptions["CurrencyCode"]))
+        {
+            throw "CurrencyCode is required for silent deployment when DeployBenefitsUsageDependencies is set to 'y'."
+        }
+        if ($deploymentOptions["CustomerType"] -eq "MCA")
+        {
+            if (-not($deploymentOptions["BillingProfileId"]))
+            {
+                throw "BillingProfileId is required for silent deployment when CustomerType is set to 'MCA'."
+            }
+        }
+    }
+}
+
+if ((Test-Path -Path $lastDeploymentStatePath) -and !$silentDeploy)
 {
     $depOptions = Get-Content -Path $lastDeploymentStatePath | ConvertFrom-Json
     Write-Host $depOptions -ForegroundColor Green
@@ -125,7 +258,7 @@ else {
 #region Azure subscription choice
 
 Write-Host "Getting Azure subscriptions..." -ForegroundColor Yellow
-$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" }
+$subscriptions = Get-AzSubscription | Where-Object { $_.State -eq "Enabled" -and $_.SubscriptionPolicies.QuotaId -notlike "AAD*" }
 
 if ($subscriptions.Count -gt 1) {
 
@@ -188,7 +321,13 @@ if ($ctx.Subscription.Id -ne $subscriptionId) {
 #endregion
 
 #region Resource naming options
-$workspaceReuse = $null
+if($silentDeploy)
+{
+    $workspaceReuse = $deploymentOptions["WorkspaceReuse"]
+}
+else { 
+    $workspaceReuse = $null 
+}
 
 $deploymentNameTemplate = "{0}" + (Get-Date).ToString("yyMMddHHmmss")
 $resourceGroupNameTemplate = "{0}-rg"
@@ -200,11 +339,15 @@ $sqlServerNameTemplate = "{0}-sql"
 $nameAvailable = $true
 if (-not($deploymentOptions["NamePrefix"]))
 {
-    $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment or existing prefix if updating deployment (if you want instead to individually name all resources, just press ENTER)"
-    if (-not($namePrefix))
+    do
     {
-        $namePrefix = "EmptyNamePrefix"
-    }
+        $namePrefix = Read-Host "Please, enter a unique name prefix for the deployment (max. 21 chars) or existing prefix if updating deployment. If you want instead to individually name all resources, just press ENTER"
+        if (-not($namePrefix))
+        {
+            $namePrefix = "EmptyNamePrefix"
+        }
+    } 
+    while ($namePrefix.Length -gt 21)
     $deploymentOptions["NamePrefix"] = $namePrefix
 }
 else {
@@ -244,10 +387,6 @@ if (-not($deploymentOptions["ResourceGroupName"]))
         }
     }
     else {
-        if ($namePrefix.Length -gt 21) {
-            throw "Name prefix length is larger than the 21 characters limit ($namePrefix)"
-        }
-    
         $deploymentName = $deploymentNameTemplate -f $namePrefix
         $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
         $storageAccountName = $storageAccountNameTemplate -f $namePrefix
@@ -266,13 +405,31 @@ if (-not($deploymentOptions["ResourceGroupName"]))
 }
 else
 {
-    $resourceGroupName = $deploymentOptions["ResourceGroupName"]
-    $storageAccountName = $deploymentOptions["StorageAccountName"]
-    $automationAccountName = $deploymentOptions["AutomationAccountName"]
-    $sqlServerName = $deploymentOptions["SqlServerName"]
-    $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
-    $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
-    $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+    # With a silent deploy, overrule any custom resource naming if a NamePrefix is provided
+    if($silentDeploy -and $namePrefix -ne "EmptyNamePrefix")
+    {
+        $deploymentName = $deploymentNameTemplate -f $namePrefix
+        $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
+        $storageAccountName = $storageAccountNameTemplate -f $namePrefix
+        $automationAccountName = $automationAccountNameTemplate -f $namePrefix
+        $sqlServerName = $sqlServerNameTemplate -f $namePrefix
+        if ("Y", "y" -contains $workspaceReuse) {
+            $laWorkspaceName = $deploymentOptions["WorkspaceName"]
+        }
+        else {
+            $laWorkspaceName = $laWorkspaceNameTemplate -f $namePrefix
+        }
+        $sqlDatabaseName = "azureoptimization"
+    }
+    else {
+        $resourceGroupName = $deploymentOptions["ResourceGroupName"]
+        $storageAccountName = $deploymentOptions["StorageAccountName"]
+        $automationAccountName = $deploymentOptions["AutomationAccountName"]
+        $sqlServerName = $deploymentOptions["SqlServerName"]
+        $sqlDatabaseName = $deploymentOptions["SqlDatabaseName"]        
+        $laWorkspaceName = $deploymentOptions["WorkspaceName"]        
+        $deploymentName = $deploymentNameTemplate -f $resourceGroupName
+    }
 }
 #endregion
 
@@ -400,7 +557,23 @@ else
 {
     $sqlAdmin = $deploymentOptions["SqlAdmin"]    
 }
-$sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
+if (-not($deploymentOptions["SqlPass"]))
+{
+    $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
+}
+else
+{
+    $sqlPass = $deploymentOptions["SqlPass"]
+    if(Test-SqlPasswordComplexity -Username $sqlAdmin -Password $sqlPass -ErrorAction SilentlyContinue)
+    {
+        Write-Host "Password complexity check passed" -ForegroundColor Green
+        $sqlPass = ConvertTo-SecureString -AsPlainText $sqlPass -Force
+    }
+    else
+    {
+        throw "SQL password complexity check failed. Please, fix the password and try again."
+    }
+}
 #endregion
 
 #region Partial upgrade dependent resource checks
@@ -473,11 +646,22 @@ if ($upgrading)
     $deploymentMessage = "Upgrading Azure Optimization Engine in subscription"
 }
 
-$continueInput = Read-Host "$deploymentMessage $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
+if ($silentDeploy)
+{
+    $continueInput = "Y"
+}
+else
+{
+    $continueInput = Read-Host "$deploymentMessage $($subscriptions[$selectedSubscription].Name). Continue (Y/N)?"
+}
 if ("Y", "y" -contains $continueInput) {
 
+    # If we deploy silently, be sure to strip the SQL password from the output
+    if ($silentDeploy)
+    {
+        $deploymentOptions.Remove("SqlPass")
+    }
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
-    
     #region Computing schedules base time
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
     $upgradingSchedules = $false
@@ -511,22 +695,39 @@ if ("Y", "y" -contains $continueInput) {
         }
     
         Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
-        if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass
-        }
-        else {
-            $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-        }
+        $deploymentTries = 0
+        $maxDeploymentTries = 2
+        $deploymentSucceeded = $false
+        do {
+            $deploymentTries++
+            try {
+                if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
+                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags
+                }
+                else {
+                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
+                }            
+                $deploymentSucceeded = $true
+            }
+            catch {
+                if ($deploymentTries -ge $maxDeploymentTries) {
+                    Write-Host "Failed deployment. Stop trying." -ForegroundColor Yellow
+                    throw $_
+                }
+                Write-Host "Failed deployment. Trying once more..." -ForegroundColor Yellow
+            }            
+        } while (-not($deploymentSucceeded) -and $deploymentTries -lt $maxDeploymentTries)
+
         $spnId = $deployment.Outputs['automationPrincipalId'].Value 
         #endregion
     }
@@ -558,7 +759,7 @@ if ("Y", "y" -contains $continueInput) {
                 Invoke-WebRequest -Uri ($runbookBaseUri + $allRunbooks[$i].name) | Out-Null
                 $runbookName = [System.IO.Path]::GetFilenameWithoutExtension($allRunbooks[$i].name)
                 $runbookJson = "{ `"name`": `"$automationAccountName/$runbookName`", `"type`": `"Microsoft.Automation/automationAccounts/runbooks`", " + `
-                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"tags`": $($ResourceTags | ConvertTo-Json), `"properties`": { " + `
                 "`"runbookType`": `"PowerShell`", `"logProgress`": false, `"logVerbose`": false, " + `
                 "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i].name)`", `"version`": `"$runbookBaseUri$($allRunbooks[$i].version)`" } } }"
                 $runbookDeploymentTemplateJson += $runbookJson
@@ -584,7 +785,7 @@ if ("Y", "y" -contains $continueInput) {
         for ($i = 0; $i -lt $allModules.Count; $i++)
         {
             $moduleJson = "{ `"name`": `"$automationAccountName/$($allModules[$i].name)`", `"type`": `"Microsoft.Automation/automationAccounts/modules`", " + `
-                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"properties`": { " + `
+                "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"tags`": $($ResourceTags | ConvertTo-Json), `"properties`": { " + `
                 "`"contentLink`": { `"uri`": `"$($allModules[$i].url)`" } } "
             if ($allModules[$i].name -ne "Az.Accounts" -and $allModules[$i].name -ne "Microsoft.Graph.Authentication")
             {
@@ -1008,6 +1209,11 @@ if ("Y", "y" -contains $continueInput) {
     } while (-not($connectionSuccess) -and $tries -lt 3)
     
     if (-not($connectionSuccess)) {
+        if (-not($sqlServerName -like "*.database.*"))
+        {
+            Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
+            Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName        
+        }    
         throw "Could not establish connection to SQL."
     }
     #endregion
@@ -1021,19 +1227,31 @@ if ("Y", "y" -contains $continueInput) {
     #endregion
 
     #region Workbooks deployment
-    Write-Host "Publishing workbooks..." -ForegroundColor Green
-    $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
-    $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
-    foreach ($workbook in $workbooks)
+    if (-not($deploymentOptions["DeployWorkbooks"]))
     {
-        $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
-        Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
-        try {
-            New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
-                -workbookSourceId $la.ResourceId | Out-Null        
-        }
-        catch {
-            Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+        $deployWorkbooks = Read-Host "Do you want to deploy the workbooks with additional insights (recommended)? (Y/N)"
+    }
+    else
+    {
+        $deployWorkbooks = $deploymentOptions["DeployWorkbooks"]
+    }
+    if ("Y", "y" -contains $deployWorkbooks) {
+        $deploymentOptions["DeployWorkbooks"] = "Y"
+        $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
+        Write-Host "Publishing workbooks..." -ForegroundColor Green
+        $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
+        $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
+        foreach ($workbook in $workbooks)
+        {
+            $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
+            Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
+            try {
+                New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
+                    -workbookSourceId $la.ResourceId -resourceTags $ResourceTags | Out-Null        
+            }
+            catch {
+                Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+            }
         }
     }
     #endregion
@@ -1060,7 +1278,7 @@ if ("Y", "y" -contains $continueInput) {
         Import-Module Microsoft.Graph.Authentication
         Import-Module Microsoft.Graph.Identity.DirectoryManagement
 
-        Write-Host "Granting Azure AD Global Reader role to the Automation Account..." -ForegroundColor Green
+        Write-Host "Granting Azure AD Global Reader role to the Automation Account (requires administrative permissions in Azure AD and MS Graph PowerShell SDK >= 2.4.0)..." -ForegroundColor Green
 
         #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
         $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
@@ -1069,27 +1287,26 @@ if ("Y", "y" -contains $continueInput) {
             New-Item -Type Directory "$localPath\.graph"
         }
         
-        $graphEnvironment = "Global"
-        $graphEndpointUri = "https://graph.microsoft.com"  
-        if ($AzureEnvironment -eq "AzureUSGovernment")
-        {
-            $graphEnvironment = "USGov"
-            $graphEndpointUri = "https://graph.microsoft.us"
-        }
-        if ($AzureEnvironment -eq "AzureChinaCloud")
-        {
-            $graphEnvironment = "China"
-            $graphEndpointUri = "https://microsoftgraph.chinacloudapi.cn"
-        }
-        if ($AzureEnvironment -eq "AzureGermanCloud")
-        {
-            $graphEnvironment = "Germany"
-            $graphEndpointUri = "https://graph.microsoft.de"
+        switch ($cloudEnvironment) {
+            "AzureUSGovernment" {  
+                $graphEnvironment = "USGov"
+                break
+            }
+            "AzureChinaCloud" {  
+                $graphEnvironment = "China"
+                break
+            }
+            "AzureGermanCloud" {  
+                $graphEnvironment = "Germany"
+                break
+            }
+            Default {
+                $graphEnvironment = "Global"
+            }
         }
         
-        $token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
-        Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
-
+        Connect-MgGraph -Scopes "RoleManagement.ReadWrite.Directory","Directory.Read.All" -UseDeviceAuthentication -Environment $graphEnvironment -NoWelcome
+        
         $globalReaderRole = Get-MgDirectoryRole -ExpandProperty Members -Property Id,Members,DisplayName,RoleTemplateId `
             | Where-Object { $_.RoleTemplateId -eq "f2ef992c-3afb-46b9-b7cf-a126ee74c451" }
         $globalReaders = $globalReaderRole.Members.Id
@@ -1121,7 +1338,191 @@ if ("Y", "y" -contains $continueInput) {
     }
     #endregion
 
-    Write-Host "Deployment completed!" -ForegroundColor Green
+    Write-Host "Azure Optimization Engine deployment completed! We're almost there..." -ForegroundColor Green
+
+    #region Benefits Usage dependencies
+    if (-not($deploymentOptions["DeployBenefitsUsageDependencies"]))
+    {
+        $benefitsUsageDependenciesOption = Read-Host "Do you also want to deploy the dependencies for the Azure Benefits usage workbooks (EA/MCA customers only + agreement administrator role required)? (Y/N)"
+    } 
+    else 
+    {
+        $benefitsUsageDependenciesOption = $deploymentOptions["DeployBenefitsUsageDependencies"]
+    }
+    if ("Y", "y" -contains $benefitsUsageDependenciesOption) 
+    {
+        $deploymentOptions["DeployBenefitsUsageDependencies"] = $benefitsUsageDependenciesOption        
+        $automationAccount = Get-AzAutomationAccount -ResourceGroupName $ResourceGroupName -Name $AutomationAccountName
+        $principalId = $automationAccount.Identity.PrincipalId
+        $tenantId = $automationAccount.Identity.TenantId
+
+        $mcaBillingAccountIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+):([A-Za-z0-9]+(-[A-Za-z0-9]+)+)_[0-9]{4}-[0-9]{2}-[0-9]{2}"
+        $mcaBillingProfileIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
+        
+        if (-not($deploymentOptions["CustomerType"]))
+        {   
+            $customerType = Read-Host "Are you an Enterprise Agreement (EA) or Microsoft Customer Agreement (MCA) customer? Please, type EA or MCA"
+            $deploymentOptions["CustomerType"] = $customerType        
+        }
+        else 
+        {
+            $customerType = $deploymentOptions["CustomerType"]
+        }
+        
+        switch ($customerType) {
+            "EA" {  
+                if (-not($deploymentOptions["BillingAccountId"]))
+                {
+                    $billingAccountId = Read-Host "Please, enter your Enterprise Agreement Billing Account ID (e.g. 12345678)"
+                    $deploymentOptions["BillingAccountId"] = $billingAccountId
+                }
+                else 
+                {
+                    $billingAccountId = $deploymentOptions["BillingAccountId"]
+                }
+                try
+                {
+                    [int32]::Parse($billingAccountId) | Out-Null
+                }
+                catch
+                {
+                    throw "The Enterprise Agreement Billing Account ID must be a number (e.g. 12345678)."
+                }
+                Write-Host "Granting the Enterprise Enrollment Reader role to the AOE Managed Identity..." -ForegroundColor Green
+                $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments?api-version=2019-10-01-preview"
+                $roleAssignmentResponse = Invoke-AzRestMethod -Method GET -Uri $uri
+                if (-not($roleAssignmentResponse.StatusCode -eq 200))
+                {
+                    throw "The Enterprise Enrollment Reader role could not be verified. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+                }
+                $roleAssignments = ($roleAssignmentResponse.Content | ConvertFrom-Json).value
+                if (-not($roleAssignments | Where-Object { $_.properties.principalId -eq $principalId -and $_.properties.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e" }))
+                {
+                    $billingRoleAssignmentName = ([System.Guid]::NewGuid()).Guid
+                    $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments/$($billingRoleAssignmentName)?api-version=2019-10-01-preview"
+                    $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e`"}"
+                    $roleAssignmentResponse = Invoke-AzRestMethod -Method PUT -Uri $uri -Payload $body
+                    if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+                    {
+                        throw "The Enterprise Enrollment Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+                    }
+                }
+                else
+                {
+                    Write-Host "Role was already granted before." -ForegroundColor Green
+                }
+                break
+            }
+            "MCA" {
+                if (-not($deploymentOptions["BillingAccountId"]))
+                {
+                    $billingAccountId = Read-Host "Please, enter your Microsoft Customer Agreement Billing Account ID (e.g. <guid>:<guid>_YYYY-MM-DD)"
+                    $deploymentOptions["BillingAccountId"] = $billingAccountId
+                }
+                else 
+                {
+                    $billingAccountId = $deploymentOptions["BillingAccountId"]
+                }
+                if (-not($billingAccountId -match $mcaBillingAccountIdRegex))
+                {
+                    throw "The Microsoft Customer Agreement Billing Account ID must be in the format <guid>:<guid>_YYYY-MM-DD."
+                }
+                if (-not($deploymentOptions["BillingProfileId"]))
+                {
+                    $billingProfileId = Read-Host "Please, enter your Billing Profile ID (e.g. ABCD-DEF-GHI-JKL)"
+                    $deploymentOptions["BillingProfileId"] = $billingProfileId
+                }
+                else 
+                {
+                    $billingProfileId = $deploymentOptions["BillingProfileId"]
+                }
+                if (-not($billingProfileId -match $mcaBillingProfileIdRegex))
+                {
+                    throw "The Microsoft Customer Agreement Billing Profile ID must be in the format ABCD-DEF-GHI-JKL."
+                }
+                Write-Host "Granting the Billing Profile Reader role to the AOE Managed Identity..." -ForegroundColor Green
+                $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleAssignments?api-version=2019-10-01-preview"
+                $roleAssignmentResponse = Invoke-AzRestMethod -Method GET -Uri $uri
+                if (-not($roleAssignmentResponse.StatusCode -eq 200))
+                {
+                    throw "The Billing Profile Reader role could not be verified. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+                }
+                $roleAssignments = ($roleAssignmentResponse.Content | ConvertFrom-Json).value
+                if (-not($roleAssignments | Where-Object { $_.properties.principalId -eq $principalId -and $_.properties.roleDefinitionId -eq "/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002" }))
+                {
+                    $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/createBillingRoleAssignment?api-version=2020-12-15-privatepreview"
+                    $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingProfiles/$billingProfileId/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002`"}"
+                    $roleAssignmentResponse = Invoke-AzRestMethod -Method POST -Uri $uri -Payload $body
+                    if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
+                    {
+                        throw "The Billing Profile Reader role could not be granted. Status Code: $($roleAssignmentResponse.StatusCode); Response: $($roleAssignmentResponse.Content)"
+                    }    
+                }
+                else
+                {
+                    Write-Host "Role was already granted before." -ForegroundColor Green
+                }
+                break
+            }
+            Default {
+                throw "Only EA and MCA customers are supported at this time."
+            }
+        }
+        
+        Write-Output "Setting up the Billing Account ID variable..."
+        $billingAccountIdVarName = "AzureOptimization_BillingAccountID"
+        $billingAccountIdVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingAccountIdVarName -ErrorAction SilentlyContinue
+        if (-not($billingAccountIdVar))
+        {
+            New-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingAccountIdVarName -Value $billingAccountId -Encrypted $false | Out-Null
+        }
+        else
+        {
+            Set-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingAccountIdVarName -Value $billingAccountId -Encrypted $false | Out-Null
+        }
+        
+        if ($billingProfileId)
+        {
+            Write-Output "Setting up the Billing Profile ID variable..."
+            $billingProfileIdVarName = "AzureOptimization_BillingProfileID"
+            $billingProfileIdVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingProfileIdVarName -ErrorAction SilentlyContinue
+            if (-not($billingProfileIdVar))
+            {
+                New-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingProfileIdVarName -Value $billingProfileId -Encrypted $false | Out-Null
+            }
+            else
+            {
+                Set-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $billingProfileIdVarName -Value $billingProfileId -Encrypted $false | Out-Null
+            }    
+        }    
+
+        if (-not $deploymentOptions["CurrencyCode"])
+        {
+            $currencyCode = Read-Host "Please, enter your consumption currency code (e.g. EUR, USD, etc.)"
+            $deploymentOptions["CurrencyCode"] = $currencyCode
+        }
+        else 
+        {
+            $currencyCode = $deploymentOptions["CurrencyCode"]
+        }
+
+        $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
+
+        Write-Output "Setting up the consumption currency code variable..."
+        $currencyCodeVarName = "AzureOptimization_RetailPricesCurrencyCode"
+        $currencyCodeVar = Get-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -ErrorAction SilentlyContinue
+        if (-not($currencyCodeVar))
+        {
+            New-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -Value $currencyCode -Encrypted $false | Out-Null
+        }
+        else
+        {
+            Set-AzAutomationVariable -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName -Name $currencyCodeVarName -Value $currencyCode -Encrypted $false | Out-Null
+        }
+    }    
+    #endregion
+
+    Write-Host "Deployment fully completed!" -ForegroundColor Green
 }
 else {
     Write-Host "Deployment cancelled." -ForegroundColor Red

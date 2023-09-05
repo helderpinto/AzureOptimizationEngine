@@ -34,6 +34,7 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Storage Accounts without retention policy in place
     * Underutilized App Service Plans
     * App Service Plans without any application
+    * Premium SSD disk has been underutilized
 * High Availability
     * Virtual Machine high availability (availability zones count, availability set, managed disks, storage account distribution when using unmanaged disks)
     * VM Scale Set high availability (availability zones count, managed disks)
@@ -102,6 +103,19 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ## <a id="releases"></a>Releases ##
 
+* 09/2023
+    * Added support for MCA, CSP Modern and other customer agreement types
+    * New Cost recommendation added
+        * Premium SSD disk has been underutilized
+    * New workbooks
+        * Benefits Simulation
+        * Benefits Usage
+        * Reservations Potential
+        * Reservations Usage
+    * Support for silent deployment/upgrade and optional Workbooks deployment (thanks to @wpouseele)
+    * Support for AOE resources tags assignment at deployment/upgrade time
+    * Policy Compliance workbook: filtering/grouping by tags
+    * Several bug fixes and performance and security improvements
 * 12/2022
     * Migrated from the deprecated Consumption API to the new Cost Details API
     * Recommendations report available also in Azure Workbook (besides Power BI)
@@ -220,9 +234,10 @@ read the whole blog series dedicated to this project, starting [here](https://te
 
 * A supported Azure subscription (see the [FAQs](#faq))
 * Azure Powershell 6.6.0+
-* Microsoft.Graph.Authentication and Microsoft.Graph.Identity.DirectoryManagement PowerShell modules
+* Microsoft.Graph.Authentication and Microsoft.Graph.Identity.DirectoryManagement PowerShell modules (version 2.4.0+)
 * A user account with Owner permissions over the chosen subscription, so that the Automation Managed Identity is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
 * (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Managed Identity is granted the required privileges over Azure AD (Global Reader)
+* (Optional) A user account with administrative privileges over the Enterprise Agreement (Enterprise Enrollment Administrator) or the Microsoft Customer Agreement (Billing Profile Owner), so that the Managed Identity is granted the required privileges over your consumption agreement
 
 During deployment, you'll be asked several questions. You must plan for the following:
 
@@ -230,6 +245,7 @@ During deployment, you'll be asked several questions. You must plan for the foll
 * An Azure subscription to deploy the solution (if you're reusing a Log Analytics workspace, you must deploy into the same subscription the workspace is in).
 * A unique name prefix for the Azure resources being created (if you have specific naming requirements, you can also choose resource names during deployment)
 * Azure region
+* (Optional) Enterprise Agreement Billing Account ID (EA/MCA customers) and the Billing Profile IDs (MCA customers) 
 
 Bear in mind that the AOE deployment creates the following (you cannot reuse any existing resource, except the Resource Group and the Log Analytics workspace):
 
@@ -254,6 +270,13 @@ If the deployment fails for some reason, you can simply repeat it, as it is idem
 
 If you don't want to use Azure Cloud Shell and prefer instead to run the deployment from your workstation's file system, you must first install the Az Powershell module (instructions [here](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps)) and also the Microsoft.Graph modules (instructions [here](https://docs.microsoft.com/en-us/graph/powershell/installation)).
 
+Optionally, you can specify the set of tags you want to assign to your AOE resources, by using the `ResourceTags` input parameter. For example:
+
+```powershell
+$tags = @{"Service"="aoe";"Environment"="Demo"}
+.\Deploy-AzureOptimizationEngine.ps1 -ResourceTags $tags
+```
+
 If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. If you're using a Storage Account private container, you must also specify a SAS token (see syntax and example below)
 
 ```powershell
@@ -266,9 +289,38 @@ If you choose to deploy all the dependencies from your own local repository, you
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://aoesa.blob.core.windows.net/files/azuredeploy.json" -ArtifactsSasToken "?sv=2019-10-10&ss=bfqt&srt=o&sp=rwdlacupx&se=2020-06-13T23:27:18Z&st=2020-06-13T15:27:18Z&spr=https&sig=4cvPayBlF67aYvifwu%2BIUw8Ldh5txpFGgXlhzvKF3%2BI%3D"
 ```
 
+Optionally, you can also use the `SilentDeploymentSettingsPath` input parameter to deploy AOE in a more automated way.  
+The file referencing should be a JSON file with the needed attributes defined.  
+An example of the content of such silent deployment file is:
+
+```json
+{
+    "SubscriptionId": "<<SubscriptionId>>",                         // mandatory, subscription where AOE needs to be deployed
+    "NamePrefix": "<<CustomNamePrefix>>",                           // mandatory, prefix for all resources. Fill in 'EmptyNamePrefix' to specify the resource names
+    "WorkspaceReuse": "n",                                          // mandatory, y/n, y = reuse existing workspace, n = create new workspace
+    "ResourceGroupName": "<<CustomName>>-rg",                       // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "StorageAccountName": "<<CustomName>>sa",                       // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "AutomationAccountName": "<<CustomName>>-auto",                 // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "SqlServerName": "<<CustomName>>-sql",                          // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "SqlDatabaseName": "<<CustomName>>-db",                         // mandatory if NamePrefix is set to 'EmptyNamePrefix', otherwise optional
+    "WorkspaceName": "<<ExistingName>>",                            // mandatory if workspaceReuse is set to 'n', otherwise optional
+    "WorkspaceResourceGroupName": "<<ExistingName>>",               // mandatory if workspaceReuse is set to 'n', otherwise optional
+    "DeployWorkbooks": "y",                                         // mandatory, y/n, y = deploy the workbooks, n = don't deploy the workbooks
+    "SqlAdmin": "<<sqlaAdmin>>",                                    // mandatory
+    "SqlPass": "<<sqlPass>>",                                       // mandatory
+    "TargetLocation": "westeurope",                                 // mandatory
+    "DeployBenefitsUsageDependencies": "y",                         // mandatory, y/n, deploy the dependencies for the Azure Benefits usage workbooks (EA/MCA customers only + agreement administrator role required
+    "CustomerType": "MCA",                                          // mandatory if DeployBenefitsUsageDependencies is set to 'y', MCA/EA
+    "BillingAccountId": "<guid>:<guid>_YYYY-MM-DD",                 // mandatory if DeployBenefitsUsageDependencies is set to 'y', MCA or EA Billing Account ID
+    "BillingProfileId": "ABCD-DEF-GHI-JKL",                         // mandatory if CustomerType is set to 'MCA", otherwise optional
+    "CurrencyCode": "EUR"                                           // mandatory if DeployBenefitsUsageDependencies is set to 'y', EUR/USD/...
+  }
+  
+```
+
 ### <a id="upgrade"></a>Upgrading AOE ##
 
-If you have a previous version of AOE and wish to upgrade, it's as simple as re-running the deployment script with the resource naming options you chose at the initial deployment. It will re-deploy the ARM template, adding new resources and updating existing ones. 
+If you have a previous version of AOE and wish to upgrade, it's as simple as re-running the deployment script with the resource naming options you chose at the initial deployment. It will re-deploy the ARM template, adding new resources and updating existing ones.
 
 However, if you previously customized components such as Automation variables or schedules, improved job execution performance with Hybrid Workers, or hardened the solution with Private Link, then you should run the deployment script with the `DoPartialUpgrade` switch, e.g.:
 
@@ -344,35 +396,21 @@ The report was built for a scenario where you have an "environment" tag applied 
 
 If some recommendation is not applicable or you want it to be removed from the report while you schedule its mitigation, you can suppress it, either for a specific resource, resource group, subscription or even solution-wide. See [Suppressing recommendations](./docs/suppressing-recommendations.md) for more details.
 
-### Enabling the Reservations and Benefits Usage workbooks (Public Preview, Enterprise Agreement customers-only)
+### Enabling the Reservations and Benefits Usage workbooks
 
-Follow these steps to feed the AOE Log Analytics workspace with the data that is required by the Benefits Usage workbook:
+In order to leverage the Workbooks that allow you to analyze your Azure benefits usage (`Benefits Usage` and `Reservations Usage`) or estimate the impact of doing additional consumption commitments (`Benefits Simulation` and `Reservations Potential`), you need to configure AOE and grant privileges to its Managed Identity at your consumption agreement level (EA or MCA). If you could not do it during setup/upgrade, you can still execute those extra configuration steps, provided you do it with a user that is **both Contributor in the AOE resource group and have administrative privileges over the consumption agreement** (Enterprise Enrollment Administrator for EA or Billing Profile Owner for MCA). You just have to use the `Setup-BenefitsUsageDependencies.ps1` script following the syntax below and answer the input requests:
 
-1. Create in the AOE's Azure Automation Account a `AzureOptimization_BillingAccountID` variable with your Enterprise Agreement's billing account ID
-1. Create in the AOE's Azure Automation Account a `AzureOptimization_RetailPricesCurrencyCode` variable with your Enterprise Agreement currency code (e.g., EUR, USD, etc.)
-1. Create in the AOE's Storage Account the following containers: `reservationsexports`, `pricesheetexports` and `reservationspriceexports`
-1. Grant the Enterprise Enrollment Reader role to the AOE's managed identity, by following the steps described [here](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/assign-roles-azure-service-principals#assign-enrollment-account-role-permission-to-the-spn) and using the following values in the REST request query string and JSON body:
-    1. *billingAccountName*: your Enterprise Agreement's billing account ID
-    1. *billingRoleAssignmentName*: random GUID (e.g., use the `[System.Guid]::NewGuid()` PowerShell instruction to get one)
-    1. *properties.principalId*: object ID of the AOE's Automation Account Managed Identity (accessible in the *Identity* blade of the Automation Account)
-    1. *properties.principalTenantId*: tenant ID of your Azure AD (accessible in the *Overview* blade of Azure Active Directory)
-    1. *properties.roleDefinitionId*: `/providers/Microsoft.Billing/billingAccounts/<YourBillingAccountID>/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e` (Enrollment Reader role)
-1. Create the following Azure Automation **weekly** schedules (day of week and timing of your choice, ensuring ingests run at least 15 minutes after exports) and link them to their respective runbook:
-    1. `AzureOptimization_ExportPricesWeekly` schedule to be linked to the `Export-PriceSheetToBlobStorage` and `Export-ReservationsPriceToBlobStorage` runbooks
-    1. `AzureOptimization_IngestPricesheetWeekly` schedule to be linked to the `Ingest-OptimizationCSVExportsToLogAnalytics` runbook with `pricesheetexports` as the `StorageSinkContainer` parameter
-    1. `AzureOptimization_IngestReservationsPriceWeekly` schedule to be linked to the `Ingest-OptimizationCSVExportsToLogAnalytics` runbook with `reservationspriceexports` as the `StorageSinkContainer` parameter
-1. Create the following Azure Automation **daily** schedules (timing of your choice, ensuring ingests run at least 15 minutes after exports) and link them to their respective runbook:
-    1. `AzureOptimization_ExportReservationsDaily` schedule to be linked to the `Export-ReservationsUsageToBlobStorage` runbook
-    1. `AzureOptimization_IngestReservationsUsageDaily` schedule to be linked to the `Ingest-OptimizationCSVExportsToLogAnalytics` runbook with `reservationsexports` as the `StorageSinkContainer` parameter
-1. (optional and recommended if you're not using Hybrid Workers) Create the following Azure Automation variables, to filter in the Price Sheet meter categories and regions:
-    1. `AzureOptimization_PriceSheetMeterCategories` set to *Virtual Machines*
-    1. `AzureOptimization_PriceSheetMeterRegions` set to the comma-separated billing regions of your virtual machines (e.g. *EU West,EU North*)
+```powershell
+./Setup-BenefitsUsageDependencies.ps1 -AutomationAccountName <AOE automation account> -ResourceGroupName <AOE resource group> [-AzureEnvironment <AzureUSGovernment|AzureGermanCloud|AzureCloud>]
+```
+
+If you run into issues with the Azure Pricesheet ingestion (due to the large size of the CVS export), you can create the following Azure Automation variable, to filter in the Price Sheet regions: `AzureOptimization_PriceSheetMeterRegions` set to the comma-separated billing regions of your virtual machines (e.g. *EU West,EU North*)
 
 ## <a id="faq"></a>Frequently Asked Questions ##
 
 * **Is the AOE supported by Microsoft?** No, the Azure Optimization Engine is not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind. The entire risk arising out of the use or performance of the scripts and documentation remains with you.
 
-* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against Enterprise Agreement and MSDN subscriptions in the Azure commercial cloud (AzureCloud). Although not tested yet, it should also work in MCA and PAYG subscriptions. It was designed to also operate in the US Government cloud. Azure Internal (MS-AZR-0015P), Sponsorship (MS-AZR-0036P and MS-AZR-0143P), CSP (MS-AZR-0145P, MS-AZR-0146P, and MS-AZR-159P) and DreamSpark (MS-AZR-0144P) subscriptions are not supported, due to lack of availability or disparities in their consumption (billing) exports models. However, if you have unsupported subscriptions and still see value in AOE without collecting consumption data, you can deploy it at your own risk by using the `AllowUnsupportedSubscriptions` switch in the deployment script. For example: `.\Deploy-AzureOptimizationEngine.ps1 -AllowUnsupportedSubscriptions`. If your environment was already deployed, you don't need to redeploy it - it is enough to create an Azure Automation Variable named `AzureOptimization_AllowUnsupportedSubscriptions`, of Boolean type, set to `True`.
+* **What type of Azure subscriptions/clouds are supported?** AOE has been deployed and tested against EA, MCA and MSDN subscriptions in the Azure commercial cloud (AzureCloud). Although not tested yet, it should also work in MOSA subscriptions. It was designed to also operate in the US Government cloud, though it was never tested there. Sponsorship (MS-AZR-0036P and MS-AZR-0143P), CSP (MS-AZR-0145P, MS-AZR-0146P, and MS-AZR-159P) DreamSpark (MS-AZR-0144P) and Internal subscriptions should also work, but due to lack of availability or disparities in their consumption (billing) exports models, some of the Workbooks may not fully work.
 
 * **Why is my Power BI report empty?** Most of the Power BI report pages are configured to filter out recommendations older than 7 days. If it shows empty, just try to refresh the report data.
 

@@ -39,6 +39,14 @@
       "name": "tenantParam"
     },
     {
+      "type": 1,
+      "content": {
+        "json": "For full functionality, this workbook requires Azure AD exports. If you had not assigned the Global Reader role to the AOE managed identity yet, please do so ([see requirements](https://github.com/helderpinto/AzureOptimizationEngine#requirements)).",
+        "style": "info"
+      },
+      "name": "text - 22"
+    },
+    {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
@@ -205,7 +213,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and TenantGuid_g in ({TenantId}) and ObjectType_s == '{aadObjectType}' and isnotempty(ObjectSubType_s)\r\n| distinct ObjectSubType_s\r\n| order by ObjectSubType_s asc",
+            "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and TenantGuid_g in ({TenantId}) and ObjectType_s == '{aadObjectType}'\r\n| distinct ObjectSubType_s\r\n| order by ObjectSubType_s asc",
             "value": [
               "value::all"
             ],
@@ -341,7 +349,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and TenantGuid_g in ({TenantId}) and ObjectType_s == '{armObjectType}' and isnotempty(ObjectSubType_s)\r\n| distinct ObjectSubType_s\r\n| order by ObjectSubType_s asc",
+            "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and TenantGuid_g in ({TenantId}) and ObjectType_s == '{armObjectType}' and isnotempty(ObjectSubType_s) and isnotempty(ObjectSubType_s)\r\n| distinct ObjectSubType_s\r\n| order by ObjectSubType_s asc",
             "value": [
               "value::all"
             ],
@@ -1058,9 +1066,6 @@
         "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and ObjectId_g == '{AADPrincipalId}'\r\n| project PrincipalId = ObjectId_g, DisplayName_s\r\n| join kind=inner ( \r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated {aadRoleHistoryRange:value} and Model_s == 'AzureAD'\r\n    | project PrincipalId = PrincipalId_g, Scope_s, RoleDefinition_s, TimeGenerated\r\n) on PrincipalId\r\n| summarize RoleFirstSeen = min(TimeGenerated), RoleLastSeen = max(TimeGenerated) by DisplayName_s, Scope_s, RoleDefinition_s\r\n| order by RoleLastSeen desc",
         "size": 1,
         "title": "Role history for selected principal",
-        "timeContext": {
-          "durationMs": 2592000000
-        },
         "timeContextFromParameter": "aadRoleHistoryRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
@@ -1079,9 +1084,6 @@
         "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TimeGenerated > ago(1d) and ObjectId_g == '{ARMPrincipalId}'\r\n| project PrincipalId = ObjectId_g, DisplayName_s\r\n| join kind=inner ( \r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated {armRoleHistoryRange:value} and Model_s in ('AzureRM')\r\n    | project PrincipalId = PrincipalId_g, Scope_s, RoleDefinition_s, TimeGenerated\r\n) on PrincipalId\r\n| summarize RoleFirstSeen = min(TimeGenerated), RoleLastSeen = max(TimeGenerated) by DisplayName_s, Scope_s, RoleDefinition_s\r\n| order by RoleLastSeen desc",
         "size": 1,
         "title": "Role history for selected principal",
-        "timeContext": {
-          "durationMs": 2592000000
-        },
         "timeContextFromParameter": "armRoleHistoryRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"

@@ -6,11 +6,11 @@ function Find-DiskMonthlyPrice {
         [string] $DiskSizeTier
     )
 
-    $diskSkus = $SKUPriceSheet | Where-Object { $_.meterDetails.meterName.Replace(" Disks","") -eq $DiskSizeTier }
+    $diskSkus = $SKUPriceSheet | Where-Object { $_.MeterName_s.Replace(" Disks","") -eq $DiskSizeTier }
     $targetMonthlyPrice = [double]::MaxValue
     if ($diskSkus)
     {
-        $targetMonthlyPrice = [double] ($diskSkus | Sort-Object -Property unitPrice | Select-Object -First 1).unitPrice
+        $targetMonthlyPrice = [double] ($diskSkus | Sort-Object -Property UnitPrice_s | Select-Object -First 1).UnitPrice_s
     }
     return $targetMonthlyPrice
 }
@@ -122,7 +122,7 @@ do {
         $Cmd=new-object system.Data.SqlClient.SqlCommand
         $Cmd.Connection = $Conn
         $Cmd.CommandTimeout = $SqlTimeout
-        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','MonitorMetrics','ARGResourceContainers','AzureConsumption')"
+        $Cmd.CommandText = "SELECT * FROM [dbo].[$LogAnalyticsIngestControlTable] WHERE CollectedType IN ('ARGManagedDisk','MonitorMetrics','ARGResourceContainers','AzureConsumption','Pricesheet')"
     
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
         $sqlAdapter.SelectCommand = $Cmd
@@ -146,8 +146,10 @@ $disksTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedTy
 $metricsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'MonitorMetrics' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 $consumptionTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureConsumption' }).LogAnalyticsSuffix + "_CL"
+$pricesheetTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'Pricesheet' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $disksTableName, $metricsTableName, $subscriptionsTableName and $consumptionTableName"
+
+Write-Output "Will run query against tables $disksTableName, $metricsTableName, $subscriptionsTableName, $pricesheetTableName and $consumptionTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -177,54 +179,26 @@ if ($cloudEnvironment -eq "AzureCloud")
 
 try 
 {
-    $pricesheet = $null
     $pricesheetEntries = @()
-    $subscription = $workspaceSubscriptionId
-    $PriceSheetApiPath = "/subscriptions/$subscription/providers/Microsoft.Consumption/pricesheets/default?api-version=2019-10-01&%24expand=properties%2FmeterDetails"
 
-    do
-    {
-        if (-not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
-        {
-            $PriceSheetApiPath = $pricesheet.properties.nextLink.Substring($pricesheet.properties.nextLink.IndexOf("/subscriptions/"))
-        }
-        $tries = 0
-        $requestSuccess = $false
-        do 
-        {        
-            try {
-                $tries++
-                $pricesheet = (Invoke-AzRestMethod -Path $PriceSheetApiPath -Method GET).Content | ConvertFrom-Json
+    $baseQuery = @"
+    $pricesheetTableName
+    | where TimeGenerated > ago(14d)
+    | where MeterCategory_s == 'Storage' and MeterSubCategory_s endswith "Managed Disks" and MeterName_s endswith "Disks" and MeterRegion_s == '$pricesheetRegion' and PriceType_s == 'Consumption'
+    | distinct MeterName_s, MeterSubCategory_s, MeterCategory_s, MeterRegion_s, UnitPrice_s, UnitOfMeasure_s
+"@    
 
-                if ($pricesheet.error)
-                {
-                    throw "Cost Management not available ($($pricesheet.error.message))"
-                }    
-
-                $requestSuccess = $true
-            }
-            catch {
-                $ErrorMessage = $_.Exception.Message
-                Write-Warning "Error getting consumption data: $ErrorMessage. $tries of 3 tries. Waiting 30 seconds..."
-                Start-Sleep -s 30   
-            }
-        } while ( -not($requestSuccess) -and $tries -lt 3 )
-
-        if ($pricesheet.error)
-        {
-            throw "Cost Management not available"
-        }
-
-        $pricesheetEntries += $pricesheet.properties.pricesheets | Where-Object { $_.meterDetails.meterLocation -eq $pricesheetRegion -and `
-            $_.meterDetails.meterCategory -eq "Storage" -and $_.meterDetails.meterSubCategory -like "* Managed Disks" -and $_.meterDetails.meterName -like "*Disks" }
-
-    }
-    while ($requestSuccess -and -not([string]::IsNullOrEmpty($pricesheet.properties.nextLink)))
+    $queryResults = Invoke-AzOperationalInsightsQuery -WorkspaceId $workspaceId -Query $baseQuery -Timespan (New-TimeSpan -Days 14) -Wait 600 -IncludeStatistics
+    $pricesheetEntries = [System.Linq.Enumerable]::ToArray($queryResults.Results)
+    
+    Write-Output "Query finished with $($pricesheetEntries.Count) results."   
+    Write-Output "Query statistics: $($queryResults.Statistics.query)"    
 }
 catch
 {
+    Write-Warning -Message "Query failed. Debug the following query in the AOE Log Analytics workspace: $baseQuery"    
+    Write-Warning -Message $error[0]
     Write-Output "Consumption pricesheet not available, will estimate savings based in price difference ratio..."
-    $pricesheet = $null
 }
 
 $skuPricesFound = @{}
@@ -240,7 +214,7 @@ $baseQuery = @"
     let BilledDisks = $consumptionTableName
     | where todatetime(Date_s) between (stime..etime) and ResourceId contains '/disks/' and MeterCategory_s == 'Storage' and MeterSubCategory_s has 'Premium' and MeterName_s has 'Disk'
     | extend DiskConsumedQuantity = todouble(Quantity_s)
-    | extend DiskPrice = todouble(UnitPrice_s)
+    | extend DiskPrice = todouble(EffectivePrice_s)
     | extend FinalCost = DiskPrice * DiskConsumedQuantity
     | extend ResourceId = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(DiskConsumedQuantity) by ResourceId;
@@ -465,6 +439,8 @@ foreach ($result in $results)
 
         $targetSkuSavingsMonthly = $result.Last30DaysCost - ($result.Last30DaysCost / $savingCoefficient)
 
+        $tentativeTargetSkuSavingsMonthly = -1
+
         if ($targetSku -and $skuPricesFound[$targetSku.Name] -lt [double]::MaxValue)
         {
             $targetSkuPrice = $skuPricesFound[$targetSku.Name]    
@@ -472,12 +448,17 @@ foreach ($result in $results)
             if ($skuPricesFound[$currentDiskTier] -lt [double]::MaxValue)
             {
                 $currentSkuPrice = $skuPricesFound[$currentDiskTier]    
-                $targetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                $tentativeTargetSkuSavingsMonthly = ($currentSkuPrice * [double] $result.Last30DaysQuantity) - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
             }
             else
             {
-                $targetSkuSavingsMonthly = $result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
+                $tentativeTargetSkuSavingsMonthly = $result.Last30DaysCost - ($targetSkuPrice * [double] $result.Last30DaysQuantity)    
             }
+        }
+
+        if ($tentativeTargetSkuSavingsMonthly -ge 0)
+        {
+            $targetSkuSavingsMonthly = $tentativeTargetSkuSavingsMonthly
         }
 
         $tags = @{}

@@ -1,18 +1,18 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
+    [string] $externalTenantId,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = "",
+    [string] $externalCredentialName,
 
     [Parameter(Mandatory = $false)]
-    [string] $groupFilter = "",
+    [string] $groupFilter,
 
     [Parameter(Mandatory = $false)]
-    [string] $userFilter = ""
+    [string] $userFilter
 )
 
 $ErrorActionPreference = "Stop"
@@ -126,7 +126,7 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
 }
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
     "RunAsAccount" { 
@@ -168,26 +168,25 @@ Import-Module Microsoft.Graph.Users
 Import-Module Microsoft.Graph.Applications
 Import-Module Microsoft.Graph.Groups
 
-$graphEnvironment = "Global"
-$graphEndpointUri = "https://graph.microsoft.com"  
-if ($cloudEnvironment -eq "AzureUSGovernment")
-{
-    $graphEnvironment = "USGov"
-    $graphEndpointUri = "https://graph.microsoft.us"
-}
-if ($cloudEnvironment -eq "AzureChinaCloud")
-{
-    $graphEnvironment = "China"
-    $graphEndpointUri = "https://microsoftgraph.chinacloudapi.cn"
-}
-if ($cloudEnvironment -eq "AzureGermanCloud")
-{
-    $graphEnvironment = "Germany"
-    $graphEndpointUri = "https://graph.microsoft.de"
+switch ($cloudEnvironment) {
+    "AzureUSGovernment" {  
+        $graphEnvironment = "USGov"
+        break
+    }
+    "AzureChinaCloud" {  
+        $graphEnvironment = "China"
+        break
+    }
+    "AzureGermanCloud" {  
+        $graphEnvironment = "Germany"
+        break
+    }
+    Default {
+        $graphEnvironment = "Global"
+    }
 }
 
-$token = Get-AzAccessToken -ResourceUrl $graphEndpointUri
-Connect-MgGraph -AccessToken $token.Token -Environment $graphEnvironment
+Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
     
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
@@ -200,9 +199,9 @@ if ("Application" -in $aadObjectsTypes)
 {
     $aadObjects = @()
 
-    Write-Output "Getting AAD applications..."
+    "Getting AAD applications..."
     $apps = Get-MgApplication -All -ExpandProperty Owners -Property Id,AppId,CreatedDateTime,DeletedDateTime,DisplayName,KeyCredentials,PasswordCredentials,Owners,PublisherDomain,Web,IdentifierUris
-    Write-Output "Found $($apps.Count) AAD applications"
+    "Found $($apps.Count) AAD applications"
 
     foreach ($app in $apps)
     {
@@ -244,11 +243,11 @@ if ("Application" -in $aadObjectsTypes)
     $csvExportPath = "$fileDate-$tenantId-aadobjects-apps.csv"
     
     $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
+    "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
+    "JSON Import: $($aadObjectsJson.Count) lines"
     $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-    Write-Output "Export to $csvExportPath"
+    "Export to $csvExportPath"
     
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
@@ -256,26 +255,26 @@ if ("Application" -in $aadObjectsTypes)
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    "[$now] Uploaded $csvBlobName to Blob Storage..."
     
     Remove-Item -Path $csvExportPath -Force
     
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    "[$now] Removed $csvExportPath from local disk..."    
     
     Remove-Item -Path $jsonExportPath -Force
     
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
+    "[$now] Removed $jsonExportPath from local disk..."    
 }
 
 if ("ServicePrincipal" -in $aadObjectsTypes)
 {
     $aadObjects = @()
 
-    Write-Output "Getting AAD service principals..."
+    "Getting AAD service principals..."
     $spns = Get-MgServicePrincipal -All -ExpandProperty Owners -Property Id,AppId,DeletedDateTime,DisplayName,KeyCredentials,PasswordCredentials,Owners,ServicePrincipalNames,ServicePrincipalType,AccountEnabled,AlternativeNames
-    Write-Output "Found $($spns.Count) AAD service principals"
+    "Found $($spns.Count) AAD service principals"
     
     foreach ($spn in $spns)
     {
@@ -311,11 +310,11 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     $csvExportPath = "$fileDate-$tenantId-aadobjects-spns.csv"
     
     $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
+    "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
+    "JSON Import: $($aadObjectsJson.Count) lines"
     $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-    Write-Output "Export to $csvExportPath"
+    "Export to $csvExportPath"
     
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
@@ -323,17 +322,17 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    "[$now] Uploaded $csvBlobName to Blob Storage..."
     
     Remove-Item -Path $csvExportPath -Force
     
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    "[$now] Removed $csvExportPath from local disk..."    
     
     Remove-Item -Path $jsonExportPath -Force
     
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
+    "[$now] Removed $jsonExportPath from local disk..."    
 }
 
 if ("User" -in $aadObjectsTypes)
@@ -342,15 +341,15 @@ if ("User" -in $aadObjectsTypes)
 
     if ([string]::IsNullOrEmpty($userFilter))
     {
-        Write-Output "Getting AAD users..."
+        "Getting AAD users..."
         $users = Get-MgUser -All -Property Id,AccountEnabled,DisplayName,UserPrincipalName,UserType,CreatedDateTime,DeletedDateTime    
     }
     else
     {
-        Write-Output "Getting AAD users with filter $userFilter..."
+        "Getting AAD users with filter $userFilter..."
         $users = Get-MgUser -Filter $userFilter -All -Property Id,AccountEnabled,DisplayName,UserPrincipalName,UserType,CreatedDateTime,DeletedDateTime            
     }
-    Write-Output "Found $($users.Count) AAD users"
+    "Found $($users.Count) AAD users"
     
     foreach ($user in $users)
     {
@@ -384,7 +383,7 @@ if ("User" -in $aadObjectsTypes)
     $csvExportPath = "$fileDate-$tenantId-aadobjects-users.csv"
     
     $aadObjects | Export-Csv -NoTypeInformation -Path $csvExportPath
-    Write-Output "Export to $csvExportPath"
+    "Export to $csvExportPath"
     
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
@@ -392,12 +391,12 @@ if ("User" -in $aadObjectsTypes)
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    "[$now] Uploaded $csvBlobName to Blob Storage..."
     
     Remove-Item -Path $csvExportPath -Force
     
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    "[$now] Removed $csvExportPath from local disk..."    
 }
 
 if ("Group" -in $aadObjectsTypes)
@@ -406,15 +405,15 @@ if ("Group" -in $aadObjectsTypes)
 
     if ([string]::IsNullOrEmpty($groupFilter))
     {
-        Write-Output "Getting AAD groups..."
+        "Getting AAD groups..."
         $groups = Get-MgGroup -All -ExpandProperty Members -Property Id,SecurityEnabled,DisplayName,Members,CreatedDateTime,DeletedDateTime,GroupTypes
     }
     else
     {
-        Write-Output "Getting AAD groups with filter $groupFilter..."
+        "Getting AAD groups with filter $groupFilter..."
         $groups = Get-MgGroup -Filter $groupFilter -All -ExpandProperty Members -Property Id,SecurityEnabled,DisplayName,Members,CreatedDateTime,DeletedDateTime,GroupTypes
     }
-    Write-Output "Found $($groups.Count) AAD groups"
+    "Found $($groups.Count) AAD groups"
     
     foreach ($group in $groups)
     {
@@ -453,11 +452,11 @@ if ("Group" -in $aadObjectsTypes)
     $csvExportPath = "$fileDate-$tenantId-aadobjects-groups.csv"
     
     $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
-    Write-Output "Exported to JSON: $($aadObjects.Count) lines"
+    "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
-    Write-Output "JSON Import: $($aadObjectsJson.Count) lines"
+    "JSON Import: $($aadObjectsJson.Count) lines"
     $aadObjectsJson | Export-Csv -NoTypeInformation -Path $csvExportPath
-    Write-Output "Export to $csvExportPath"
+    "Export to $csvExportPath"
     
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
@@ -465,17 +464,17 @@ if ("Group" -in $aadObjectsTypes)
     Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
+    "[$now] Uploaded $csvBlobName to Blob Storage..."
     
     Remove-Item -Path $csvExportPath -Force
     
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $csvExportPath from local disk..."    
+    "[$now] Removed $csvExportPath from local disk..."    
     
     Remove-Item -Path $jsonExportPath -Force
     
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
-    Write-Output "[$now] Removed $jsonExportPath from local disk..."    
+    "[$now] Removed $jsonExportPath from local disk..."    
 }
 
-Write-Output "DONE!"
+"DONE!"

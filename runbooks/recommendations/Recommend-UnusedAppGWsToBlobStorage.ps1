@@ -184,12 +184,11 @@ foreach ($result in $results)
     | where toint(BackendPoolsCount_s) == 0 or ((toint(BackendIPCount_s) == 0 or isempty(BackendIPCount_s)) and (toint(BackendAddressesCount_s) == 0 or isempty(BackendAddressesCount_s)))
     | distinct InstanceId_s, InstanceName_s, TimeGenerated
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, InstanceName_s
-    | join kind=inner (
+    | join kind=leftouter (
         $consumptionTableName
         | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where todatetime(Date_s) > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(CostInBillingCurrency_s)) by InstanceName_s, FirstUnusedDate
+    | summarize CostsSinceUnused = sumif(todouble(CostInBillingCurrency_s), todatetime(Date_s) > FirstUnusedDate) by InstanceName_s, FirstUnusedDate
 "@
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)
     $detailsQueryStart = $deploymentDate

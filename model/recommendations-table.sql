@@ -7,7 +7,7 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[dbo].[Recommenda
 			[GeneratedDate] [datetime] NOT NULL,
 			[Cloud] [varchar](20) NOT NULL,
 			[Category] [varchar](50) NOT NULL,
-			[ImpactedArea] [varchar](50) NOT NULL,
+			[ImpactedArea] [varchar](300) NOT NULL,
 			[Impact] [varchar](20) NOT NULL,
 			[RecommendationType] [varchar](50) NOT NULL,
 			[RecommendationSubType] [varchar](50) NOT NULL,
@@ -41,6 +41,7 @@ ELSE
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceId] VARCHAR (1000) NULL
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [InstanceName] VARCHAR (500) NULL
 		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [ResourceGroup] VARCHAR (200) NULL
+		ALTER TABLE [dbo].[Recommendations] ALTER COLUMN [ImpactedArea] VARCHAR (300) NULL
 		IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Recommendations]') AND name = 'FitScore')
 		BEGIN
 			EXEC sp_rename '[dbo].[Recommendations].ConfidenceScore', 'FitScore', 'COLUMN'

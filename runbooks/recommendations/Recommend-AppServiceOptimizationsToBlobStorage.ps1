@@ -185,7 +185,7 @@ $baseQuery = @"
     let BilledPlans = $consumptionTableName 
     | where todatetime(Date_s) between (stime..etime) and ResourceId has 'microsoft.web/serverfarms'
     | extend ConsumedQuantity = todouble(Quantity_s)
-    | extend FinalCost = todouble(UnitPrice_s) * ConsumedQuantity
+    | extend FinalCost = todouble(EffectivePrice_s) * ConsumedQuantity
     | extend InstanceId_s = tolower(ResourceId)
     | summarize Last30DaysCost = sum(FinalCost), Last30DaysQuantity = sum(ConsumedQuantity) by InstanceId_s;
 
@@ -600,12 +600,11 @@ foreach ($result in $results)
     | where toint(NumberOfSites_s) == 0
     | distinct InstanceId_s, AppServicePlanName_s, TimeGenerated
     | summarize FirstUnusedDate = min(TimeGenerated) by InstanceId_s, AppServicePlanName_s
-    | join kind=inner (
+    | join kind=leftouter (
         $consumptionTableName
         | project InstanceId_s=tolower(ResourceId), CostInBillingCurrency_s, Date_s
     ) on InstanceId_s
-    | where todatetime(Date_s) > FirstUnusedDate
-    | summarize CostsSinceUnused = sum(todouble(CostInBillingCurrency_s)) by AppServicePlanName_s, FirstUnusedDate
+    | summarize CostsSinceUnused = sumif(todouble(CostInBillingCurrency_s), todatetime(Date_s) > FirstUnusedDate) by AppServicePlanName_s, FirstUnusedDate
 "@
 
     $encodedQuery = [System.Uri]::EscapeDataString($queryText)

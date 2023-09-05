@@ -48,4 +48,8 @@ There are many customization options available in AOE, in the form of Azure Auto
 * `AzureOptimization_RemediateUnattachedDisksAction` - The action to apply for an unattached disk recommendation remediation (`Delete` or `Downsize`).
 * `AzureOptimization_RemediateUnattachedDisksTagsFilter` - The tag name/value pairs an unattached disk recommendation must have for the remediation to occur. Example: `[ { "tagName": "a", "tagValue": "b" }, { "tagName": "c", "tagValue": "d" } ]`
 * `AzureOptimization_RightSizeAdditionalPerfWorkspaces` - A comma-separated list of additional Log Analytics workspace IDs where to look for VM metrics (see [Configuring Log Analytics workspaces](./configuring-workspaces.md)).
+* `AzureOptimization_PerfThresholdDiskIOPSPercentage` - The disk IOPS usage percentage threshold below which the underutilized Premium SSD disks recommendation will trigger.
+* `AzureOptimization_PerfThresholdDiskMBsPercentage` - The disk throughput usage percentage threshold below which the underutilized Premium SSD disks recommendation will trigger.
 * `AzureOptimization_RecommendationsMaxAgeInDays` - The maximum age (in days) for a recommendation to be kept in the SQL database. Default: 365.
+* `AzureOptimization_RetailPricesCurrencyCode` - The currency code (e.g., EUR, USD, etc.) used to collect the Reservations retail prices.
+* `AzureOptimization_PriceSheetMeterCategories` - The comma-separated meter categories used for Pricesheet filtering, in order to avoid ingesting unnecessary data. Defaults to "Virtual Machines,Storage"

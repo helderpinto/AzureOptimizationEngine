@@ -1,24 +1,27 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $TargetScope = $null,
+    [string] $TargetScope,
 
     [Parameter(Mandatory = $false)]
     [string] $BillingAccountID,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $BillingProfileID,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = "",
+    [string] $externalTenantId,
+
+    [Parameter(Mandatory = $false)]
+    [string] $externalCredentialName,
 
     [Parameter(Mandatory = $false)] 
-    [string] $targetStartDate = "", # YYYY-MM-DD format
+    [string] $targetStartDate, # YYYY-MM-DD format
 
     [Parameter(Mandatory = $false)] 
-    [string] $targetEndDate = "" # YYYY-MM-DD format
+    [string] $targetEndDate # YYYY-MM-DD format
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,6 +48,7 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 }
 
 $BillingAccountIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID" -ErrorAction SilentlyContinue
+$BillingProfileIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingProfileID" -ErrorAction SilentlyContinue
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
@@ -53,7 +57,20 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 
 $consumptionOffsetDays = [int] (Get-AutomationVariable -Name  "AzureOptimization_ConsumptionOffsetDays")
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+if ([string]::IsNullOrEmpty($BillingAccountID) -and -not([string]::IsNullOrEmpty($BillingAccountIDVar)))
+{
+    $BillingAccountID = $BillingAccountIDVar
+}
+
+if ([string]::IsNullOrEmpty($BillingProfileID) -and -not([string]::IsNullOrEmpty($BillingProfileIDVar)))
+{
+    $BillingProfileID = $BillingProfileIDVar
+}
+
+$mcaBillingAccountIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+):([A-Za-z0-9]+(-[A-Za-z0-9]+)+)_[0-9]{4}-[0-9]{2}-[0-9]{2}"
+$mcaBillingProfileIdRegex = "([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
+
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
     "RunAsAccount" { 
@@ -98,17 +115,26 @@ if (-not([string]::IsNullOrEmpty($TargetScope)))
 }
 else
 {
-    if (-not([string]::IsNullOrEmpty($BillingAccountIDVar)))
-    {
-        $BillingAccountID = $BillingAccountIDVar
-    }
-
     if ([string]::IsNullOrEmpty($BillingAccountID))
     {
         throw "Billing Account ID undefined. Use either the AzureOptimization_BillingAccountID variable or the BillingAccountID parameter"
     }
-
-    $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID"
+    if ($BillingAccountID -match $mcaBillingAccountIdRegex)
+    {
+        if ([string]::IsNullOrEmpty($BillingProfileID))
+        {
+            throw "Billing Profile ID undefined for MCA. Use either the AzureOptimization_BillingProfileID variable or the BillingProfileID parameter"
+        }
+        if (-not($BillingProfileID -match $mcaBillingProfileIdRegex))
+        {
+            throw "Billing Profile ID does not follow pattern for MCA: ([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
+        }
+        $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID/billingProfiles/$BillingProfileID"
+    }
+    else
+    {
+        $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID"
+    }
 }
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
@@ -127,8 +153,18 @@ do
         $reservationsDetailsPath = $reservationsDetailsResponse.nextLink.Substring($reservationsDetailsResponse.nextLink.IndexOf("/providers/"))
     }
 
-    $reservationsDetailsResponse = (Invoke-AzRestMethod -Path $reservationsDetailsPath -Method GET).Content | ConvertFrom-Json
-    $reservationsDetails += $reservationsDetailsResponse.value
+    $result = Invoke-AzRestMethod -Path $reservationsDetailsPath -Method GET
+
+    if (-not($result.StatusCode -in (200, 201, 202)))
+    {
+        throw "Error while getting reservations details: $($result.Content)"
+    }
+
+    $reservationsDetailsResponse = $result.Content | ConvertFrom-Json
+    if ($reservationsDetailsResponse.value)
+    {
+        $reservationsDetails += $reservationsDetailsResponse.value
+    }
 }
 while (-not([string]::IsNullOrEmpty($reservationsDetailsResponse.nextLink)))
 
@@ -138,9 +174,27 @@ Write-Output "[$now] Found $($reservationsDetails.Count) reservation details."
 # get reservations usage
 
 $reservationsUsage = @()
-$reservationsUsagePath = "$scope/providers/Microsoft.Consumption/reservationSummaries?api-version=2021-10-01&`$filter=properties/UsageDate ge $targetStartDate and properties/UsageDate le $targetEndDate&grain=daily"
-$reservationsUsageResponse = (Invoke-AzRestMethod -Path $reservationsUsagePath -Method GET).Content | ConvertFrom-Json
-$reservationsUsage += $reservationsUsageResponse.value
+if ($BillingAccountID -match $mcaBillingAccountIdRegex)
+{
+    $reservationsUsagePath = "$scope/providers/Microsoft.Consumption/reservationSummaries?api-version=2023-05-01&startDate=$targetStartDate&endDate=$targetEndDate&grain=daily"
+}
+else
+{
+    $reservationsUsagePath = "$scope/providers/Microsoft.Consumption/reservationSummaries?api-version=2023-05-01&`$filter=properties/UsageDate ge $targetStartDate and properties/UsageDate le $targetEndDate&grain=daily"
+}
+
+$result = Invoke-AzRestMethod -Path $reservationsUsagePath -Method GET
+
+if (-not($result.StatusCode -in (200, 201, 202)))
+{
+    throw "Error while getting reservations usage: $($result.Content)"
+}
+
+$reservationsUsageResponse = $result.Content | ConvertFrom-Json
+if ($reservationsUsageResponse.value)
+{
+    $reservationsUsage += $reservationsUsageResponse.value
+}
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Found $($reservationsUsage.Count) reservation usages."
@@ -196,7 +250,14 @@ foreach ($usage in $reservationsUsage)
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Generated $($reservations.Count) entries..."
 
-$csvExportPath = "$targetStartDate-$BillingAccountID-$($scope.Split('/')[-1]).csv"
+if ($BillingAccountID -match $mcaBillingAccountIdRegex)
+{
+    $csvExportPath = "$targetStartDate-$BillingProfileID.csv"   
+}
+else
+{
+    $csvExportPath = "$targetStartDate-$BillingAccountID-$($scope.Split('/')[-1]).csv"
+}
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploading CSV to Storage"

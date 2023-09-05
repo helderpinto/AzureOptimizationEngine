@@ -247,15 +247,13 @@ foreach ($result in $results) {
             }
         }
     }
-    
-    $additionalInfoDictionary = @{ }
-    if ($result.AdditionalInfo_s.Length -gt 0) {
-        $result.AdditionalInfo_s.Split('{')[1].Split('}')[0].Split(';') | ForEach-Object {
-            $key, $value = $_.Trim().Split('=')
-            $additionalInfoDictionary[$key] = $value
-        }
-    }
 
+    $additionalInfoDictionary = @{}
+    if (-not([string]::IsNullOrEmpty($result.AdditionalInfo_s)))
+    {
+        ($result.AdditionalInfo_s | ConvertFrom-Json).PsObject.Properties | ForEach-Object { $additionalInfoDictionary[$_.Name] = $_.Value }
+    }
+    
     $fitScore = 5
 
     $queryInstanceId = $result.InstanceId_s

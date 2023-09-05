@@ -80,6 +80,9 @@
             "metadata": {
                 "description": "Base time for all automation runbook schedules."
             }
+        },
+        "resourceTags": {
+            "type": "object"
         }
     },
     "functions": [],
@@ -93,7 +96,7 @@
             "apiVersion": "2021-04-01",
             "location": "[parameters('projectLocation')]",
             "dependsOn": [],
-            "tags": {}
+            "tags": "[parameters('resourceTags')]"
         },
         {
             "name": "resourcesDeployment",
@@ -162,6 +165,9 @@
                     },
                     "contributorRoleAssignmentGuid": {
                         "value": "[parameters('contributorRoleAssignmentGuid')]"
+                    },
+                    "resourceTags": {
+                        "value": "[parameters('resourceTags')]"
                     }
                 },
                 "template": {
@@ -218,6 +224,9 @@
                         },
                         "baseTime": {
                             "type": "string"
+                        },
+                        "resourceTags": {
+                            "type": "object"
                         },
                         "contributorRoleAssignmentGuid": {
                             "type": "string"
@@ -411,11 +420,46 @@
                                 "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
                             }
                         },
+                        "monitorDiskIOPSAvgExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "monitorDiskMBPsAvgExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Monitor Metrics Export job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "argAppServicePlanExportJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
                             "metadata": {
                                 "description": "GUID for the ARG App Service Plan Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "pricesheetExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Pricesheet Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationPricesExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Prices Export job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationUsageExportJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Usage Export job schedule creation - create a unique before deploy"
                             }
                         },
                         "argDiskIngestJobId": {
@@ -565,6 +609,27 @@
                                 "description": "GUID for the ARG App Service Plan Ingest job schedule creation - create a unique before deploy"
                             }
                         },
+                        "pricesheetIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Pricesheet Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationPricesIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Prices Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
+                        "reservationUsageIngestJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Reservation Usage Ingest job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "unattachedDisksRecommendationJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -663,6 +728,13 @@
                                 "description": "GUID for the App Service Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
                             }
                         },
+                        "diskOptimizationsRecommendationJobId": {
+                            "type": "string",
+                            "defaultValue": "[newGuid()]",
+                            "metadata": {
+                                "description": "GUID for the Disk Optimizations Recommendation Generation job schedule creation - create a unique before deploy"
+                            }
+                        },
                         "recommendationsIngestJobId": {
                             "type": "string",
                             "defaultValue": "[newGuid()]",
@@ -733,6 +805,10 @@
                         "monitorAppServiceCpuAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
                         "monitorAppServiceMemoryMaxExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
                         "monitorAppServiceMemoryAvgExportsScheduleName": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
+                        "monitorDiskIOPSAvgExportsScheduleName": "AzureOptimization_ExportMonitorDiskIOPSHourly",
+                        "monitorDiskMBPsAvgExportsScheduleName": "AzureOptimization_ExportMonitorDiskMBPsHourly",
+                        "priceExportsScheduleName": "AzureOptimization_ExportPricesWeekly",
+                        "reservationsUsageExportsScheduleName": "AzureOptimization_ExportReservationsDaily",
                         "csvExportsSchedules": [
                             {
                                 "exportSchedule": "[variables('argExportsScheduleName')]",
@@ -823,6 +899,30 @@
                                 "exportDescription": "Hourly Azure Monitor metrics exports for App Service Percentage RAM (Max.)",
                                 "exportTimeOffset": "PT1H15M",
                                 "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorDiskIOPSAvgExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for Disk IOPS (Avg.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('monitorDiskMBPsAvgExportsScheduleName')]",
+                                "exportDescription": "Hourly Azure Monitor metrics exports for Disk MBPs (Avg.)",
+                                "exportTimeOffset": "PT1H15M",
+                                "exportFrequency": "Hour"
+                            },
+                            {
+                                "exportSchedule": "[variables('priceExportsScheduleName')]",
+                                "exportDescription": "Weekly Pricesheet and Reservation Prices exports",
+                                "exportTimeOffset": "PT1H30M",
+                                "exportFrequency": "Week"
+                            },
+                            {
+                                "exportSchedule": "[variables('reservationsUsageExportsScheduleName')]",
+                                "exportDescription": "Daily Reservation Usagge exports",
+                                "exportTimeOffset": "PT2H",
+                                "exportFrequency": "Day"
                             }
                         ],
                         "csvExports": [
@@ -1104,6 +1204,48 @@
                                 "ingestJobId": "[parameters('argAppServicePlanIngestJobId')]",
                                 "exportSchedule": "[variables('argExportsScheduleName')]",
                                 "exportJobId": "[parameters('argAppServicePlanExportJobId')]"
+                            },
+                            {
+                                "runbookName": "[variables('priceSheetExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "pricesheetexports",
+                                "variableName": "AzureOptimization_PriceSheetContainer",
+                                "variableDescription": "The Storage Account container where Pricesheet exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestPricesheetWeekly",
+                                "ingestDescription": "Weekly Pricesheet ingests",
+                                "ingestTimeOffset": "PT2H",
+                                "ingestFrequency": "Week",
+                                "ingestJobId": "[parameters('pricesheetIngestJobId')]",
+                                "exportSchedule": "[variables('priceExportsScheduleName')]",
+                                "exportJobId": "[parameters('pricesheetExportJobId')]"
+                            },
+                            {
+                                "runbookName": "[variables('reservationsPriceExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "reservationspriceexports",
+                                "variableName": "AzureOptimization_ReservationsPriceContainer",
+                                "variableDescription": "The Storage Account container where Reservations Prices exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestReservationsPriceWeekly",
+                                "ingestDescription": "Weekly Reservations Prices ingests",
+                                "ingestTimeOffset": "PT2H",
+                                "ingestFrequency": "Week",
+                                "ingestJobId": "[parameters('reservationPricesIngestJobId')]",
+                                "exportSchedule": "[variables('priceExportsScheduleName')]",
+                                "exportJobId": "[parameters('reservationPricesExportJobId')]"
+                            },
+                            {
+                                "runbookName": "[variables('reservationsExportsRunbookName')]",
+                                "isOneToMany": false,
+                                "containerName": "reservationsexports",
+                                "variableName": "AzureOptimization_ReservationsContainer",
+                                "variableDescription": "The Storage Account container where Reservations Usage exports are dumped to",
+                                "ingestSchedule": "AzureOptimization_IngestReservationsUsageDaily",
+                                "ingestDescription": "Daily Reservations Usage ingests",
+                                "ingestTimeOffset": "PT2H30M",
+                                "ingestFrequency": "Day",
+                                "ingestJobId": "[parameters('reservationUsageIngestJobId')]",
+                                "exportSchedule": "[variables('reservationsUsageExportsScheduleName')]",
+                                "exportJobId": "[parameters('reservationUsageExportJobId')]"
                             }
                         ],
                         "csvParameterizedExports": [
@@ -1223,6 +1365,34 @@
                                     "MetricNames": "MemoryPercentage",
                                     "TimeGrain": "00:01:00"
                                 }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorDiskIOPSAvgExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorDiskIOPSAvgExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.compute/disks",
+                                    "ARGFilter": "sku.name =~ 'Premium_LRS' and properties.diskState != 'Unattached'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Average",
+                                    "AggregationOfType": "Maximum",
+                                    "MetricNames": "Composite Disk Read Operations/sec,Composite Disk Write Operations/sec",
+                                    "TimeGrain": "00:01:00"
+                                }
+                            },
+                            {
+                                "runbookName": "[variables('monitorExportsRunbookName')]",
+                                "exportSchedule": "[variables('monitorDiskMBPsAvgExportsScheduleName')]",
+                                "exportJobId": "[parameters('monitorDiskMBPsAvgExportJobId')]",
+                                "parameters": {
+                                    "ResourceType": "microsoft.compute/disks",
+                                    "ARGFilter": "sku.name =~ 'Premium_LRS' and properties.diskState != 'Unattached'",
+                                    "TimeSpan": "01:00:00",
+                                    "aggregationType": "Average",
+                                    "AggregationOfType": "Maximum",
+                                    "MetricNames": "Composite Disk Read Bytes/sec,Composite Disk Write Bytes/sec",
+                                    "TimeGrain": "00:01:00"
+                                }
                             }
                         ],
                         // recommendations runbooks
@@ -1240,6 +1410,7 @@
                         "sqldbOptimizationsRecommendationsRunbookName": "Recommend-SqlDbOptimizationsToBlobStorage",
                         "storageOptimizationsRecommendationsRunbookName": "Recommend-StorageAccountOptimizationsToBlobStorage",
                         "appServiceOptimizationsRecommendationsRunbookName": "Recommend-AppServiceOptimizationsToBlobStorage",
+                        "diskOptimizationsRecommendationsRunbookName": "Recommend-DiskOptimizationsToBlobStorage",
                         "cleanUpOlderRecommendationsRunbookName": "CleanUp-OlderRecommendationsFromSqlServer",
                         "recommendations": [
                             {
@@ -1297,6 +1468,10 @@
                             {
                                 "recommendationJobId": "[parameters('appServiceOptimizationsRecommendationJobId')]",
                                 "runbookName": "[variables('appServiceOptimizationsRecommendationsRunbookName')]"
+                            },
+                            {
+                                "recommendationJobId": "[parameters('diskOptimizationsRecommendationJobId')]",
+                                "runbookName": "[variables('diskOptimizationsRecommendationsRunbookName')]"
                             }
                         ],
                         "remediationLogsContainerName": "remediationlogs",
@@ -1321,16 +1496,16 @@
                         },
                         "Az.Accounts": {
                             "name": "Az.Accounts",
-                            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.10.4"
+                            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.12.5"
                         },
                         "Microsoft.Graph.Authentication": {
                             "name": "Microsoft.Graph.Authentication",
-                            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/1.19.0"
+                            "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/2.4.0"
                         },
                         "psModules": [
                             {
                                 "name": "Az.Compute",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/5.2.0"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/6.2.0"
                             },
                             {
                                 "name": "Az.OperationalInsights",
@@ -1342,35 +1517,35 @@
                             },
                             {
                                 "name": "Az.Storage",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/5.2.0"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/5.9.0"
                             },
                             {
                                 "name": "Az.Resources",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/6.5.1"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/6.9.1"
                             },
                             {
                                 "name": "Az.Monitor",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/4.3.0"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/4.5.0"
                             },
                             {
                                 "name": "Az.PolicyInsights",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Az.PolicyInsights/1.5.1"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Az.PolicyInsights/1.6.2"
                             },
                             {
                                 "name": "Microsoft.Graph.Users",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/1.19.0"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Users/2.4.0"
                             },
                             {
                                 "name": "Microsoft.Graph.Groups",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/1.19.0"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Groups/2.4.0"
                             },
                             {
                                 "name": "Microsoft.Graph.Applications",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/1.19.0"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Applications/2.4.0"
                             },
                             {
                                 "name": "Microsoft.Graph.Identity.DirectoryManagement",
-                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/1.19.0"
+                                "url": "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Identity.DirectoryManagement/2.4.0"
                             }
                         ],
                         "runbooks": [
@@ -1418,14 +1593,14 @@
                             },
                             {
                                 "name": "[variables('consumptionExportsRunbookName')]",
-                                "version": "2.0.0.0",
+                                "version": "2.0.2.0",
                                 "description": "Exports Azure Consumption events to Blob Storage using Azure Consumption API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('consumptionExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('aadObjectsExportsRunbookName')]",
-                                "version": "1.1.3.0",
+                                "version": "1.2.0.0",
                                 "description": "Exports Azure AAD Objects to Blob Storage using Azure ARM API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('aadObjectsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1453,7 +1628,7 @@
                             },
                             {
                                 "name": "[variables('rbacExportsRunbookName')]",
-                                "version": "1.0.1.0",
+                                "version": "1.0.2.0",
                                 "description": "Exports RBAC assignments to Blob Storage using ARM and Azure AD",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('rbacExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1516,7 +1691,7 @@
                             },
                             {
                                 "name": "[variables('reservationsExportsRunbookName')]",
-                                "version": "1.0.0.0",
+                                "version": "1.1.1.0",
                                 "description": "Exports Reservations Usage to Blob Storage using the Enterprise Enrollment APIs",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('reservationsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1530,7 +1705,7 @@
                             },
                             {
                                 "name": "[variables('priceSheetExportsRunbookName')]",
-                                "version": "1.0.0.0",
+                                "version": "1.1.0.0",
                                 "description": "Exports Price Sheet to Blob Storage using the Enterprise Enrollment APIs",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('priceSheetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1551,7 +1726,7 @@
                             },
                             {
                                 "name": "[variables('advisorCostAugmentedRecommendationsRunbookName')]",
-                                "version": "2.8.6.0",
+                                "version": "2.9.0.0",
                                 "description": "Generates augmented Advisor Cost recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('advisorCostAugmentedRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1614,7 +1789,7 @@
                             },
                             {
                                 "name": "[variables('vmssOptimizationsRecommendationsRunbookName')]",
-                                "version": "1.0.4.0",
+                                "version": "1.1.0.0",
                                 "description": "Generates VM Scale Set optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('vmssOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1635,10 +1810,17 @@
                             },
                             {
                                 "name": "[variables('appServiceOptimizationsRecommendationsRunbookName')]",
-                                "version": "1.0.1.0",
+                                "version": "1.0.2.0",
                                 "description": "Generates App Service optimizations recommendations",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('appServiceOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
+                            },
+                            {
+                                "name": "[variables('diskOptimizationsRecommendationsRunbookName')]",
+                                "version": "1.1.0.0",
+                                "description": "Generates Disk optimizations recommendations",
+                                "type": "PowerShell",
+                                "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('diskOptimizationsRecommendationsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('recommendationsIngestRunbookName')]",
@@ -1777,6 +1959,16 @@
                                 "value": "[concat('\"', subscription().tenantId, '\"')]"
                             },
                             {
+                                "name": "AzureOptimization_PriceSheetMeterCategories",
+                                "description": "Comma-separated meter categories to be included in the Price Sheet (remove variable to include all categories)",
+                                "value": "\"Virtual Machines,Storage\""
+                            },
+                            {
+                                "name": "AzureOptimization_RetailPricesCurrencyCode",
+                                "description": "The currency code to be used for the retail prices exports (used for Reservations prices)",
+                                "value": "\"EUR\""
+                            },
+                            {
                                 "name": "AzureOptimization_RecommendAdvisorPeriodInDays",
                                 "description": "The period (in days) to look back for Advisor exported recommendations",
                                 "value": 7
@@ -1865,6 +2057,16 @@
                                 "name": "AzureOptimization_PerfThresholdDtuDegradedPercentage",
                                 "description": "The DTU usage percentage threshold above which a SQL Database instance is considered performance degraded",
                                 "value": 75
+                            },
+                            {
+                                "name": "AzureOptimization_PerfThresholdDiskIOPSPercentage",
+                                "description": "The IOPS usage percentage threshold below which a Disk is considered underutilized",
+                                "value": 5
+                            },
+                            {
+                                "name": "AzureOptimization_PerfThresholdDiskMBsPercentage",
+                                "description": "The throughput (MBps) usage percentage threshold below which a Disk is considered underutilized",
+                                "value": 5
                             },
                             {
                                 "name": "AzureOptimization_RemediateRightSizeMinFitScore",
@@ -1987,6 +2189,7 @@
                             "apiVersion": "[variables('apiVersions').operationalInsights]",
                             "name": "[parameters('logAnalyticsWorkspaceName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "properties": {
                                 "sku": {
                                     "name": "pergb2018"
@@ -2000,6 +2203,7 @@
                             "apiVersion": "[variables('apiVersions').storage]",
                             "name": "[parameters('storageAccountName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "sku": {
                                 "name": "Standard_LRS",
                                 "tier": "Standard"
@@ -2145,6 +2349,7 @@
                             "apiVersion": "[variables('apiVersions').sql]",
                             "name": "[parameters('sqlServerName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "kind": "v12.0",
                             "properties": {
                                 "administratorLogin": "[parameters('sqlAdminLogin')]",
@@ -2175,6 +2380,7 @@
                             "apiVersion": "[variables('apiVersions').sql]",
                             "name": "[concat(parameters('sqlServerName'), '/', parameters('sqlDatabaseName'))]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
                             ],
@@ -2214,6 +2420,7 @@
                             "apiVersion": "[variables('apiVersions').automation]",
                             "name": "[parameters('automationAccountName')]",
                             "location": "[parameters('projectLocation')]",
+                            "tags": "[parameters('resourceTags')]",
                             "identity": {
                                 "type": "SystemAssigned"
                             },
@@ -2228,6 +2435,7 @@
                             "comments": "provision the Az.Accounts module first since others are dependent on it",
                             "name": "[concat(parameters('automationAccountName'), '/', variables('Az.Accounts').name)]",
                             "type": "Microsoft.Automation/automationAccounts/modules",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
@@ -2243,6 +2451,7 @@
                             "comments": "provision the Microsoft.Graph.Authentication module first since others are dependent on it",
                             "name": "[concat(parameters('automationAccountName'), '/', variables('Microsoft.Graph.Authentication').name)]",
                             "type": "Microsoft.Automation/automationAccounts/modules",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
@@ -2257,6 +2466,7 @@
                         {
                             "name": "[concat(parameters('automationAccountName'), '/', variables('psModules')[copyIndex()].name)]",
                             "type": "Microsoft.Automation/automationAccounts/modules",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "dependsOn": [
                                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]",
@@ -2276,6 +2486,7 @@
                         {
                             "name": "[concat(parameters('automationAccountName'), '/', variables('runbooks')[copyIndex()].name)]",
                             "type": "Microsoft.Automation/automationAccounts/runbooks",
+                            "tags": "[parameters('resourceTags')]",
                             "apiVersion": "[variables('apiVersions').automation]",
                             "location": "[parameters('projectLocation')]",
                             "dependsOn": [
