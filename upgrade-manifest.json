@@ -2,7 +2,7 @@
     "modules": [
         {
             "name": "Az.Accounts",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.12.5"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/2.12.1"
         },
         {
             "name": "Microsoft.Graph.Authentication",
@@ -10,7 +10,7 @@
         },
         {
             "name": "Az.Compute",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/6.2.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Compute/5.7.0"
         },
         {
             "name": "Az.OperationalInsights",
@@ -22,19 +22,19 @@
         },
         {
             "name": "Az.Storage",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/5.9.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Storage/5.5.0"
         },
         {
             "name": "Az.Resources",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/6.9.1"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Resources/6.6.0"
         },
         {
             "name": "Az.Monitor",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/4.5.0"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.Monitor/4.4.1"
         },
         {
             "name": "Az.PolicyInsights",
-            "url": "https://www.powershellgallery.com/api/v2/package/Az.PolicyInsights/1.6.2"
+            "url": "https://www.powershellgallery.com/api/v2/package/Az.PolicyInsights/1.6.0"
         },
         {
             "name": "Microsoft.Graph.Users",
