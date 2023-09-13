@@ -1,18 +1,18 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $targetSubscription = "",
+    [string] $targetSubscription,
 
     [Parameter(Mandatory = $false)]
     [string] $advisorFilter = "all",
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
+    [string] $externalTenantId,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = ""
+    [string] $externalCredentialName
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,16 +22,32 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
 }
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
+}
 
-# get Advisor exports sink (storage account) details
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkEnv = Get-AutomationVariable -Name "AzureOptimization_StorageSinkEnvironment" -ErrorAction SilentlyContinue
+if (-not($storageAccountSinkEnv))
+{
+    $storageAccountSinkEnv = $cloudEnvironment    
+}
+$storageAccountSinkKeyCred = Get-AutomationPSCredential -Name "AzureOptimization_StorageSinkKey" -ErrorAction SilentlyContinue
+$storageAccountSinkKey = $null
+if ($storageAccountKeyCred)
+{
+    $storageAccountSink = $storageAccountSinkKeyCred.UserName
+    $storageAccountSinkKey = $storageAccountSinkKeyCred.GetNetworkCredential().Password
+}
+
 $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_AdvisorContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
@@ -43,30 +59,34 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
     $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
 }
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    "UserAssignedManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment -AccountId $uamiClientID
         break
     }
-    "ManagedIdentity" { 
+    Default { #ManagedIdentity
         Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment 
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
         break
     }
 }
 
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+if (-not($storageAccountKey))
+{
+    Write-Output "Getting Storage Account context with login"
+    Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+    $saCtx = (Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink).Context
+}
+else
+{
+    Write-Output "Getting Storage Account context with key"
+    $saCtx = New-AzStorageContext -StorageAccountName $storageAccountSink -StorageAccountKey $storageAccountSinkKey -Environment $storageAccountSinkEnv
+}
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
+    "Logging in to Azure with $externalCredentialName external credential..."
     Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
     $cloudEnvironment = $externalCloudEnvironment   
 }
@@ -201,7 +221,7 @@ Write-Output "Export to $csvExportPath"
 $csvBlobName = $csvExportPath
 $csvProperties = @{"ContentType" = "text/csv"};
 
-Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
