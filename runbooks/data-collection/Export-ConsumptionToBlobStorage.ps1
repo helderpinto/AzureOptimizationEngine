@@ -335,7 +335,10 @@ else
     }
     else
     {
-        throw "Invalid value for AzureOptimization_ConsumptionScope. Valid values are 'Subscription' or 'BillingAccount'."
+        if ($consumptionScope -ne "Subscription")
+        {
+            throw "Invalid value for AzureOptimization_ConsumptionScope. Valid values are 'Subscription' or 'BillingAccount'."
+        }
     }
 }
 
