@@ -130,10 +130,12 @@ $argQuery = @"
 advisorresources
 | where type == 'microsoft.advisor/recommendations'
 | where isnull(properties.suppressionIds)$filter
+| extend resourceId = tostring(split(tolower(id),'/providers/microsoft.advisor')[0])
+| join kind=leftouter (resources | project resourceId=tolower(id), resourceTags=tags) on resourceId
 | project id, category = properties.category, impact = properties.impact, impactedArea = properties.impactedField,
     description = properties.shortDescription.problem, recommendationText = properties.shortDescription.solution,
     recommendationTypeId = properties.recommendationTypeId, instanceName = properties.impactedValue,
-    additionalInfo = properties.extendedProperties
+    additionalInfo = properties.extendedProperties, tags=resourceTags
 | order by id asc
 "@
 
@@ -200,6 +202,7 @@ foreach ($advisorRecommendation in $recommendationsARG)
         RecommendationTypeId = $advisorRecommendation.recommendationTypeId
         InstanceId = $instanceId
         InstanceName = $advisorRecommendation.instanceName
+        Tags = $advisorRecommendation.tags
         AdditionalInfo = $additionalInfo
         ResourceGroup = $resourceGroup
         SubscriptionGuid = $subscriptionId

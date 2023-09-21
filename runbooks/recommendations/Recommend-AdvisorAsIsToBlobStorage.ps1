@@ -105,11 +105,10 @@ if (-not($connectionSuccess))
     throw "Could not establish connection to SQL."
 }
 
-$vmsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGVirtualMachine' }).LogAnalyticsSuffix + "_CL"
 $advisorTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'AzureAdvisor' }).LogAnalyticsSuffix + "_CL"
 $subscriptionsTableName = $lognamePrefix + ($controlRows | Where-Object { $_.CollectedType -eq 'ARGResourceContainers' }).LogAnalyticsSuffix + "_CL"
 
-Write-Output "Will run query against tables $vmsTableName, $subscriptionsTableName and $advisorTableName"
+Write-Output "Will run query against tables $subscriptionsTableName and $advisorTableName"
 
 $Conn.Close()    
 $Conn.Dispose()            
@@ -177,11 +176,6 @@ $baseQuery = @"
 let advisorInterval = $($daysBackwards)d;
 $advisorTableName 
 | where todatetime(TimeGenerated) > ago(advisorInterval)$FinalCategoryFilter
-| join kind=leftouter (
-    $vmsTableName 
-    | where TimeGenerated > ago(1d) 
-    | distinct InstanceId_s, Tags_s
-) on InstanceId_s 
 | extend AdvisorRecIdIndex = indexof(InstanceId_s, '/providers/microsoft.advisor/recommendations')
 | extend InstanceName_s = iif(isnotempty(InstanceName_s),InstanceName_s,iif(AdvisorRecIdIndex > 0, split(substring(InstanceId_s, 0, AdvisorRecIdIndex),'/')[-1], split(InstanceId_s,'/')[-1]))
 | summarize by InstanceId_s, InstanceName_s, Category, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s
