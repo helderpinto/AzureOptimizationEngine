@@ -284,7 +284,7 @@
                             "type": "string",
                             "defaultValue": "[newGuid()]",
                             "metadata": {
-                                "description": "GUID for the Azure AD Objects Export job schedule creation - create a unique before deploy"
+                                "description": "GUID for the Microsoft Entra Objects Export job schedule creation - create a unique before deploy"
                             }
                         },
                         "argLoadBalancersExportJobId": {
@@ -830,7 +830,7 @@
                             },
                             {
                                 "exportSchedule": "[variables('aadObjectsExportsScheduleName')]",
-                                "exportDescription": "Daily Azure AD Objects exports",
+                                "exportDescription": "Daily Microsoft Entra Objects exports",
                                 "exportTimeOffset": "PT1H",
                                 "exportFrequency": "Day"
                             },
@@ -1029,9 +1029,9 @@
                                 "isOneToMany": false,
                                 "containerName": "aadobjectsexports",
                                 "variableName": "AzureOptimization_AADObjectsContainer",
-                                "variableDescription": "The Storage Account container where Azure AD Objects exports are dumped to",
+                                "variableDescription": "The Storage Account container where Microsoft Entra Objects exports are dumped to",
                                 "ingestSchedule": "AzureOptimization_IngestAADObjectsDaily",
-                                "ingestDescription": "Daily Azure AD Objects ingests",
+                                "ingestDescription": "Daily Microsoft Entra Objects ingests",
                                 "ingestTimeOffset": "PT2H",
                                 "ingestFrequency": "Day",
                                 "ingestJobId": "[parameters('aadObjectsIngestJobId')]",
@@ -1629,7 +1629,7 @@
                             {
                                 "name": "[variables('rbacExportsRunbookName')]",
                                 "version": "1.0.3.0",
-                                "description": "Exports RBAC assignments to Blob Storage using ARM and Azure AD",
+                                "description": "Exports RBAC assignments to Blob Storage using ARM and Microsoft Entra",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('rbacExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
@@ -1955,7 +1955,7 @@
                             },
                             {
                                 "name": "AzureOptimization_LogAnalyticsWorkspaceTenantId",
-                                "description": "The Azure AD tenant for the Log Analytics Workspace where optimization data will be ingested",
+                                "description": "The Microsoft Entra tenant for the Log Analytics Workspace where optimization data will be ingested",
                                 "value": "[concat('\"', subscription().tenantId, '\"')]"
                             },
                             {
@@ -2130,7 +2130,7 @@
                             },
                             {
                                 "name": "AzureOptimization_AADObjectsFilter",
-                                "description": "The Azure AD object types to export",
+                                "description": "The Microsoft Entra object types to export",
                                 "value": "[concat('\"','Application,ServicePrincipal,User,Group','\"')]"
                             },
                             {

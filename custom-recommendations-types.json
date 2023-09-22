@@ -136,7 +136,7 @@
             "category": "Security",
             "typeId": "ecd969c8-3f16-481a-9577-5ed32e5e1a1d",
             "impact": "Medium",
-            "description": "Azure AD application with credentials expiration not set or too far in time"
+            "description": "Microsoft Entra application with credentials expiration not set or too far in time"
         },
         {
             "category": "Security",
@@ -160,7 +160,7 @@
             "category": "OperationalExcellence",
             "typeId": "3292c489-2782-498b-aad0-a4cef50f6ca2",
             "impact": "Medium",
-            "description": "Azure AD application with credentials expired or about to expire"
+            "description": "Microsoft Entra application with credentials expired or about to expire"
         },
         {
             "category": "OperationalExcellence",

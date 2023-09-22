@@ -167,7 +167,7 @@ $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'ff
 
 $roleAssignments = @()
 
-"Getting Azure AD roles..."
+"Getting Microsoft Entra ID roles..."
 
 #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
 $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)

@@ -85,15 +85,15 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
 
 ### Log Analytics Workbooks
 
-With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Azure AD and Azure RM principals and roles assigned, how your resources are distributed, how your Block Blob Storage usage is distributed, how your Azure Benefits usage is distributed (supports only Enterprise Agreement customers) or exploring Azure Policy compliance results over time.
+With AOE's Log Analytics Workbooks, you can explore many perspectives over the data that is collected every day. For example, costs growing anomalies, Microsoft Entra ID and Azure RM principals and roles assigned, how your resources are distributed, how your Block Blob Storage usage is distributed, how your Azure Benefits usage is distributed (supports only Enterprise Agreement customers) or exploring Azure Policy compliance results over time.
 
 ![Costs growing anomalies](./docs/workbooks-costsgrowing-anomalies.jpg "Costs growing anomalies")
 
 ![Virtual Machines perspectives over time](./docs/workbooks-resourcesinventory-vms.jpg "Virtual Machines perspectives over time")
 
-![Azure AD/RM principals and roles summary, with service principal credentials expiration](./docs/workbooks-identitiesroles-summary.jpg "Azure AD/RM principals and roles summary, with service principal credentials expiration")
+![Microsoft Entra ID/Azure Resource Manager principals and roles summary, with service principal credentials expiration](./docs/workbooks-identitiesroles-summary.jpg "Microsoft Entra ID/Azure Resource Manager principals and roles summary, with service principal credentials expiration")
 
-![Privileged Azure AD roles and assignment history](./docs/workbooks-identitiesroles-rolehistory.jpg "Priviliged Azure AD roles and assignment history")
+![Privileged Microsoft Entra ID roles and assignment history](./docs/workbooks-identitiesroles-rolehistory.jpg "Priviliged Microsoft Entra ID roles and assignment history")
 
 ![Block Blob Storage usage analysis with Lifecycle Management recommendations](./docs/workbooks-blockblobusage-standardv2.jpg "Block Blob Storage usage analysis with Lifecycle Management recommendations")
 
@@ -150,7 +150,7 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
         * **Performance** - VM Scale Sets constrained by lack of compute resources
         * **High Availability** - VM Scale Sets not using managed disks
         * **High Availability** - Virtual Machines or VM Scale Sets not leveraging multiple Availability Zones
-    * Azure AD exports migrated to the Microsoft Graph SDK (preparing for the deprecation of Azure AD Graph)
+    * Microsoft Entra ID exports migrated to the Microsoft Graph SDK (preparing for the deprecation of Azure AD Graph)
     * Automation Runbooks use by default Managed Identity authentication (no more certificate-based Run As Accounts)
     * Support for resetting Automation schedules with the `Reset-AutomationSchedules.ps1` script
     * Workbooks usability and content improvements
@@ -179,11 +179,11 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
     * Several bug fixes
 * 06/2021
     * Introduced Log Analytics Workbooks with additional insights besides Power BI recommendations:
-        * Identities and Roles - Azure AD principals (user and service) and roles assigned both in Azure AD and Azure RM, credentials expiration (for service principals)
+        * Identities and Roles - Microsoft Entra ID principals (user and service) and roles assigned both in Microsoft Entra ID and Azure RM, credentials expiration (for service principals)
         * Resouces Inventory (overall, VMs, disks, all with an historical perspective)
         * Costs Growing - cost anomalies observed during a specific period
     * Support for partial AOE upgrades - useful in scenarios where the solution was customized (e.g., Private Link or Hybrid Worker setups or changes in Automation Variables)
-    * Added daily Azure AD and Azure RM RBAC assignments exports
+    * Added daily Microsoft Entra ID and Azure RM RBAC assignments exports
     * Added daily resource containers exports (subscriptions and resource groups)
     * Added OS and image models to VM exports
     * Improved support for US Government cloud
@@ -236,7 +236,7 @@ read the whole blog series dedicated to this project, starting [here](https://te
 * Azure Powershell 6.6.0+
 * Microsoft.Graph.Authentication and Microsoft.Graph.Identity.DirectoryManagement PowerShell modules (version 2.4.0+)
 * A user account with Owner permissions over the chosen subscription, so that the Automation Managed Identity is granted the required privileges over the subscription (Reader) and deployment resource group (Contributor)
-* (Optional) A user account with at least Privileged Role Administrator permissions over the Azure AD tenant, so that the Managed Identity is granted the required privileges over Azure AD (Global Reader)
+* (Optional) A user account with at least Privileged Role Administrator permissions over the Microsoft Entra tenant, so that the Managed Identity is granted the required privileges over Microsoft Entra ID (Global Reader)
 * (Optional) A user account with administrative privileges over the Enterprise Agreement (Enterprise Enrollment Administrator) or the Microsoft Customer Agreement (Billing Profile Owner), so that the Managed Identity is granted the required privileges over your consumption agreement
 
 During deployment, you'll be asked several questions. You must plan for the following:
@@ -262,7 +262,7 @@ The simplest, quickest and recommended method for installing AOE is by using the
 1. Open Azure Cloud Shell (PowerShell)
 2. Run `git clone https://github.com/helderpinto/AzureOptimizationEngine.git azureoptimizationengine`
 3. Run `cd azureoptimizationengine`
-4. (optional) Run `Install-Module Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement` - this is required to grant the Global Reader role to the Automation Managed Identity in Azure AD
+4. (optional) Run `Install-Module Microsoft.Graph.Authentication,Microsoft.Graph.Identity.DirectoryManagement` - this is required to grant the Global Reader role to the Automation Managed Identity in Microsoft Entra ID
 5. Run `.\Deploy-AzureOptimizationEngine.ps1`
 6. Input your deployment options and let the deployment finish (it will take less than 5 minutes)
 
@@ -377,7 +377,7 @@ By default, AOE Automation runbooks are executed in the context of the Azure Aut
 **IMPORTANT**: 
 * The Hybrid Worker machine must have the required PowerShell modules installed. See [here](upgrade-manifest.json) the list of required modules.
 * Once you change the runbook execution context to Hybrid Worker, you will have to always use the `DoPartialUpgrade` flag whenever you upgrade AOE, or else you will lose the runbook schedule settings and revert to the default sandbox configuration.
-* The Managed Identity used to authenticate against Azure, Azure AD and Billing Account scopes is still the Azure Automation's one, even if the Hybrid Worker machine has a Managed Identity assigned ([see details](https://learn.microsoft.com/en-us/azure/automation/automation-hrw-run-runbooks?#runbook-auth-managed-identities)). User-assigned Managed Identities are not supported at this moment.
+* The Managed Identity used to authenticate against Azure, Microsoft Entra ID and Billing Account scopes is still the Azure Automation's one, even if the Hybrid Worker machine has a Managed Identity assigned ([see details](https://learn.microsoft.com/en-us/azure/automation/automation-hrw-run-runbooks?#runbook-auth-managed-identities)). User-assigned Managed Identities are not supported at this moment.
 
 ### Visualizing recommendations with Power BI
 

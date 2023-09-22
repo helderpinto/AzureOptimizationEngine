@@ -215,8 +215,8 @@ foreach ($result in $results)
         RecommendationType = "BestPractices"
         RecommendationSubType = "AADExpiringCredentials"
         RecommendationSubTypeId = "3292c489-2782-498b-aad0-a4cef50f6ca2"
-        RecommendationDescription = "Azure AD application with credentials expired or about to expire"
-        RecommendationAction = "Update the Azure AD application credential before the expiration date"
+        RecommendationDescription = "Microsoft Entra application with credentials expired or about to expire"
+        RecommendationAction = "Update the Microsoft Entra application credential before the expiration date"
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
@@ -331,8 +331,8 @@ foreach ($result in $results)
         RecommendationType = "BestPractices"
         RecommendationSubType = "AADNotExpiringCredentials"
         RecommendationSubTypeId = "ecd969c8-3f16-481a-9577-5ed32e5e1a1d"
-        RecommendationDescription = "Azure AD application with credentials expiration not set or too far in time"
-        RecommendationAction = "Update the Azure AD application credential with a shorter expiration date"
+        RecommendationDescription = "Microsoft Entra application with credentials expiration not set or too far in time"
+        RecommendationAction = "Update the Microsoft Entra application credential with a shorter expiration date"
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary

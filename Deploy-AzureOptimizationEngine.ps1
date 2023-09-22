@@ -288,7 +288,7 @@ if ($subscriptions.Count -gt 1) {
     }
     if ($selectedSubscription -eq -1)
     {
-        throw "The selected subscription does not exist. Check if you are logged in with the right Azure AD account."        
+        throw "The selected subscription does not exist. Check if you are logged in with the right Microsoft Entra ID user."        
     }
 }
 else
@@ -304,7 +304,7 @@ else
 }
 
 if ($subscriptions.Count -eq 0) {
-    throw "No subscriptions found. Check if you are logged in with the right Azure AD account."
+    throw "No subscriptions found. Check if you are logged in with the right Microsoft Entra ID account."
 }
 
 $subscriptionId = $subscriptions[$selectedSubscription].Id
@@ -1264,7 +1264,7 @@ if ("Y", "y" -contains $continueInput) {
     }
     #endregion
 
-    #region Grant Azure AD role to AOE principal
+    #region Grant Microsoft Entra ID role to AOE principal
     if ($null -eq $spnId)
     {
         $auto = Get-AzAutomationAccount -Name $automationAccountName -ResourceGroupName $resourceGroupName
@@ -1286,7 +1286,7 @@ if ("Y", "y" -contains $continueInput) {
         Import-Module Microsoft.Graph.Authentication
         Import-Module Microsoft.Graph.Identity.DirectoryManagement
 
-        Write-Host "Granting Azure AD Global Reader role to the Automation Account (requires administrative permissions in Azure AD and MS Graph PowerShell SDK >= 2.4.0)..." -ForegroundColor Green
+        Write-Host "Granting Microsoft Entra ID Global Reader role to the Automation Account (requires administrative permissions in Microsoft Entra and MS Graph PowerShell SDK >= 2.4.0)..." -ForegroundColor Green
 
         #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
         $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
@@ -1342,7 +1342,7 @@ if ("Y", "y" -contains $continueInput) {
     catch
     {
         Write-Host $Error[0] -ForegroundColor Yellow
-        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $automationAccountName managed identity or, for previous versions of AOE, to the Run As Account principal." -ForegroundColor Red
+        Write-Host "Could not grant role. If you want Microsoft Entra-based recommendations, please grant the Global Reader role manually to the $automationAccountName managed identity or, for previous versions of AOE, to the Run As Account principal." -ForegroundColor Red
     }
     #endregion
 
