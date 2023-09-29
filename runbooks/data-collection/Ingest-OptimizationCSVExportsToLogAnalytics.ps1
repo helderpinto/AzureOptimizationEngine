@@ -223,47 +223,40 @@ Write-Output "Found $($unprocessedBlobs.Count) new blobs to process..."
 foreach ($blob in $unprocessedBlobs) {
     $newProcessedTime = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     Write-Output "About to process $($blob.Name)..."
-    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
-    $csvObject = Import-Csv $blob.Name
+    $blobFilePath = "$env:TEMP\$($blob.Name)"
+    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force -Destination $blobFilePath
+
+    $r = [IO.File]::OpenText($blobFilePath)
 
     $linesProcessed = 0
-    $csvObjectSplitted = @()
+    $lineCounter = 0
+    $chunkLines = @()
 
-    if ($null -eq $csvObject)
-    {
-        $recCount = 0
-    }
-    elseif ($null -eq $csvObject.Count)
-    {
-        $recCount = 1
-    }
-    else
-    {
-        $recCount = $csvObject.Count    
-    }
-
-    if ($recCount -gt 1)
-    {
-        for ($i = 0; $i -lt $recCount; $i += $LogAnalyticsChunkSize) {
-            $csvObjectSplitted += , @($csvObject[$i..($i + ($LogAnalyticsChunkSize - 1))]);
+    while ($r.Peek() -ge 0) {
+        $line = $r.ReadLine()
+        if ($lineCounter -eq 0)
+        {
+            $header = $line
+            $chunkLines += $line
         }
-    }
-    else
-    {
-        $csvObjectArray = @()
-        $csvObjectArray += $csvObject
-        $csvObjectSplitted += , $csvObjectArray   
-    }        
-    
-    for ($i = 0; $i -lt $csvObjectSplitted.Count; $i++) {
-        $currentObjectLines = $csvObjectSplitted[$i].Count
-        if ($lastProcessedLine -lt $linesProcessed) {				
-            $jsonObject = ConvertTo-Json -InputObject $csvObjectSplitted[$i]                
+        else
+        {
+            $linesProcessed++    
+        }
+        if ($lastProcessedLine -lt $linesProcessed -and $lineCounter -gt 0)
+        {
+            $chunkLines += $line
+        }
+        if ($lineCounter -eq $LogAnalyticsChunkSize)
+        {
+            $csvObject = $chunkLines | ConvertFrom-Csv
+            $jsonObject = ConvertTo-Json -InputObject $csvObject
+
+            <# BEGIN post to Log Analytics #>
             $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp" -AzureEnvironment $cloudEnvironment
-            If ($res -ge 200 -and $res -lt 300) {
-                Write-Output "Succesfully uploaded $currentObjectLines $LogAnalyticsSuffix rows to Log Analytics"    
-                $linesProcessed += $currentObjectLines
-                if ($i -eq ($csvObjectSplitted.Count - 1)) {
+            if ($res -ge 200 -and $res -lt 300) {
+                Write-Output "Succesfully uploaded $lineCounter $LogAnalyticsSuffix rows to Log Analytics"    
+                if ($r.Peek() -lt 0) {
                     $lastProcessedLine = -1    
                 }
                 else {
@@ -272,7 +265,7 @@ foreach ($blob in $unprocessedBlobs) {
                 
                 $updatedLastProcessedLine = $lastProcessedLine
                 $updatedLastProcessedDateTime = $lastProcessedDateTime
-                if ($i -eq ($csvObjectSplitted.Count - 1)) {
+                if ($r.Peek() -lt 0) {
                     $updatedLastProcessedDateTime = $newProcessedTime
                 }
                 $lastProcessedDateTime = $updatedLastProcessedDateTime
@@ -288,18 +281,62 @@ foreach ($blob in $unprocessedBlobs) {
                 $Conn.Close()    
                 $Conn.Dispose()            
             }
-            Else {
-                $linesProcessed += $currentObjectLines
-                Write-Warning "Failed to upload $currentObjectLines $LogAnalyticsSuffix rows. Error code: $res"
+            else {
+                Write-Warning "Failed to upload $lineCounter $LogAnalyticsSuffix rows. Error code: $res"
                 throw
             }
+            <# END post to Log Analytics #>
+
+            $chunkLines = @()
+            $chunkLines += $header
+            $lineCounter = 1
+        }
+        else
+        {
+            $lineCounter++
+        }        
+    }
+    $r.Dispose()
+
+    if ($lineCounter -gt 1 -and $lineCounter -lt $LogAnalyticsChunkSize)
+    {
+        $lineCounter--
+        $csvObject = $chunkLines | ConvertFrom-Csv
+        $jsonObject = ConvertTo-Json -InputObject $csvObject
+
+        <# BEGIN post to Log Analytics #>
+        $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp" -AzureEnvironment $cloudEnvironment
+        if ($res -ge 200 -and $res -lt 300) {
+            Write-Output "Succesfully uploaded $lineCounter $LogAnalyticsSuffix rows to Log Analytics"    
+            
+            $lastProcessedLine = -1    
+            
+            $updatedLastProcessedLine = $lastProcessedLine
+            $updatedLastProcessedDateTime = $lastProcessedDateTime
+            $updatedLastProcessedDateTime = $newProcessedTime
+            $lastProcessedDateTime = $updatedLastProcessedDateTime
+            Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
+            $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.Open() 
+            $Cmd=new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandText = $sqlStatement
+            $Cmd.CommandTimeout=120 
+            $Cmd.ExecuteReader()
+            $Conn.Close()    
+            $Conn.Dispose()            
         }
         else {
-            $linesProcessed += $currentObjectLines  
-        }            
+            Write-Warning "Failed to upload $lineCounter $LogAnalyticsSuffix rows. Error code: $res"
+            throw
+        }
+        <# END post to Log Analytics #>
     }
 
-    Remove-Item -Path $blob.Name -Force
+    Write-Output "Processed $linesProcessed rows in total."        
+
+    Remove-Item -Path $blobFilePath -Force
 }
 
 Write-Output "DONE"
