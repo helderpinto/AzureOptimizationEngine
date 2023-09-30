@@ -224,7 +224,7 @@ foreach ($blob in $unprocessedBlobs) {
     $newProcessedTime = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     Write-Output "About to process $($blob.Name)..."
     $blobFilePath = "$env:TEMP\$($blob.Name)"
-    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force -Destination $blobFilePath
+    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force -Destination $blobFilePath | Out-Null
 
     $r = [IO.File]::OpenText($blobFilePath)
 
@@ -232,7 +232,8 @@ foreach ($blob in $unprocessedBlobs) {
     $lineCounter = 0
     $chunkLines = @()
 
-    while ($r.Peek() -ge 0) {
+    while ($r.Peek() -ge 0) 
+    {
         $line = $r.ReadLine()
         if ($lineCounter -eq 0)
         {
@@ -247,14 +248,14 @@ foreach ($blob in $unprocessedBlobs) {
         {
             $chunkLines += $line
         }
-        if ($lineCounter -eq $LogAnalyticsChunkSize)
+        if (($lineCounter -eq $LogAnalyticsChunkSize -or $r.Peek() -lt 0) -and $linesProcessed -gt 0)
         {
             $csvObject = $chunkLines | ConvertFrom-Csv
             $jsonObject = ConvertTo-Json -InputObject $csvObject
 
-            <# BEGIN post to Log Analytics #>
             $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp" -AzureEnvironment $cloudEnvironment
-            if ($res -ge 200 -and $res -lt 300) {
+            if ($res -ge 200 -and $res -lt 300) 
+            {
                 Write-Output "Succesfully uploaded $lineCounter $LogAnalyticsSuffix rows to Log Analytics"    
                 if ($r.Peek() -lt 0) {
                     $lastProcessedLine = -1    
@@ -281,11 +282,11 @@ foreach ($blob in $unprocessedBlobs) {
                 $Conn.Close()    
                 $Conn.Dispose()            
             }
-            else {
+            else 
+            {
                 Write-Warning "Failed to upload $lineCounter $LogAnalyticsSuffix rows. Error code: $res"
                 throw
             }
-            <# END post to Log Analytics #>
 
             $chunkLines = @()
             $chunkLines += $header
@@ -298,44 +299,28 @@ foreach ($blob in $unprocessedBlobs) {
     }
     $r.Dispose()
 
-    if ($lineCounter -gt 1 -and $lineCounter -lt $LogAnalyticsChunkSize)
+    if ($linesProcessed -eq 0)
     {
-        $lineCounter--
-        $csvObject = $chunkLines | ConvertFrom-Csv
-        $jsonObject = ConvertTo-Json -InputObject $csvObject
-
-        <# BEGIN post to Log Analytics #>
-        $res = Post-OMSData -workspaceId $workspaceId -sharedKey $sharedKey -body ([System.Text.Encoding]::UTF8.GetBytes($jsonObject)) -logType $logname -TimeStampField "Timestamp" -AzureEnvironment $cloudEnvironment
-        if ($res -ge 200 -and $res -lt 300) {
-            Write-Output "Succesfully uploaded $lineCounter $LogAnalyticsSuffix rows to Log Analytics"    
-            
-            $lastProcessedLine = -1    
-            
-            $updatedLastProcessedLine = $lastProcessedLine
-            $updatedLastProcessedDateTime = $lastProcessedDateTime
-            $updatedLastProcessedDateTime = $newProcessedTime
-            $lastProcessedDateTime = $updatedLastProcessedDateTime
-            Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
-            $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
-            $Conn.Open() 
-            $Cmd=new-object system.Data.SqlClient.SqlCommand
-            $Cmd.Connection = $Conn
-            $Cmd.CommandText = $sqlStatement
-            $Cmd.CommandTimeout=120 
-            $Cmd.ExecuteReader()
-            $Conn.Close()    
-            $Conn.Dispose()            
-        }
-        else {
-            Write-Warning "Failed to upload $lineCounter $LogAnalyticsSuffix rows. Error code: $res"
-            throw
-        }
-        <# END post to Log Analytics #>
+        Write-Output "No rows found"
+        $updatedLastProcessedLine = -1 
+        $updatedLastProcessedDateTime = $newProcessedTime
+        Write-Output "Updating last processed time / line to $($updatedLastProcessedDateTime) / $updatedLastProcessedLine"
+        $sqlStatement = "UPDATE [$LogAnalyticsIngestControlTable] SET LastProcessedLine = $updatedLastProcessedLine, LastProcessedDateTime = '$updatedLastProcessedDateTime' WHERE StorageContainerName = '$storageAccountSinkContainer'"
+        $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+        $Conn.Open() 
+        $Cmd=new-object system.Data.SqlClient.SqlCommand
+        $Cmd.Connection = $Conn
+        $Cmd.CommandText = $sqlStatement
+        $Cmd.CommandTimeout=120 
+        $Cmd.ExecuteReader()
+        $Conn.Close()    
+        $Conn.Dispose()            
     }
-
-    Write-Output "Processed $linesProcessed rows in total."        
-
+    else
+    {
+        Write-Output "Processed $linesProcessed row(s) in total."  
+    }
+    
     Remove-Item -Path $blobFilePath -Force
 }
 
