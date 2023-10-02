@@ -54,7 +54,7 @@ if (-not($tagsFilter)) {
 }
 $tagsFilter = $tagsFilter | ConvertFrom-Json
 
-$remediationAction = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksAction" -ErrorAction SilentlyContinue) # Delete / Downsize
+$remediationAction = Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksAction" -ErrorAction SilentlyContinue # Delete / Downsize
 if (-not($remediationAction)) {
     $remediationAction = "Delete"
 }
