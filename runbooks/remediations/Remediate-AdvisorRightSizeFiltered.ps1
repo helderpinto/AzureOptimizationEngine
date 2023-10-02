@@ -204,7 +204,7 @@ foreach ($vm in $vmsToRightSize.Rows)
         InstanceName = $instanceName.ToLower()
         InstanceId = $vm.InstanceId.ToLower()
         Simulate = $Simulate
-        LogDetails = $logDetails | ConvertTo-Json
+        LogDetails = $logDetails | ConvertTo-Json -Compress
         RecommendationSubTypeId = $rightSizeRecommendationId
     }
     

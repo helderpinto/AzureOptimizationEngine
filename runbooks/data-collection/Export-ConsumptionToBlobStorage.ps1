@@ -447,7 +447,7 @@ if ($consumptionScope -eq "Subscription")
                 {
                     if ($consumptionLine.tags)
                     {
-                        $tags = $consumptionLine.tags | ConvertTo-Json
+                        $tags = $consumptionLine.tags | ConvertTo-Json -Compress
                     }
                     else
                     {

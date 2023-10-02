@@ -245,7 +245,7 @@ foreach ($disk in $unattachedDisks.Rows)
         InstanceName = $instanceName.ToLower()
         InstanceId = $disk.InstanceId.ToLower()
         Simulate = $Simulate
-        LogDetails = $logDetails | ConvertTo-Json
+        LogDetails = $logDetails | ConvertTo-Json -Compress
         RecommendationSubTypeId = $recommendationId
     }
     

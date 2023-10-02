@@ -140,7 +140,7 @@ $fileDate = $datetime.ToString("yyyyMMdd")
 $jsonExportPath = "$fileDate-$tenantId-rbacassignments.json"
 $csvExportPath = "$fileDate-$tenantId-rbacassignments.csv"
 
-$roleAssignments | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+$roleAssignments | ConvertTo-Json -Depth 3 Compress | Out-File $jsonExportPath
 "Exported to JSON: $($roleAssignments.Count) lines"
 $rbacObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
 "JSON Import: $($rbacObjectsJson.Count) lines"
@@ -223,7 +223,7 @@ $fileDate = $datetime.ToString("yyyyMMdd")
 $jsonExportPath = "$fileDate-$tenantId-aadrbacassignments.json"
 $csvExportPath = "$fileDate-$tenantId-aadrbacassignments.csv"
 
-$roleAssignments | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+$roleAssignments | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
 "Exported to JSON: $($roleAssignments.Count) lines"
 $rbacObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
 "JSON Import: $($rbacObjectsJson.Count) lines"

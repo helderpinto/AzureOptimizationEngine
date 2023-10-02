@@ -294,14 +294,14 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Ingest-OptimizationCSVExportsToLogAnalytics.ps1",
-                "version": "1.4.7.0"
+                "version": "1.5.0.0"
             },
             "source": "dataCollection"
         },
         {
             "runbook": {
                 "name": "runbooks/recommendations/Ingest-RecommendationsToSQLServer.ps1",
-                "version": "1.6.4.0"
+                "version": "1.6.5.0"
             },
             "source": "recommendations",
             "schedule": "AzureOptimization_IngestRecommendationsWeekly"
@@ -309,7 +309,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Ingest-RecommendationsToLogAnalytics.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.0"
             },
             "source": "recommendations",
             "schedule": "AzureOptimization_IngestRecommendationsWeekly"
@@ -335,7 +335,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AADObjectsToBlobStorage.ps1",
-                "version": "1.2.1.0"
+                "version": "1.2.2.0"
             },
             "container": "aadobjectsexports",
             "requiredVariables": [
@@ -423,7 +423,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGResourceContainersPropertiesToBlobStorage.ps1",
-                "version": "1.0.4.0"
+                "version": "1.0.5.0"
             },
             "container": "argrescontainersexports",
             "requiredVariables": [
@@ -500,7 +500,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
-                "version": "1.4.1.0"
+                "version": "1.4.2.0"
             },
             "container": "advisorexports",
             "requiredVariables": [
@@ -511,7 +511,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ConsumptionToBlobStorage.ps1",
-                "version": "2.0.3.0"
+                "version": "2.0.4.0"
             },
             "container": "consumptionexports",
             "requiredVariables": [
@@ -522,7 +522,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-RBACAssignmentsToBlobStorage.ps1",
-                "version": "1.0.3.0"
+                "version": "1.0.4.0"
             },
             "container": "rbacexports",
             "requiredVariables": [
@@ -533,7 +533,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-PolicyComplianceToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.3.0"
             },
             "container": "policystateexports",
             "requiredVariables": [
@@ -967,7 +967,7 @@
         {
             "runbook": {
                 "name": "runbooks/remediations/Remediate-AdvisorRightSizeFiltered.ps1",
-                "version": "1.2.3.0"
+                "version": "1.2.4.0"
             },
             "requiredVariables": [
                 {
@@ -983,7 +983,7 @@
         {
             "runbook": {
                 "name": "runbooks/remediations/Remediate-LongDeallocatedVMsFiltered.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
                 {
@@ -999,7 +999,7 @@
         {
             "runbook": {
                 "name": "runbooks/remediations/Remediate-UnattachedDisksFiltered.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
                 {

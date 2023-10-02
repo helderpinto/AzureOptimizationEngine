@@ -208,7 +208,7 @@ foreach ($rg in $rgsTotal)
         InstanceId = $rg.id.ToLower()
         ResourceCount = $rg.ResourceCount
         ManagedBy = $rg.managedBy
-        ContainerProperties = $rg.properties | ConvertTo-Json
+        ContainerProperties = $rg.properties | ConvertTo-Json -Compress
         Tags = $rg.tags
         StatusDate = $statusDate
     }
@@ -231,7 +231,7 @@ foreach ($sub in $subsTotal)
         InstanceId = $sub.id.ToLower()
         ResourceCount = $sub.ResourceCount
         ManagedBy = $sub.managedBy
-        ContainerProperties = $sub.properties | ConvertTo-Json
+        ContainerProperties = $sub.properties | ConvertTo-Json -Compress
         Tags = $sub.tags
         StatusDate = $statusDate
     }
@@ -245,7 +245,7 @@ $today = $datetime.ToString("yyyyMMdd")
 $jsonExportPath = "$today-rescontainers-$subscriptionSuffix.json"
 $csvExportPath = "$today-rescontainers-$subscriptionSuffix.csv"
 
-$allResourceContainers | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+$allResourceContainers | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
 Write-Output "Exported to JSON: $($allResourceContainers.Count) lines"
 $allResourceContainersJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
 Write-Output "JSON Import: $($allResourceContainersJson.Count) lines"

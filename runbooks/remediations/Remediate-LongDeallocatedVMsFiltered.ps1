@@ -266,7 +266,7 @@ foreach ($vm in $deallocatedVMs.Rows)
         InstanceName = $instanceName.ToLower()
         InstanceId = $vm.InstanceId.ToLower()
         Simulate = $Simulate
-        LogDetails = $logDetails | ConvertTo-Json
+        LogDetails = $logDetails | ConvertTo-Json -Compress
         RecommendationSubTypeId = $recommendationId
     }
     

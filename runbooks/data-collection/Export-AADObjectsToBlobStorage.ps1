@@ -228,7 +228,7 @@ if ("Application" -in $aadObjectsTypes)
         $owners = $null
         if ($app.Owners.Count -gt 0)
         {
-            $owners = ($app.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json
+            $owners = ($app.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json -Compress
         }
         $createdDate = $null
         if ($app.CreatedDateTime)
@@ -250,8 +250,8 @@ if ("Application" -in $aadObjectsTypes)
             DisplayName = $app.DisplayName
             SecurityEnabled = "N/A"
             ApplicationId = $app.AppId
-            Keys = (Build-CredObjectWithDates -appObject $app) | ConvertTo-Json
-            PrincipalNames = (Build-PrincipalNames -appObject $app) | ConvertTo-Json
+            Keys = (Build-CredObjectWithDates -appObject $app) | ConvertTo-Json -Compress
+            PrincipalNames = (Build-PrincipalNames -appObject $app) | ConvertTo-Json -Compress
             Owners = $owners
             CreatedDate = $createdDate
             DeletedDate = $deletedDate
@@ -262,7 +262,7 @@ if ("Application" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-apps.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-apps.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    $aadObjects | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
     "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
     "JSON Import: $($aadObjectsJson.Count) lines"
@@ -301,7 +301,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
         $owners = $null
         if ($spn.Owners.Count -gt 0)
         {
-            $owners = ($spn.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json
+            $owners = ($spn.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json -Compress
         }
         $deletedDate = $null
         if ($spn.DeletedDateTime)
@@ -318,8 +318,8 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
             DisplayName = $spn.DisplayName
             SecurityEnabled = $spn.AccountEnabled
             ApplicationId = $spn.AppId
-            Keys = (Build-CredObjectWithDates -appObject $spn) | ConvertTo-Json
-            PrincipalNames = (Build-PrincipalNames -appObject $spn) | ConvertTo-Json
+            Keys = (Build-CredObjectWithDates -appObject $spn) | ConvertTo-Json -Compress
+            PrincipalNames = (Build-PrincipalNames -appObject $spn) | ConvertTo-Json -Compress
             Owners = $owners
             DeletedDate = $deletedDate
         }
@@ -329,7 +329,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-spns.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-spns.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    $aadObjects | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
     "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
     "JSON Import: $($aadObjectsJson.Count) lines"
@@ -440,7 +440,7 @@ if ("Group" -in $aadObjectsTypes)
         $groupMembers = $null
         if ($group.Members.Count -gt 0)
         {
-            $groupMembers = $group.Members.Id | ConvertTo-Json
+            $groupMembers = $group.Members.Id | ConvertTo-Json -Compress
         }
         $createdDate = $null
         if ($group.CreatedDateTime)
@@ -458,7 +458,7 @@ if ("Group" -in $aadObjectsTypes)
             Cloud = $cloudEnvironment
             ObjectId = $group.Id
             ObjectType = "Group"
-            ObjectSubType = $group.GroupTypes | ConvertTo-Json
+            ObjectSubType = $group.GroupTypes | ConvertTo-Json -Compress
             DisplayName = $group.DisplayName
             SecurityEnabled = $group.SecurityEnabled
             PrincipalNames = $groupMembers
@@ -471,7 +471,7 @@ if ("Group" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-groups.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-groups.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    $aadObjects | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
     "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
     "JSON Import: $($aadObjectsJson.Count) lines"

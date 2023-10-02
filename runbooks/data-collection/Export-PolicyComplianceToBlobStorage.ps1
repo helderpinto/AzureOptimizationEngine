@@ -448,7 +448,7 @@ foreach ($policyState in $policyStatesTotal)
 
     if (-not([string]::IsNullOrEmpty($policyState.tags)))
     {
-        $tags = $policyState.tags | ConvertTo-Json
+        $tags = $policyState.tags | ConvertTo-Json -Compress
     }
     else
     {

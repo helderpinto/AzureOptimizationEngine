@@ -184,7 +184,7 @@ foreach ($advisorRecommendation in $recommendationsARG)
 
     if (-not([string]::IsNullOrEmpty($advisorRecommendation.additionalInfo)))
     {
-        $additionalInfo = $advisorRecommendation.additionalInfo | ConvertTo-Json
+        $additionalInfo = $advisorRecommendation.additionalInfo | ConvertTo-Json -Compress
     }
     else
     {

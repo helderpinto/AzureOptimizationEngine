@@ -1551,7 +1551,7 @@
                         "runbooks": [
                             {
                                 "name": "[variables('advisorExportsRunbookName')]",
-                                "version": "1.4.1.0",
+                                "version": "1.4.2.0",
                                 "description": "Exports Azure Advisor recommendations to Blob Storage using the Advisor API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1593,14 +1593,14 @@
                             },
                             {
                                 "name": "[variables('consumptionExportsRunbookName')]",
-                                "version": "2.0.3.0",
+                                "version": "2.0.4.0",
                                 "description": "Exports Azure Consumption events to Blob Storage using Azure Consumption API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('consumptionExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('aadObjectsExportsRunbookName')]",
-                                "version": "1.2.1.0",
+                                "version": "1.2.2.0",
                                 "description": "Exports Azure AAD Objects to Blob Storage using Azure ARM API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('aadObjectsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1621,14 +1621,14 @@
                             },
                             {
                                 "name": "[variables('argResContainersExportsRunbookName')]",
-                                "version": "1.0.4.0",
+                                "version": "1.0.5.0",
                                 "description": "Exports Resource Containers properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argResContainersExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('rbacExportsRunbookName')]",
-                                "version": "1.0.3.0",
+                                "version": "1.0.4.0",
                                 "description": "Exports RBAC assignments to Blob Storage using ARM and Microsoft Entra",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('rbacExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1670,7 +1670,7 @@
                             },
                             {
                                 "name": "[variables('policyStateExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.3.0",
                                 "description": "Exports Azure Policy State to Blob Storage",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('policyStateExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1712,7 +1712,7 @@
                             },
                             {
                                 "name": "[variables('csvIngestRunbookName')]",
-                                "version": "1.4.7.0",
+                                "version": "1.5.0.0",
                                 "description": "Ingests CSV blobs as custom logs to Log Analytics",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('csvIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1824,14 +1824,14 @@
                             },
                             {
                                 "name": "[variables('recommendationsIngestRunbookName')]",
-                                "version": "1.6.4.0",
+                                "version": "1.6.5.0",
                                 "description": "Ingests JSON-based recommendations into an Azure SQL Database",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('recommendationsLogAnalyticsIngestRunbookName')]",
-                                "version": "1.0.1.0",
+                                "version": "1.0.2.0",
                                 "description": "Ingests JSON-based recommendations into Log Analytics",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/recommendations/',variables('recommendationsLogAnalyticsIngestRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
@@ -1845,21 +1845,21 @@
                             },
                             {
                                 "name": "[variables('advisorRightSizeFilteredRemediationRunbookName')]",
-                                "version": "1.2.3.0",
+                                "version": "1.2.4.0",
                                 "description": "Remediates Azure Advisor right-size recommendations given fit and tag filters",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('advisorRightSizeFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('longDeallocatedVMsFilteredRemediationRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.3.0",
                                 "description": "Remediates long-deallocated VMs recommendations given fit and tag filters",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('longDeallocatedVMsFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('unattachedDisksFilteredRemediationRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.3.0",
                                 "description": "Remediates unattached disks recommendations given fit and tag filters",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/remediations/',variables('unattachedDisksFilteredRemediationRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
