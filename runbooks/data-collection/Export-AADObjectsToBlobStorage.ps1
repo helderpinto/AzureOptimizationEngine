@@ -155,7 +155,7 @@ switch ($authenticationOption) {
     }
 }
 
-if (-not($storageAccountKey))
+if (-not($storageAccountSinkKey))
 {
     Write-Output "Getting Storage Account context with login"
     Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
