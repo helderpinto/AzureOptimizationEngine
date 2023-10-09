@@ -192,7 +192,7 @@ foreach ($blob in $unprocessedBlobs) {
                     $jsonObjectSplitted[$j][$i].RecommendationDescription = $jsonObjectSplitted[$j][$i].RecommendationDescription.Replace("'", "")
                     $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
                     $additionalInfoString = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json -Compress
-                    $tagsString = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json - Compress
+                    $tagsString = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json -Compress
                     $subscriptionGuid = "NULL"
                     if ($jsonObjectSplitted[$j][$i].SubscriptionGuid)
                     {
