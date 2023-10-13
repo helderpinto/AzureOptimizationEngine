@@ -48,7 +48,7 @@ if (-not($storageAccountSinkEnv))
 }
 $storageAccountSinkKeyCred = Get-AutomationPSCredential -Name "AzureOptimization_StorageSinkKey" -ErrorAction SilentlyContinue
 $storageAccountSinkKey = $null
-if ($storageAccountKeyCred)
+if ($storageAccountSinkKeyCred)
 {
     $storageAccountSink = $storageAccountSinkKeyCred.UserName
     $storageAccountSinkKey = $storageAccountSinkKeyCred.GetNetworkCredential().Password

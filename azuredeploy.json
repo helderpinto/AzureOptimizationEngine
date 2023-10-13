@@ -1551,161 +1551,161 @@
                         "runbooks": [
                             {
                                 "name": "[variables('advisorExportsRunbookName')]",
-                                "version": "1.4.2.0",
+                                "version": "1.4.2.1",
                                 "description": "Exports Azure Advisor recommendations to Blob Storage using the Advisor API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('advisorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argDisksExportsRunbookName')]",
-                                "version": "1.3.4.0",
+                                "version": "1.3.4.1",
                                 "description": "Exports Managed Disks properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argDisksExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argVhdExportsRunbookName')]",
-                                "version": "1.1.4.0",
+                                "version": "1.1.4.1",
                                 "description": "Exports Unmanaged Disks (owned by a VM) properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVhdExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argVmExportsRunbookName')]",
-                                "version": "1.4.4.0",
+                                "version": "1.4.4.1",
                                 "description": "Exports Virtual Machine properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argVmssExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.2.1",
                                 "description": "Exports VMSS properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVmssExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argAvailSetExportsRunbookName')]",
-                                "version": "1.1.4.0",
+                                "version": "1.1.4.1",
                                 "description": "Exports Availability Set properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argAvailSetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('consumptionExportsRunbookName')]",
-                                "version": "2.0.4.0",
+                                "version": "2.0.4.1",
                                 "description": "Exports Azure Consumption events to Blob Storage using Azure Consumption API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('consumptionExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('aadObjectsExportsRunbookName')]",
-                                "version": "1.2.2.0",
+                                "version": "1.2.2.1",
                                 "description": "Exports Azure AAD Objects to Blob Storage using Azure ARM API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('aadObjectsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argLoadBalancersExportsRunbookName')]",
-                                "version": "1.1.4.0",
+                                "version": "1.1.4.1",
                                 "description": "Exports Load Balancer properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argLoadBalancersExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argAppGWsExportsRunbookName')]",
-                                "version": "1.1.4.0",
+                                "version": "1.1.4.1",
                                 "description": "Exports Application Gateway properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argAppGWsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argResContainersExportsRunbookName')]",
-                                "version": "1.0.5.0",
+                                "version": "1.0.5.1",
                                 "description": "Exports Resource Containers properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argResContainersExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('rbacExportsRunbookName')]",
-                                "version": "1.0.4.0",
+                                "version": "1.0.4.1",
                                 "description": "Exports RBAC assignments to Blob Storage using ARM and Microsoft Entra",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('rbacExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argNICExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.2.1",
                                 "description": "Exports NIC properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argNICExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argNSGExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.2.1",
                                 "description": "Exports NSG properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argNSGExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argPublicIpExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.2.1",
                                 "description": "Exports Public IP properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argPublicIpExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argVNetExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.2.1",
                                 "description": "Exports VNet properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argVNetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argSqlDbExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.2.1",
                                 "description": "Exports SQL DB properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argSqlDbExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('policyStateExportsRunbookName')]",
-                                "version": "1.0.3.0",
+                                "version": "1.0.3.1",
                                 "description": "Exports Azure Policy State to Blob Storage",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('policyStateExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('monitorExportsRunbookName')]",
-                                "version": "1.0.2.0",
+                                "version": "1.0.2.1",
                                 "description": "Exports Azure Monitor metrics to Blob Storage",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('monitorExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('argAppServicePlanExportsRunbookName')]",
-                                "version": "1.0.1.0",
+                                "version": "1.0.1.1",
                                 "description": "Exports App Service Plan properties to Blob Storage using Azure Resource Graph",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('argAppServicePlanExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('reservationsExportsRunbookName')]",
-                                "version": "1.1.2.0",
+                                "version": "1.1.2.1",
                                 "description": "Exports Reservations Usage to Blob Storage using the Enterprise Enrollment APIs",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('reservationsExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('reservationsPriceExportsRunbookName')]",
-                                "version": "1.0.1.0",
+                                "version": "1.0.1.1",
                                 "description": "Exports Reservations Prices to Blob Storage using the Retail Prices API",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('reservationsPriceExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"
                             },
                             {
                                 "name": "[variables('priceSheetExportsRunbookName')]",
-                                "version": "1.1.1.0",
+                                "version": "1.1.1.1",
                                 "description": "Exports Price Sheet to Blob Storage using the Enterprise Enrollment APIs",
                                 "type": "PowerShell",
                                 "scriptUri": "[uri(parameters('_artifactsLocation'), concat('runbooks/data-collection/',variables('priceSheetExportsRunbookName'),'.ps1', parameters('artifactsLocationSasToken')))]"

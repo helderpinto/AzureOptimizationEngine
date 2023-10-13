@@ -335,7 +335,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AADObjectsToBlobStorage.ps1",
-                "version": "1.2.2.0"
+                "version": "1.2.2.1"
             },
             "container": "aadobjectsexports",
             "requiredVariables": [
@@ -346,7 +346,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGAppGatewayPropertiesToBlobStorage.ps1",
-                "version": "1.1.4.0"
+                "version": "1.1.4.1"
             },
             "container": "argappgwexports",
             "requiredVariables": [
@@ -357,7 +357,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGAvailabilitySetPropertiesToBlobStorage.ps1",
-                "version": "1.1.4.0"
+                "version": "1.1.4.1"
             },
             "container": "argavailsetexports",
             "requiredVariables": [
@@ -368,7 +368,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGLoadBalancerPropertiesToBlobStorage.ps1",
-                "version": "1.1.4.0"
+                "version": "1.1.4.1"
             },
             "container": "arglbexports",
             "requiredVariables": [
@@ -379,7 +379,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGManagedDisksPropertiesToBlobStorage.ps1",
-                "version": "1.3.4.0"
+                "version": "1.3.4.1"
             },
             "container": "argdiskexports",
             "requiredVariables": [
@@ -390,7 +390,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGNICPropertiesToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.2.1"
             },
             "container": "argnicexports",
             "requiredVariables": [
@@ -401,7 +401,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGNSGPropertiesToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.2.1"
             },
             "container": "argnsgexports",
             "requiredVariables": [
@@ -412,7 +412,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGPublicIpPropertiesToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.2.1"
             },
             "container": "argpublicipexports",
             "requiredVariables": [
@@ -423,7 +423,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGResourceContainersPropertiesToBlobStorage.ps1",
-                "version": "1.0.5.0"
+                "version": "1.0.5.1"
             },
             "container": "argrescontainersexports",
             "requiredVariables": [
@@ -434,7 +434,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGUnmanagedDisksPropertiesToBlobStorage.ps1",
-                "version": "1.1.4.0"
+                "version": "1.1.4.1"
             },
             "container": "argvhdexports",
             "requiredVariables": [
@@ -445,7 +445,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGVNetPropertiesToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.2.1"
             },
             "container": "argvnetexports",
             "requiredVariables": [
@@ -456,7 +456,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGVirtualMachinesPropertiesToBlobStorage.ps1",
-                "version": "1.4.4.0"
+                "version": "1.4.4.1"
             },
             "container": "argvmexports",
             "requiredVariables": [
@@ -467,7 +467,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGVMSSPropertiesToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.2.1"
             },
             "container": "argvmssexports",
             "requiredVariables": [
@@ -478,7 +478,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGSqlDatabasePropertiesToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.2.1"
             },
             "container": "argsqldbexports",
             "requiredVariables": [
@@ -489,7 +489,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGAppServicePlanPropertiesToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.1.1"
             },
             "container": "argappserviceplanexports",
             "requiredVariables": [
@@ -500,7 +500,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
-                "version": "1.4.2.0"
+                "version": "1.4.2.1"
             },
             "container": "advisorexports",
             "requiredVariables": [
@@ -511,7 +511,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ConsumptionToBlobStorage.ps1",
-                "version": "2.0.4.0"
+                "version": "2.0.4.1"
             },
             "container": "consumptionexports",
             "requiredVariables": [
@@ -522,7 +522,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-RBACAssignmentsToBlobStorage.ps1",
-                "version": "1.0.4.0"
+                "version": "1.0.4.1"
             },
             "container": "rbacexports",
             "requiredVariables": [
@@ -533,7 +533,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-PolicyComplianceToBlobStorage.ps1",
-                "version": "1.0.3.0"
+                "version": "1.0.3.1"
             },
             "container": "policystateexports",
             "requiredVariables": [
@@ -544,7 +544,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AzMonitorMetricsToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.2.1"
             },
             "container": "azmonitorexports",
             "requiredVariables": [
@@ -679,7 +679,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-PriceSheetToBlobStorage.ps1",
-                "version": "1.1.1.0"
+                "version": "1.1.1.1"
             },
             "container": "pricesheetexports",
             "requiredVariables": [
@@ -694,7 +694,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ReservationsPriceToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.1.1"
             },
             "container": "reservationspriceexports",
             "requiredVariables": [
@@ -709,7 +709,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ReservationsUsageToBlobStorage.ps1",
-                "version": "1.1.2.0"
+                "version": "1.1.2.1"
             },
             "container": "reservationsexports",
             "requiredVariables": [
