@@ -196,7 +196,16 @@ switch ($cloudEnvironment) {
     }
 }
 
-Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    "Logging in to Microsoft Graph with $externalCredentialName external credential..."
+    Connect-MgGraph -TenantId $externalTenantId -ClientSecretCredential $externalCredential -Environment $graphEnvironment -NoWelcome
+}
+else
+{
+    "Logging in to Microsoft Graph..."
+    Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
+}
 
 $domainName = (Get-MgDomain | Where-Object { $_.IsVerified -and $_.IsDefault } | Select-Object -First 1).Id
 

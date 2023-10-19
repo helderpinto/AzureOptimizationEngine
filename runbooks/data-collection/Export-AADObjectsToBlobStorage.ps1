@@ -206,7 +206,16 @@ switch ($cloudEnvironment) {
     }
 }
 
-Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    "Logging in to Microsoft Graph with $externalCredentialName external credential..."
+    Connect-MgGraph -TenantId $externalTenantId -ClientSecretCredential $externalCredential -Environment $graphEnvironment -NoWelcome
+}
+else
+{
+    "Logging in to Microsoft Graph..."
+    Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
+}
     
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
