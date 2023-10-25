@@ -594,6 +594,14 @@
         "groupType": "editable",
         "items": [
           {
+            "type": 1,
+            "content": {
+              "json": "* Estimated cost savings are relative to 30 days of consumption.\r\n* Cost values are based on the currency of your consumption agreement. Adjust the currency parameter below to reflect your actual currency (changing the currency code does not perform any currency exchange in cost values).",
+              "style": "info"
+            },
+            "name": "text - 5"
+          },
+          {
             "type": 9,
             "content": {
               "version": "KqlParameterItem/1.0",
