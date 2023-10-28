@@ -285,6 +285,8 @@ foreach ($blob in $unprocessedBlobs) {
             else 
             {
                 Write-Warning "Failed to upload $lineCounter $LogAnalyticsSuffix rows. Error code: $res"
+                $r.Dispose()
+                Remove-Item -Path $blobFilePath -Force
                 throw
             }
 
