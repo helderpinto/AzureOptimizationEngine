@@ -456,7 +456,7 @@ $advisorTableName
 | where todatetime(TimeGenerated) > ago(advisorInterval) and Category == 'Cost'
 | extend AdvisorRecIdIndex = indexof(InstanceId_s, '/providers/microsoft.advisor/recommendations')
 | extend InstanceName_s = iif(isnotempty(InstanceName_s),InstanceName_s,iif(AdvisorRecIdIndex > 0, split(substring(InstanceId_s, 0, AdvisorRecIdIndex),'/')[-1], split(InstanceId_s,'/')[-1]))
-| distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g
+| distinct InstanceId_s, InstanceName_s, Description_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroup, Cloud_s, AdditionalInfo_s, RecommendationText_s, ImpactedArea_s, Impact_s, RecommendationTypeId_g, Tags_s
 | join kind=leftouter (
     $consumptionTableName
     | where todatetime(Date_s) between (stime..etime)
@@ -469,7 +469,7 @@ $advisorTableName
 | join kind=leftouter (
     $vmsTableName 
     | where TimeGenerated > ago(1d) 
-    | distinct InstanceId_s, NicCount_s, DataDiskCount_s, Tags_s
+    | distinct InstanceId_s, NicCount_s, DataDiskCount_s
 ) on InstanceId_s 
 | where RecommendationTypeId_g != rightSizeRecommendationId or (RecommendationTypeId_g == rightSizeRecommendationId and toint(NicCount_s) >= 0 and toint(DataDiskCount_s) >= 0)
 | join kind=leftouter hint.strategy=broadcast ( MemoryPerf ) on `$left.InstanceId_s == `$right._ResourceId
