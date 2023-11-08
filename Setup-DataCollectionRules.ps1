@@ -32,7 +32,7 @@ $deploymentOptions = @{}
 
 $perfCounters = Get-Content -Path ".\perfcounters.json" | ConvertFrom-Json 
 
-if ((Test-Path -Path $lastDeploymentStatePath) -and !$silentDeploy)
+if ((Test-Path -Path $lastDeploymentStatePath))
 {
     $depOptions = Get-Content -Path $lastDeploymentStatePath | ConvertFrom-Json
     Write-Host $depOptions -ForegroundColor Green
@@ -146,6 +146,13 @@ else
     $resourceGroupName = $deploymentOptions["ResourceGroupName"]
 }
 
+if ($ctx.Subscription.SubscriptionId -ne $subscriptionId)
+{
+    $ctx = Set-AzContext -SubscriptionId $subscriptionId
+}
+
+$rg = Get-AzResourceGroup -Name $resourceGroupName
+
 if ([string]::IsNullOrEmpty($namePrefix) -or $namePrefix -eq "EmptyNamePrefix") {
     $windowsDcrName = Read-Host "Enter the Windows DCR name"
     $linuxDcrName = Read-Host "Enter the Linux DCR name"
@@ -184,106 +191,96 @@ else
 
 $windowsPerfCounters = @()
 foreach ($perfCounter in ($perfCounters | Where-Object {$_.osType -eq "Windows"})) {
-    $windowsPerfCounters += '"\\$($perfCounter.objectName)($($perfCounter.instance))\$($perfCounter.counterName)"'
+    $windowsPerfCounters += $ExecutionContext.InvokeCommand.ExpandString('"\\$($perfCounter.objectName)($($perfCounter.instance))\\$($perfCounter.counterName)"')
 }
 
 $linuxPerfCounters = @()
 foreach ($perfCounter in ($perfCounters | Where-Object {$_.osType -eq "Linux"})) {
-    $linuxPerfCounters += '"\\$($perfCounter.objectName)($($perfCounter.instance))\$($perfCounter.counterName)"'
+    $linuxPerfCounters += $ExecutionContext.InvokeCommand.ExpandString('"\\$($perfCounter.objectName)($($perfCounter.instance))\\$($perfCounter.counterName)"')
 }
 
 $windowsDcrBody = @'
 {
-    "properties": {
-        "dataSources": {
-            "performanceCounters": [
-                {
-                    "streams": [
-                        "Microsoft-Perf"
-                    ],
-                    "samplingFrequencyInSeconds": $IntervalSeconds,
-                    "counterSpecifiers": [
-                        $($windowsPerfCounters -join ",")
-                    ],
-                    "name": "perfCounterDataSource$IntervalSeconds"
-                }
-            ]
-        },
-        "destinations": {
-            "logAnalytics": [
-                {
-                    "workspaceResourceId": "$destinationWorkspaceResourceId",
-                    "workspaceId": "$($la.Properties.CustomerId)",
-                    "name": "la--1138206996"
-                }
-            ]
-        },
-        "dataFlows": [
+    "dataSources": {
+        "performanceCounters": [
             {
                 "streams": [
                     "Microsoft-Perf"
                 ],
-                "destinations": [
-                    "la--1138206996"
-                ]
+                "samplingFrequencyInSeconds": $IntervalSeconds,
+                "counterSpecifiers": [
+                    $($windowsPerfCounters -join ",")
+                ],
+                "name": "perfCounterDataSource$IntervalSeconds"
             }
         ]
     },
-    "location": "$targetLocation",
-    "tags": $($ResourceTags | ConvertTo-Json),
-    "kind": "Windows",
-    "name": "$windowsDcrName"
+    "destinations": {
+        "logAnalytics": [
+            {
+                "workspaceResourceId": "$destinationWorkspaceResourceId",
+                "workspaceId": "$($la.Properties.CustomerId)",
+                "name": "la--1138206996"
+            }
+        ]
+    },
+    "dataFlows": [
+        {
+            "streams": [
+                "Microsoft-Perf"
+            ],
+            "destinations": [
+                "la--1138206996"
+            ]
+        }
+    ]
 }
 '@
 
 Write-Output "Creating Windows DCR..."
-$windowsDcrBody = $ExecutionContext.InvokeCommand.ExpandString($windowsDcrBody)
-New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $windowsDcrName -PropertyObject $windowsDcrBody -Force
+$windowsDcrBody = $ExecutionContext.InvokeCommand.ExpandString($windowsDcrBody) | ConvertFrom-Json
+New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $windowsDcrName -PropertyObject $windowsDcrBody -ApiVersion "2021-04-01" -Tag $ResourceTags -Kind "Windows" -Force
 
 $linuxDcrBody = @'
 {
-    "properties": {
-        "dataSources": {
-            "performanceCounters": [
-                {
-                    "streams": [
-                        "Microsoft-Perf"
-                    ],
-                    "samplingFrequencyInSeconds": $IntervalSeconds,
-                    "counterSpecifiers": [
-                        $($linuxPerfCounters -join ",")
-                    ],
-                    "name": "perfCounterDataSource$IntervalSeconds"
-                }
-            ]
-        },
-        "destinations": {
-            "logAnalytics": [
-                {
-                    "workspaceResourceId": "$destinationWorkspaceResourceId",
-                    "workspaceId": "$($la.Properties.CustomerId)",
-                    "name": "la--1138206996"
-                }
-            ]
-        },
-        "dataFlows": [
+    "dataSources": {
+        "performanceCounters": [
             {
                 "streams": [
                     "Microsoft-Perf"
                 ],
-                "destinations": [
-                    "la--1138206996"
-                ]
+                "samplingFrequencyInSeconds": $IntervalSeconds,
+                "counterSpecifiers": [
+                    $($linuxPerfCounters -join ",")
+                ],
+                "name": "perfCounterDataSource$IntervalSeconds"
             }
         ]
     },
-    "location": "$targetLocation",
-    "tags": $($ResourceTags | ConvertTo-Json),
-    "kind": "Linux",
-    "name": "$linuxDcrName"
+    "destinations": {
+        "logAnalytics": [
+            {
+                "workspaceResourceId": "$destinationWorkspaceResourceId",
+                "workspaceId": "$($la.Properties.CustomerId)",
+                "name": "la--1138206996"
+            }
+        ]
+    },
+    "dataFlows": [
+        {
+            "streams": [
+                "Microsoft-Perf"
+            ],
+            "destinations": [
+                "la--1138206996"
+            ]
+        }
+    ]
 }
 '@
 
 Write-Output "Creating Linux DCR..."
-$linuxDcrBody = $ExecutionContext.InvokeCommand.ExpandString($linuxDcrBody)
-New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $linuxDcrName -PropertyObject $linuxDcrBody -Force
+$linuxDcrBody = $ExecutionContext.InvokeCommand.ExpandString($linuxDcrBody) | ConvertFrom-Json
+New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $linuxDcrName -PropertyObject $linuxDcrBody -ApiVersion "2021-04-01" -Tag $ResourceTags -Kind "Linux" -Force
+
+Write-Host -ForegroundColor Green "Deployment completed successfully"
