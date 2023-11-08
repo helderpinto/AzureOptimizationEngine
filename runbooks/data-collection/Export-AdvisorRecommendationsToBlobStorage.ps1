@@ -3,9 +3,6 @@ param(
     [string] $targetSubscription,
 
     [Parameter(Mandatory = $false)]
-    [string] $advisorFilter = "all",
-
-    [Parameter(Mandatory = $false)]
     [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
@@ -53,6 +50,13 @@ if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
     $storageAccountSinkContainer = "advisorexports"
 }
+
+$CategoryFilter = Get-AutomationVariable -Name  "AzureOptimization_AdvisorFilter" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($CategoryFilter))
+{
+    $CategoryFilter = "HighAvailability,Security,Performance,OperationalExcellence" # comma-separated list of categories
+}
+$CategoryFilter += ",Cost"
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
@@ -120,16 +124,22 @@ $recommendationsARG = @()
 
 $resultsSoFar = 0
 
-$filter = ""
-if ($advisorFilter -ne "all" -and -not([string]::IsNullOrEmpty($advisorFilter)))
+$FinalCategoryFilter = ""
+
+if (-not([string]::IsNullOrEmpty($CategoryFilter)))
 {
-    $filter = " and properties.category =~ '$advisorFilter'"
+    $categories = $CategoryFilter.Split(',')
+    for ($i = 0; $i -lt $categories.Count; $i++)
+    {
+        $categories[$i] = "'" + $categories[$i] + "'"
+    }    
+    $FinalCategoryFilter = " and properties.category in (" + ($categories -join ",") + ")"
 }
 
 $argQuery = @"
 advisorresources
 | where type == 'microsoft.advisor/recommendations'
-| where isnull(properties.suppressionIds)$filter
+| where isnull(properties.suppressionIds)$FinalCategoryFilter
 | extend resourceId = tostring(split(tolower(id),'/providers/microsoft.advisor')[0])
 | join kind=leftouter (resources | project resourceId=tolower(id), resourceTags=tags) on resourceId
 | project id, category = properties.category, impact = properties.impact, impactedArea = properties.impactedField,
@@ -212,10 +222,10 @@ foreach ($advisorRecommendation in $recommendationsARG)
     $recommendations += $recommendation    
 }
 
-Write-Output "Found $($recommendations.Count) ($advisorFilter) recommendations..."
+Write-Output "Found $($recommendations.Count) ($CategoryFilter) recommendations..."
 
 $fileDate = $datetime.ToString("yyyyMMdd")
-$advisorFilter = $advisorFilter.ToLower()
+$advisorFilter = $CategoryFilter.Replace(',','').ToLower()
 $csvExportPath = "$fileDate-$advisorFilter-$scope.csv"
 
 $recommendations | Export-Csv -NoTypeInformation -Path $csvExportPath

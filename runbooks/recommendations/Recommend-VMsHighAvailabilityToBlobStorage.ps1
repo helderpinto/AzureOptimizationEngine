@@ -1235,7 +1235,7 @@ Write-Output "Looking for VMSS not in multiple AZs..."
 $baseQuery = @"
     $vmssTableName
     | where TimeGenerated > ago(1d) 
-    | where (isempty(Zones_s) and toint(Capacity_s) > 1) or (Zones_s != "1 2 3" and toint(Capacity_s) > 2)
+    | where (isempty(Zones_s) and toint(Capacity_s) > 1) or (array_length(split(Zones_s, ' ')) != 3 and toint(Capacity_s) > 2)
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d) 
