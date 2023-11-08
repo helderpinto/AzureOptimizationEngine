@@ -1,3 +1,35 @@
+function ConvertTo-Hashtable {
+    [CmdletBinding()]
+    [OutputType('hashtable')]
+    param (
+        [Parameter(ValueFromPipeline)]
+        $InputObject
+    )
+ 
+    process {
+        if ($null -eq $InputObject) {
+            return $null
+        }
+ 
+        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+            $collection = @(
+                foreach ($object in $InputObject) {
+                    ConvertTo-Hashtable -InputObject $object
+                }
+            ) 
+            Write-Output -NoEnumerate $collection
+        } elseif ($InputObject -is [psobject]) { 
+            $hash = @{}
+            foreach ($property in $InputObject.PSObject.Properties) {
+                $hash[$property.Name] = ConvertTo-Hashtable -InputObject $property.Value
+            }
+            $hash
+        } else {
+            $InputObject
+        }
+    }
+}
+
 $ErrorActionPreference = "Stop"
 
 # Collect generic and recommendation-specific variables
@@ -240,17 +272,11 @@ foreach ($result in $results)
 
     if (-not([string]::IsNullOrEmpty($result.Tags_s)))
     {
-        $tagPairs = $result.Tags_s.Substring(2, $result.Tags_s.Length - 3).Split(';')
-        foreach ($tagPairString in $tagPairs)
+        if (-not($result.Tags_s -like "{*"))
         {
-            $tagPair = $tagPairString.Split('=')
-            if (-not([string]::IsNullOrEmpty($tagPair[0])) -and -not([string]::IsNullOrEmpty($tagPair[1])))
-            {
-                $tagName = $tagPair[0].Trim()
-                $tagValue = $tagPair[1].Trim()
-                $tags[$tagName] = $tagValue    
-            }
+            $result.Tags_s = '{' + $result.Tags_s + '}'
         }
+        $tags = ConvertFrom-Json $result.Tags_s | ConvertTo-Hashtable
     }            
 
     $recommendation = New-Object PSObject -Property @{
