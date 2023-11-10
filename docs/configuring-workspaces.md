@@ -1,18 +1,46 @@
 # Configuring Log Analytics workspaces
 
-## Validating performance counters collection
+## Validating/configuring performance counters collection
 
-If you want to fully leverage the VM right-size augmented recommendation, you need to have your VMs onboarded to a Log Analytics workspace (it should normally be the one you chose at installation time) and you need them to send specific performance counters. The list of required counters is defined [here](../perfcounters.json). The AOE provides a tool - the [Setup-LogAnalyticsWorkspaces.ps1](./Setup-LogAnalyticsWorkspaces.ps1) script - that helps you validate and fix the configured Log Analytics performance counters. In its simplest form of usage, it looks at all the Log Analytics workspaces you have access and, for each workspace with Azure VMs onboarded, it validates performance counters configuration and tells you which counters are missing. But you can target a specific workspace and, if required, automatically fix the missing counters. See usage details below.
+If you want to fully leverage the VM right-size augmented recommendation, you need to have your VMs sending logs to a Log Analytics workspace (it should normally be the one you chose at AOE installation time, but it can be a different one) and you need them to send specific performance counters. The list of required counters is defined [here](../perfcounters.json). The AOE provides a couple of tools that help you validate and fix the configured Log Analytics performance counters, depending on the type of agent you are using to collect logs from your machines.
 
-### Requirements
+### Azure Monitor Agent (preferred approach)
 
-You need first to install the Azure Resource Graph and Operational Insights PowerShell modules:
+With the help of the [Setup-DataCollectionRules.ps1](./Setup-DataCollectionRules.ps1) script, you can create a couple of Data Collection Rules (DCR) - one per OS type - that you configure to stream performance counters to the Log Analytics workspace of your choice. After creating the DCRs with the script below, you just have to manually or automatically (e.g., with Azure Policy) associate your VMs to the respective DCRs.
+
+#### Requirements
 
 ```powershell
+Install-Module -Name Az.Accounts
+Install-Module -Name Az.Resources
+Install-Module -Name Az.OperationalInsights
+```
+
+#### Usage
+
+```powershell
+./Setup-DataCollectionRules.ps1 -DestinationWorkspaceResourceId <Log Analytics workspace ARM resource ID> [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureCloud>] [-IntervalSeconds <performance counter collection frequency - default 60>] [-ResourceTags <hashtable with the tag name/value pairs to apply to the DCR>]
+
+# Example 1 - create Linux and Windows DCRs with the default options
+./Setup-DataCollectionRules.ps1 -DestinationWorkspaceResourceId "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/myResourceGroup/providers/Microsoft.OperationalInsights/workspaces/myWorkspace"
+
+# Example 2 - create DCRs using a custom counter collection frequency and assigning specific tags
+./Setup-DataCollectionRules.ps1 -DestinationWorkspaceResourceId "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/myResourceGroup/providers/Microsoft.OperationalInsights/workspaces/myWorkspace" -IntervalSeconds 30 -ResourceTags @{"tagName"="tagValue";"otherTagName"="otherTagValue"}
+```
+
+### Log Analytics agent (legacy Microsoft Monitoring Agent)
+
+With the help of the [Setup-LogAnalyticsWorkspaces.ps1](./Setup-LogAnalyticsWorkspaces.ps1) script, you can validate and fix the configured Log Analytics performance counters on the workspaces of your choice. In its simplest form of usage, it looks at all the Log Analytics workspaces you have access to and, for each workspace with Azure VMs onboarded, it validates performance counters configuration and tells you which counters are missing. But you can target a specific workspace and, if required, automatically fix the missing counters. See usage details below.
+
+#### Requirements
+
+```powershell
+Install-Module -Name Az.Accounts
 Install-Module -Name Az.ResourceGraph
 Install-Module -Name Az.OperationalInsights
 ```
-### Usage
+
+#### Usage
 
 ```powershell
 ./Setup-LogAnalyticsWorkspaces.ps1 [-AzureEnvironment <AzureChinaCloud|AzureUSGovernment|AzureGermanCloud|AzureCloud>] [-WorkspaceIds <comma-separated list of Log Analytics workspace IDs to validate>] [-IntervalSeconds <performance counter collection frequency - default 60>] [-AutoFix]

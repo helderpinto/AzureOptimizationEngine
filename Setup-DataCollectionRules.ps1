@@ -239,7 +239,7 @@ $windowsDcrBody = @'
 
 Write-Output "Creating Windows DCR..."
 $windowsDcrBody = $ExecutionContext.InvokeCommand.ExpandString($windowsDcrBody) | ConvertFrom-Json
-New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $windowsDcrName -PropertyObject $windowsDcrBody -ApiVersion "2021-04-01" -Tag $ResourceTags -Kind "Windows" -Force
+New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $windowsDcrName -PropertyObject $windowsDcrBody -ApiVersion "2021-04-01" -Tag $ResourceTags -Kind "Windows" -Force | Out-Null
 
 $linuxDcrBody = @'
 {
@@ -281,6 +281,6 @@ $linuxDcrBody = @'
 
 Write-Output "Creating Linux DCR..."
 $linuxDcrBody = $ExecutionContext.InvokeCommand.ExpandString($linuxDcrBody) | ConvertFrom-Json
-New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $linuxDcrName -PropertyObject $linuxDcrBody -ApiVersion "2021-04-01" -Tag $ResourceTags -Kind "Linux" -Force
+New-AzResource -ResourceType "Microsoft.Insights/dataCollectionRules" -ResourceGroupName $resourceGroupName -Location $targetLocation -Name $linuxDcrName -PropertyObject $linuxDcrBody -ApiVersion "2021-04-01" -Tag $ResourceTags -Kind "Linux" -Force | Out-Null
 
 Write-Host -ForegroundColor Green "Deployment completed successfully"
