@@ -72,9 +72,9 @@ resource readerRoleAssignmentGuid_resource 'Microsoft.Authorization/roleAssignme
   name: readerRoleAssignmentGuid
   properties: {
     roleDefinitionId: roleReader
-    principalId: resourcesDeployment.outputs.automationPrincipalId.value
+    principalId: resourcesDeployment.outputs.automationPrincipalId
     principalType: 'ServicePrincipal'
   }
 }
 
-output automationPrincipalId string = resourcesDeployment.outputs.automationPrincipalId.value
+output automationPrincipalId string = resourcesDeployment.outputs.automationPrincipalId
