@@ -131,7 +131,7 @@ $baseQuery = @"
     let etime = todatetime(toscalar($consumptionTableName | where todatetime(Date_s) < now() and todatetime(Date_s) > ago(interval) | summarize max(todatetime(Date_s)))); 
     let stime = etime-interval;     
     $disksTableName
-    | where TimeGenerated > ago(1d) and isempty(OwnerVMId_s) and Tags_s !has 'ASR-ReplicaDisk'
+    | where TimeGenerated > ago(1d) and isempty(OwnerVMId_s) and Tags_s !has 'ASR-ReplicaDisk' and Tags_s !has 'asrseeddisk'
     | distinct DiskName_s, InstanceId_s, SubscriptionGuid_g, TenantGuid_g, ResourceGroupName_s, SKU_s, DiskSizeGB_s, Tags_s, Cloud_s 
     | join kind=leftouter (
         $consumptionTableName
