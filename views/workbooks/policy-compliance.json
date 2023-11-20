@@ -63,7 +63,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct InitiativeId_s, InitiativeName_s, Scope_s=substring(TenantGuid_g, 0, 8)\r\n| where isnotempty(InitiativeId_s)\r\n| extend InitiativeName = iif(InitiativeId_s has_any ('managementgroups','subscriptions'),strcat(InitiativeName_s, ' (', Scope_s, ')'), InitiativeName_s)\r\n| project-away TenantGuid_g*, InitiativeName_s, Scope_s\r\n| distinct InitiativeId_s, InitiativeName\r\n| project-reorder Initiative* asc\r\n| order by InitiativeName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct InitiativeId_s, InitiativeName_s\r\n| where isnotempty(InitiativeId_s)\r\n| distinct InitiativeId_s, InitiativeName_s\r\n| order by InitiativeName_s asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -101,7 +101,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}), true)\r\n| distinct DefinitionId_s, DefinitionName_s, Scope_s=substring(TenantGuid_g, 0, 8)\r\n| extend DefinitionName = iif(DefinitionId_s has_any ('managementgroups','subscriptions'),strcat(DefinitionName_s, ' (', Scope_s, ')'), DefinitionName_s)\r\n| project-away TenantGuid_g*, DefinitionName_s, Scope_s\r\n| project-reorder Definition* asc\r\n| distinct DefinitionId_s, DefinitionName\r\n| order by DefinitionName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}), true)\r\n| distinct DefinitionId_s, DefinitionName_s\r\n| distinct DefinitionId_s, DefinitionName_s\r\n| order by DefinitionName_s asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -123,7 +123,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}), InitiativeId_s in ({Initiative}) or DefinitionId_s in ({Definition}))\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct AssignmentId_s, AssignmentName_s, Scope_s=substring(TenantGuid_g, 0, 8)\r\n| extend AssignmentName = strcat(AssignmentName_s, ' (', Scope_s, ')')\r\n| project-away TenantGuid_g*, AssignmentName_s, Scope_s\r\n| project-reorder Assignment* asc\r\n| order by AssignmentName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}), InitiativeId_s in ({Initiative}) or DefinitionId_s in ({Definition}))\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct AssignmentId_s, AssignmentName_s\r\n| order by AssignmentName_s asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
