@@ -6,9 +6,6 @@ param (
     [string] $AzureEnvironment = "AzureCloud",
 
     [Parameter(Mandatory = $false)]
-    [string] $ArtifactsSasToken,
-
-    [Parameter(Mandatory = $false)]
     [switch] $DoPartialUpgrade,
 
     [Parameter(Mandatory = $false)]
@@ -204,7 +201,7 @@ if ((Test-Path -Path $lastDeploymentStatePath) -and !$silentDeploy)
     }
 }
 
-$GitHubOriginalUri = "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/master/azuredeploy.json"
+$GitHubOriginalUri = "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/master/azuredeploy.bicep"
 
 if ([string]::IsNullOrEmpty($TemplateUri)) {
     $TemplateUri = $GitHubOriginalUri
@@ -217,25 +214,15 @@ try {
     $isTemplateAvailable = $true
 }
 catch {
-    $saNameEnd = $TemplateUri.IndexOf(".blob.core.")
-    if ($saNameEnd -gt 0) {
-        $FullTemplateUri = $TemplateUri + $ArtifactsSasToken
-        try {
-            Invoke-WebRequest -Uri $FullTemplateUri | Out-Null
-            $isTemplateAvailable = $true
-            $TemplateUri = $FullTemplateUri
-        }
-        catch {
-            Write-Host "The template URL ($TemplateUri) is not available. Please, provide a valid SAS Token in the ArtifactsSasToken parameter (Read permission and Object level access are sufficient)." -ForegroundColor Red
-        }
-    }
-    else {
-        Write-Host "The template URL ($TemplateUri) is not available. Please, put it in a publicly accessible HTTPS location." -ForegroundColor Red
-    }
+    Write-Host "The template URL ($TemplateUri) is not available. Please, put it in a publicly accessible HTTPS location." -ForegroundColor Red
 }
 
 if (!$isTemplateAvailable) {
     throw "Terminating due to template unavailability."
+}
+
+if (-not((Test-Path -Path "./azuredeploy.bicep") -and (Test-Path -Path "./azuredeploy-nested.bicep"))) {
+    throw "Terminating due to template unavailability. Please, change directory to where azuredeploy.bicep and azuredeploy-nested.bicep are located."
 }
 
 $cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
@@ -701,22 +688,12 @@ if ("Y", "y" -contains $continueInput) {
         do {
             $deploymentTries++
             try {
-                if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags
-                }
-                else {
-                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-                }            
+                $deployment = New-AzDeployment -TemplateFile ".\azuredeploy.bicep" -templateLocation $TemplateUri.Replace("azuredeploy.bicep", "") -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+                    -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                    -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                    -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                    -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                    -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags -WarningAction SilentlyContinue
                 $deploymentSucceeded = $true
             }
             catch {
@@ -748,7 +725,7 @@ if ("Y", "y" -contains $continueInput) {
 
         Write-Host "Importing runbooks..." -ForegroundColor Green
         $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook + $upgradeManifest.remediations.runbook
-        $runbookBaseUri = $TemplateUri.Replace("azuredeploy.json", "")
+        $runbookBaseUri = $TemplateUri.Replace("azuredeploy.bicep", "")
         $topTemplateJson = "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", " + `
             "`"contentVersion`": `"1.0.0.0`", `"resources`": ["
         $bottomTemplateJson = "] }"

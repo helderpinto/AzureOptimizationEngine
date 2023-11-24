@@ -5,11 +5,8 @@ param contributorRoleAssignmentGuid string = guid(rgName)
 param projectLocation string
 
 @description('The base URI where artifacts required by this template are located')
-param _artifactsLocation string = deployment().properties.templateLink.uri
+param templateLocation string
 
-@description('The sasToken required to access _artifactsLocation. When the template is deployed using the accompanying scripts, a sasToken will be grabbed from parameters.')
-@secure()
-param _artifactsLocationSasToken string = ''
 param storageAccountName string
 param automationAccountName string
 param sqlServerName string
@@ -44,8 +41,7 @@ module resourcesDeployment './azuredeploy-nested.bicep' = {
   scope: resourceGroup(rgName)
   params: {
     projectLocation: projectLocation
-    _artifactsLocation: _artifactsLocation
-    _artifactsLocationSasToken: _artifactsLocationSasToken
+    templateLocation: templateLocation
     storageAccountName: storageAccountName
     automationAccountName: automationAccountName
     sqlServerName: sqlServerName
