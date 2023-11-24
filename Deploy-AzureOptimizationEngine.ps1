@@ -1224,18 +1224,18 @@ if ("Y", "y" -contains $continueInput) {
         $deploymentOptions["DeployWorkbooks"] = "Y"
         $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
         Write-Host "Publishing workbooks..." -ForegroundColor Green
-        $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
+        $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith(".bicep") }
         $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
         foreach ($workbook in $workbooks)
         {
-            $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
-            Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
+            $workbookFileName = [System.IO.Path]::GetFileNameWithoutExtension($workbook.Name)
+            Write-Host "Deploying $workbookFileName workbook..."
             try {
-                New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
-                    -workbookSourceId $la.ResourceId -resourceTags $ResourceTags | Out-Null        
+                New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbookFileName) `
+                    -workbookSourceId $la.ResourceId -resourceTags $ResourceTags -WarningAction SilentlyContinue | Out-Null        
             }
             catch {
-                Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+                Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $workbookFileName workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
             }
         }
     }
