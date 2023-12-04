@@ -621,7 +621,7 @@ Write-Output "Looking for VMs with no Availability Set..."
 
 $baseQuery = @"
     $vmsTableName
-    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s) and isempty(Zones_s)
+    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s) and isempty(Zones_s) and Tags_s !has 'databricks-instance-name'
     | project TimeGenerated, VMName_s, InstanceId_s, Tags_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
     | join kind=leftouter ( 
         $subscriptionsTableName
@@ -1110,6 +1110,7 @@ $baseQuery = @"
     | where ZonesCount < 3
     | join kind=inner ( 
         VMsInZones
+        | where PowerState_s has 'running'
         | distinct VMName_s, ResourceGroupName_s, SubscriptionGuid_g
         | summarize VMCount=count() by ResourceGroupName_s, SubscriptionGuid_g
     ) on ResourceGroupName_s and SubscriptionGuid_g
