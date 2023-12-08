@@ -103,7 +103,7 @@
               "durationMs": 2592000000
             },
             "id": "a3fb4877-28ef-43fc-8821-376df486fa2a",
-            "value": ""
+            "value": null
           },
           {
             "id": "3e36a073-14b2-4406-a84a-1b6d0a15f363",
@@ -980,6 +980,25 @@
         "value": "fullReport"
       },
       "name": "fullReportGroup"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let ISFGroups = externaldata(ISFGroup:string, ArmSKUName:string, Ratio:double) [@\"https://isfratio.blob.core.windows.net/isfratio/ISFRatio.csv\"] with(ignoreFirstRecord=true) | extend ArmSKUName=tolower(ArmSKUName);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'UnusedReservation'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| where ReservationId_g in ({Reservation:value})\r\n| where todouble(CostInBillingCurrency_s) > 0\r\n| extend UnusedCost = todouble(CostInBillingCurrency_s)\r\n| join kind=inner (\r\n    AzureOptimizationReservationsUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | extend UnusedQuantity = todouble(TotalReservedQuantity_s) - (todouble(TotalReservedQuantity_s) * todouble(Util7Days_s) / 100)\r\n    | extend UnusedQuantity30d = todouble(TotalReservedQuantity_s) - (todouble(TotalReservedQuantity_s) * todouble(Util30Days_s) / 100)\r\n    | project ReservationId_g, SKUName_s=tolower(SKUName_s), Location_s\r\n) on ReservationId_g\r\n| join kind=leftouter ( ISFGroups ) on $left.SKUName_s == $right.ArmSKUName\r\n| extend SKUName = iif('{UseISF}' == 'Yes', strcat(ISFGroup, \" \", Location_s), strcat(SKUName_s, \" \", Location_s))\r\n| summarize sum(UnusedCost) by todatetime(Date_s), SKUName",
+        "size": 1,
+        "title": "Cost of Unused Reservations over time (by SKU)",
+        "timeContextFromParameter": "LookbackPeriod",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "barchart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "unusedReservations"
+      },
+      "name": "unusedReservationsOverTimebySKU"
     },
     {
       "type": 12,
