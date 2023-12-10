@@ -751,7 +751,7 @@ if ("Y", "y" -contains $continueInput) {
             }
         }
         $runbookDeploymentTemplateJson += $bottomTemplateJson
-        $runbooksTemplatePath = "$env:TEMP/aoe-runbooks-deployment.json"
+        $runbooksTemplatePath = "./aoe-runbooks-deployment.json"
         $runbookDeploymentTemplateJson | Out-File -FilePath $runbooksTemplatePath -Force
         Write-Host "Executing runbooks deployment..." -ForegroundColor Green
         New-AzResourceGroupDeployment -TemplateFile $runbooksTemplatePath -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
@@ -779,7 +779,7 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "$($allModules[$i].name) imported."
         }
         $modulesDeploymentTemplateJson += $bottomTemplateJson
-        $modulesTemplatePath = "$env:TEMP/aoe-modules-deployment.json"
+        $modulesTemplatePath = "./aoe-modules-deployment.json"
         $modulesDeploymentTemplateJson | Out-File -FilePath $modulesTemplatePath -Force
         Write-Host "Executing modules deployment..." -ForegroundColor Green
         New-AzResourceGroupDeployment -TemplateFile $modulesTemplatePath -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "modules") | Out-Null
