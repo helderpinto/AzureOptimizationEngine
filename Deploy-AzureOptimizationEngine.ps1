@@ -738,7 +738,7 @@ if ("Y", "y" -contains $continueInput) {
                 $runbookJson = "{ `"name`": `"$automationAccountName/$runbookName`", `"type`": `"Microsoft.Automation/automationAccounts/runbooks`", " + `
                 "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"tags`": $($ResourceTags | ConvertTo-Json), `"properties`": { " + `
                 "`"runbookType`": `"PowerShell`", `"logProgress`": false, `"logVerbose`": false, " + `
-                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i].name)`", `"version`": `"$runbookBaseUri$($allRunbooks[$i].version)`" } } }"
+                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i].name)`", `"version`": `"$($allRunbooks[$i].version)`" } } }"
                 $runbookDeploymentTemplateJson += $runbookJson
                 if ($i -lt $allRunbooks.Count - 1)
                 {
@@ -751,9 +751,11 @@ if ("Y", "y" -contains $continueInput) {
             }
         }
         $runbookDeploymentTemplateJson += $bottomTemplateJson
-        $templateObject = ConvertFrom-Json $runbookDeploymentTemplateJson | ConvertTo-Hashtable
+        $runbooksTemplatePath = "$env:TEMP/aoe-runbooks-deployment.json"
+        $runbookDeploymentTemplateJson | Out-File -FilePath $runbooksTemplatePath -Force
         Write-Host "Executing runbooks deployment..." -ForegroundColor Green
-        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
+        New-AzResourceGroupDeployment -TemplateFile $runbooksTemplatePath -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
+        Remove-Item -Path $runbooksTemplatePath -Force
         Write-Host "Runbooks update deployed."
 
         Write-Host "Importing modules..." -ForegroundColor Green
@@ -777,9 +779,11 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "$($allModules[$i].name) imported."
         }
         $modulesDeploymentTemplateJson += $bottomTemplateJson
-        $templateObject = ConvertFrom-Json $modulesDeploymentTemplateJson | ConvertTo-Hashtable
+        $modulesTemplatePath = "$env:TEMP/aoe-modules-deployment.json"
+        $modulesDeploymentTemplateJson | Out-File -FilePath $modulesTemplatePath -Force
         Write-Host "Executing modules deployment..." -ForegroundColor Green
-        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "modules") | Out-Null
+        New-AzResourceGroupDeployment -TemplateFile $modulesTemplatePath -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "modules") | Out-Null
+        Remove-Item -Path $modulesTemplatePath -Force
         Write-Host "Modules update deployed."
 
         Write-Host "Updating schedules..." -ForegroundColor Green

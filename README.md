@@ -103,6 +103,16 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
 
 ## <a id="releases"></a>Releases ##
 
+* 12/2023
+    * Added support for User-Assigned Managed Identity
+    * Added tool for setting DCR-based (Azure Monitor Agent) performance counters collection
+    * Changed deployment template from ARM to Bicep
+    * Recommendations workbook: filtering by tags
+    * New Cost recommendation added
+        * Stopped VMs (not deallocated) are still consuming Compute resources
+    * New workbooks
+        * Savings Plans Usage (preview)
+    * Several bug fixes and performance, security, and usability improvements
 * 09/2023
     * Added support for MCA, CSP Modern and other customer agreement types
     * New Cost recommendation added
