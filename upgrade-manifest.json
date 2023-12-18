@@ -76,7 +76,7 @@
         },
         {
             "name": "AzureOptimization_ExportARGDaily",
-            "offset": "PT1H",
+            "offset": "PT1H05M",
             "frequency": "Day"
         },
         {
@@ -106,57 +106,57 @@
         },
         {
             "name": "AzureOptimization_IngestARGPublicIPsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGNICsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGNSGsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVNetsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVHDsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVMsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVMSSDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGSqlDbDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGAppServicePlanDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H33M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestPolicyStateDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H33M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGResourceContainersDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H33M",
             "frequency": "Day"
         },
         {
@@ -171,12 +171,12 @@
         },
         {
             "name": "AzureOptimization_ExportRBACDaily",
-            "offset": "PT1H",
+            "offset": "PT1H02M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestRBACDaily",
-            "offset": "PT2H",
+            "offset": "PT2H02M",
             "frequency": "Day"
         },
         {
@@ -196,7 +196,7 @@
         },
         {
             "name": "AzureOptimization_IngestRemediationLogsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H35M",
             "frequency": "Day"
         },
         {
@@ -221,37 +221,37 @@
         },
         {
             "name": "AzureOptimization_ExportMonitorSqlDbDtuAvgHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceCpuMaxHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H17M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorDiskIOPSHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H17M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorDiskMBPsHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H17M",
             "frequency": "Hour"
         },
         {
@@ -266,17 +266,17 @@
         },
         {
             "name": "AzureOptimization_ExportPricesWeekly",
-            "offset": "PT1H30M",
+            "offset": "PT1H35M",
             "frequency": "Week"
         },
         {
             "name": "AzureOptimization_IngestPricesheetWeekly",
-            "offset": "PT2H",
+            "offset": "PT2H10M",
             "frequency": "Week"
         },
         {
             "name": "AzureOptimization_IngestReservationsPriceWeekly",
-            "offset": "PT2H",
+            "offset": "PT2H10M",
             "frequency": "Week"
         },
         {

@@ -145,7 +145,7 @@ var csvExportsSchedules = [
   {
     exportSchedule: argExportsScheduleName
     exportDescription: 'Daily Azure Resource Graph exports'
-    exportTimeOffset: 'PT1H'
+    exportTimeOffset: 'PT1H05M'
     exportFrequency: 'Day'
   }
   {
@@ -169,7 +169,7 @@ var csvExportsSchedules = [
   {
     exportSchedule: rbacExportsScheduleName
     exportDescription: 'Daily Azure RBAC exports'
-    exportTimeOffset: 'PT1H'
+    exportTimeOffset: 'PT1H02M'
     exportFrequency: 'Day'
   }
   {
@@ -205,54 +205,54 @@ var csvExportsSchedules = [
   {
     exportSchedule: monitorSqlDbDtuAvgExportsScheduleName
     exportDescription: 'Hourly Azure Monitor metrics exports for SQL Database Percentage DTU (Avg.)'
-    exportTimeOffset: 'PT1H15M'
+    exportTimeOffset: 'PT1H16M'
     exportFrequency: 'Hour'
   }
   {
     exportSchedule: monitorAppServiceCpuAvgExportsScheduleName
     exportDescription: 'Hourly Azure Monitor metrics exports for App Service Percentage CPU (Avg.)'
-    exportTimeOffset: 'PT1H15M'
+    exportTimeOffset: 'PT1H16M'
     exportFrequency: 'Hour'
   }
   {
     exportSchedule: monitorAppServiceCpuMaxExportsScheduleName
     exportDescription: 'Hourly Azure Monitor metrics exports for App Service Percentage CPU (Max.)'
-    exportTimeOffset: 'PT1H15M'
+    exportTimeOffset: 'PT1H16M'
     exportFrequency: 'Hour'
   }
   {
     exportSchedule: monitorAppServiceMemoryAvgExportsScheduleName
     exportDescription: 'Hourly Azure Monitor metrics exports for App Service Percentage RAM (Avg.)'
-    exportTimeOffset: 'PT1H15M'
+    exportTimeOffset: 'PT1H16M'
     exportFrequency: 'Hour'
   }
   {
     exportSchedule: monitorAppServiceMemoryMaxExportsScheduleName
     exportDescription: 'Hourly Azure Monitor metrics exports for App Service Percentage RAM (Max.)'
-    exportTimeOffset: 'PT1H15M'
+    exportTimeOffset: 'PT1H17M'
     exportFrequency: 'Hour'
   }
   {
     exportSchedule: monitorDiskIOPSAvgExportsScheduleName
     exportDescription: 'Hourly Azure Monitor metrics exports for Disk IOPS (Avg.)'
-    exportTimeOffset: 'PT1H15M'
+    exportTimeOffset: 'PT1H17M'
     exportFrequency: 'Hour'
   }
   {
     exportSchedule: monitorDiskMBPsAvgExportsScheduleName
     exportDescription: 'Hourly Azure Monitor metrics exports for Disk MBPs (Avg.)'
-    exportTimeOffset: 'PT1H15M'
+    exportTimeOffset: 'PT1H17M'
     exportFrequency: 'Hour'
   }
   {
     exportSchedule: priceExportsScheduleName
     exportDescription: 'Weekly Pricesheet and Reservation Prices exports'
-    exportTimeOffset: 'PT1H30M'
+    exportTimeOffset: 'PT1H35M'
     exportFrequency: 'Week'
   }
   {
     exportSchedule: reservationsUsageExportsScheduleName
-    exportDescription: 'Daily Reservation Usagge exports'
+    exportDescription: 'Daily Reservation Usage exports'
     exportTimeOffset: 'PT2H'
     exportFrequency: 'Day'
   }
@@ -336,7 +336,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph Availability Set exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGAvailSetsDaily'
     ingestDescription: 'Daily Azure Resource Graph Availability Sets ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H31M'
     ingestFrequency: 'Day'
     ingestJobId: argAvailSetIngestJobId
     exportSchedule: argExportsScheduleName
@@ -378,7 +378,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph Load Balancer exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGLoadBalancersDaily'
     ingestDescription: 'Daily Azure Resource Graph Load Balancers ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H31M'
     ingestFrequency: 'Day'
     ingestJobId: argLoadBalancersIngestJobId
     exportSchedule: argExportsScheduleName
@@ -392,7 +392,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph Application Gateway exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGAppGWsDaily'
     ingestDescription: 'Daily Azure Resource Graph Application Gateways ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H31M'
     ingestFrequency: 'Day'
     ingestJobId: argAppGWsIngestJobId
     exportSchedule: argExportsScheduleName
@@ -406,7 +406,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph Resource Containers exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGResourceContainersDaily'
     ingestDescription: 'Daily Azure Resource Graph Resource Containers ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H32M'
     ingestFrequency: 'Day'
     ingestJobId: argResContainersIngestJobId
     exportSchedule: argExportsScheduleName
@@ -420,7 +420,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where RBAC Assignments exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestRBACDaily'
     ingestDescription: 'Daily Azure RBAC ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H32M'
     ingestFrequency: 'Day'
     ingestJobId: rbacIngestJobId
     exportSchedule: rbacExportsScheduleName
@@ -434,7 +434,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph NIC exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGNICsDaily'
     ingestDescription: 'Daily Azure Resource Graph NIC ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H32M'
     ingestFrequency: 'Day'
     ingestJobId: argNICIngestJobId
     exportSchedule: argExportsScheduleName
@@ -448,7 +448,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph NSG exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGNSGsDaily'
     ingestDescription: 'Daily Azure Resource Graph NSG ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H32M'
     ingestFrequency: 'Day'
     ingestJobId: argNSGIngestJobId
     exportSchedule: argExportsScheduleName
@@ -462,7 +462,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph VNet exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGVNetsDaily'
     ingestDescription: 'Daily Azure Resource Graph Virtual Network ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H33M'
     ingestFrequency: 'Day'
     ingestJobId: argVNetIngestJobId
     exportSchedule: argExportsScheduleName
@@ -476,7 +476,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph Public IP exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGPublicIPsDaily'
     ingestDescription: 'Daily Azure Resource Graph Public IP ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H33M'
     ingestFrequency: 'Day'
     ingestJobId: argPublicIPIngestJobId
     exportSchedule: argExportsScheduleName
@@ -490,7 +490,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph SQL DB exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGSqlDbDaily'
     ingestDescription: 'Daily Azure Resource Graph SQL DB ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H33M'
     ingestFrequency: 'Day'
     ingestJobId: argSqlDbIngestJobId
     exportSchedule: argExportsScheduleName
@@ -504,7 +504,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Policy State exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestPolicyStateDaily'
     ingestDescription: 'Daily Azure Policy State ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H33M'
     ingestFrequency: 'Day'
     ingestJobId: policyStateIngestJobId
     exportSchedule: policyStateExportsScheduleName
@@ -531,7 +531,7 @@ var csvExports = [
     variableDescription: 'The Storage Account container where Azure Resource Graph App Service Plan exports are dumped to'
     ingestSchedule: 'AzureOptimization_IngestARGAppServicePlanDaily'
     ingestDescription: 'Daily Azure Resource Graph App Service Plan ingests'
-    ingestTimeOffset: 'PT1H30M'
+    ingestTimeOffset: 'PT1H34M'
     ingestFrequency: 'Day'
     ingestJobId: argAppServicePlanIngestJobId
     exportSchedule: argExportsScheduleName
