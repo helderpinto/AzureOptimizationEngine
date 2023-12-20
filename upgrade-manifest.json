@@ -760,8 +760,8 @@
         },
         {
             "runbook": {
-                "name": "runbooks/recommendations/Recommend-LongDeallocatedVmsToBlobStorage.ps1",
-                "version": "1.2.7.0"
+                "name": "runbooks/recommendations/Recommend-VMOptimizationsToBlobStorage.ps1",
+                "version": "1.0.0.0"
             },
             "requiredVariables": [
                 {
@@ -1025,7 +1025,8 @@
         "Recommend-VMsNoAvailSetToBlobStorage",
         "Recommend-VMsSingleInAvailSetToBlobStorage",
         "Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage",
-        "Recommend-VMsWithUnmanagedDisksToBlobStorage"
+        "Recommend-VMsWithUnmanagedDisksToBlobStorage",
+        "Recommend-LongDeallocatedVmsToBlobStorage"
     ],
     "overwriteVariables": [
         {

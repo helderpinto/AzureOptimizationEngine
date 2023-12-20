@@ -81,7 +81,7 @@ param unattachedDisksRecommendationJobId string = newGuid()
 param advisorCostAugmentedRecommendationJobId string = newGuid()
 param advisorAsIsRecommendationJobId string = newGuid()
 param vmsHaRecommendationJobId string = newGuid()
-param longDeallocatedVmsRecommendationJobId string = newGuid()
+param vmOptimizationsRecommendationJobId string = newGuid()
 param aadExpiringCredsRecommendationJobId string = newGuid()
 param unusedLoadBalancersRecommendationJobId string = newGuid()
 param unusedAppGWsRecommendationJobId string = newGuid()
@@ -731,7 +731,7 @@ var unattachedDisksRecommendationsRunbookName = 'Recommend-UnattachedDisksToBlob
 var advisorCostAugmentedRecommendationsRunbookName = 'Recommend-AdvisorCostAugmentedToBlobStorage'
 var advisorAsIsRecommendationsRunbookName = 'Recommend-AdvisorAsIsToBlobStorage'
 var vmsHARecommendationsRunbookName = 'Recommend-VMsHighAvailabilityToBlobStorage'
-var longDeallocatedVmsRecommendationsRunbookName = 'Recommend-LongDeallocatedVmsToBlobStorage'
+var vmOptimizationsRecommendationsRunbookName = 'Recommend-VMOptimizationsToBlobStorage'
 var aadExpiringCredsRecommendationsRunbookName = 'Recommend-AADExpiringCredentialsToBlobStorage'
 var unusedLBsRecommendationsRunbookName = 'Recommend-UnusedLoadBalancersToBlobStorage'
 var unusedAppGWsRecommendationsRunbookName = 'Recommend-UnusedAppGWsToBlobStorage'
@@ -761,8 +761,8 @@ var recommendations = [
     runbookName: vmsHARecommendationsRunbookName
   }
   {
-    recommendationJobId: longDeallocatedVmsRecommendationJobId
-    runbookName: longDeallocatedVmsRecommendationsRunbookName
+    recommendationJobId: vmOptimizationsRecommendationJobId
+    runbookName: vmOptimizationsRecommendationsRunbookName
   }
   {
     recommendationJobId: aadExpiringCredsRecommendationJobId
@@ -1071,11 +1071,11 @@ var runbooks = [
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${vmsHARecommendationsRunbookName}.ps1')
   }
   {
-    name: longDeallocatedVmsRecommendationsRunbookName
-    version: '1.2.7.0'
-    description: 'Generates long deallocated VMs recommendations'
+    name: vmOptimizationsRecommendationsRunbookName
+    version: '1.0.0.0'
+    description: 'Generates VM optimizations recommendations'
     type: 'PowerShell'
-    scriptUri: uri(templateLocation, 'runbooks/recommendations/${longDeallocatedVmsRecommendationsRunbookName}.ps1')
+    scriptUri: uri(templateLocation, 'runbooks/recommendations/${vmOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: aadExpiringCredsRecommendationsRunbookName
