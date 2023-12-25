@@ -345,7 +345,7 @@ else
 if ($cloudEnvironment -eq "AzureChinaCloud")
 {
     $chinaEAEnrollment = Get-AutomationVariable -Name "AzureOptimization_AzureChinaEAEnrollment" -ErrorAction SilentlyContinue    
-    $chinaEAKey = Get-AutomationVariable -Name  "AzureOptimization-AzureChinaEAKey" -ErrorAction SilentlyContinue
+    $chinaEAKey = Get-AutomationVariable -Name  "AzureOptimization_AzureChinaEAKey" -ErrorAction SilentlyContinue
 }
 
 "Logging in to Azure with $authenticationOption..."
@@ -421,7 +421,7 @@ if ($cloudEnvironment -eq "AzureChinaCloud" -and -not([string]::IsNullOrEmpty($c
     $Headers = @{}
     $Headers.Add("Authorization","Bearer $chinaEAKey")
     
-    Write-Output "Getting pricesheet for month $targetMonth (EA enrollment $eaEnrollment)..."
+    Write-Output "Getting pricesheet for month $targetMonth (EA enrollment $chinaEAEnrollment)..."
     
     Invoke-RestMethod -Method Get -Uri $PricesheetApiUri -Headers $Headers -OutFile "pricesheet-$targetMonth.csv"
     
@@ -451,7 +451,7 @@ if ($cloudEnvironment -eq "AzureChinaCloud" -and -not([string]::IsNullOrEmpty($c
     
     $pricesheet = $csvFile2 | ConvertFrom-Csv
     
-    Write-Output "Starting Azure China billing export process from $targetStartDate to $targetEndDate (month $targetMonth) for EA enrollment $eaEnrollment..."
+    Write-Output "Starting Azure China billing export process from $targetStartDate to $targetEndDate (month $targetMonth) for EA enrollment $chinaEAEnrollment..."
     
     $tries = 0
     $requestSuccess = $false
@@ -507,7 +507,7 @@ if ($cloudEnvironment -eq "AzureChinaCloud" -and -not([string]::IsNullOrEmpty($c
     {
         $usageDate = [Datetime]::ParseExact($consumptionLine.Date, 'MM/dd/yyyy', $null).ToString("yyyy-MM-dd")
     
-        if ($usageDate -ge $targetStartDate -and $usageDate -le $targetEndDate -and ($subscriptions.Count -ge 1 -or $subscriptions -eq $consumptionLine.SubscriptionGuid))
+        if ($usageDate -ge $targetStartDate -and $usageDate -le $targetEndDate -and ($subscriptions.Count -gt 1 -or $subscriptions.Id -eq $consumptionLine.SubscriptionGuid))
         {
             $instanceId = $null
             $instanceName = $null
@@ -535,7 +535,7 @@ if ($cloudEnvironment -eq "AzureChinaCloud" -and -not([string]::IsNullOrEmpty($c
                 $convertedPrice = [double]$consumptionLine.ResourceRate
             }
     
-            $unitPrice = 0
+            $unitPrice = 0.0
             $partNumber = "N/A"
             foreach ($priceItem in $pricesheet)
             {

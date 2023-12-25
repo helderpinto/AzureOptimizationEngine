@@ -35,6 +35,7 @@ Besides collecting **all Azure Advisor recommendations**, AOE includes other cus
     * Underutilized App Service Plans
     * App Service Plans without any application
     * Premium SSD disk has been underutilized
+    * Virtual Machine is stopped (not deallocated) and still incurring costs
 * High Availability
     * Virtual Machine high availability (availability zones count, availability set, managed disks, storage account distribution when using unmanaged disks)
     * VM Scale Set high availability (availability zones count, managed disks)
@@ -109,9 +110,10 @@ With AOE's Log Analytics Workbooks, you can explore many perspectives over the d
     * Changed deployment template from ARM to Bicep
     * Recommendations workbook: filtering by tags
     * New Cost recommendation added
-        * Stopped VMs (not deallocated) are still consuming Compute resources
+        * Virtual Machine is stopped (not deallocated) and still incurring costs
     * New workbooks
         * Savings Plans Usage (preview)
+    * Azure China consumption exports (preview)
     * Several bug fixes and performance, security, and usability improvements
 * 09/2023
     * Added support for MCA, CSP Modern and other customer agreement types
