@@ -7,10 +7,14 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
+}
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
 }
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
@@ -45,21 +49,15 @@ $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
 # Authenticate against Azure
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    "UserAssignedManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment -AccountId $uamiClientID
         break
     }
-    "ManagedIdentity" { 
-        Connect-AzAccount -Identity
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    Default { #ManagedIdentity
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment 
         break
     }
 }
@@ -623,7 +621,7 @@ Write-Output "Looking for VMs with no Availability Set..."
 
 $baseQuery = @"
     $vmsTableName
-    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s) and isempty(Zones_s)
+    | where TimeGenerated > ago(1d) and isempty(AvailabilitySetId_s) and isempty(Zones_s) and Tags_s !has 'databricks-instance-name'
     | project TimeGenerated, VMName_s, InstanceId_s, Tags_s, TenantGuid_g, SubscriptionGuid_g, ResourceGroupName_s, Cloud_s
     | join kind=leftouter ( 
         $subscriptionsTableName
@@ -1112,6 +1110,7 @@ $baseQuery = @"
     | where ZonesCount < 3
     | join kind=inner ( 
         VMsInZones
+        | where PowerState_s has 'running'
         | distinct VMName_s, ResourceGroupName_s, SubscriptionGuid_g
         | summarize VMCount=count() by ResourceGroupName_s, SubscriptionGuid_g
     ) on ResourceGroupName_s and SubscriptionGuid_g
@@ -1237,7 +1236,7 @@ Write-Output "Looking for VMSS not in multiple AZs..."
 $baseQuery = @"
     $vmssTableName
     | where TimeGenerated > ago(1d) 
-    | where (isempty(Zones_s) and toint(Capacity_s) > 1) or (Zones_s != "1 2 3" and toint(Capacity_s) > 2)
+    | where (isempty(Zones_s) and toint(Capacity_s) > 1) or (array_length(split(Zones_s, ' ')) != 3 and toint(Capacity_s) > 2)
     | join kind=leftouter ( 
         $subscriptionsTableName
         | where TimeGenerated > ago(1d) 

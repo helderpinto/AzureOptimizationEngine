@@ -31,18 +31,6 @@
             "id": "76f1ffbe-3079-4782-b38c-4385d1f30690"
           },
           {
-            "version": "KqlParameterItem/1.0",
-            "name": "LastRBACGeneratedDateTime",
-            "label": "RBAC Generated On",
-            "type": 1,
-            "isRequired": true,
-            "query": "AzureOptimizationRBACAssignmentsV1_CL\r\n| where TimeGenerated > ago(90d)\r\n| summarize max(TimeGenerated)",
-            "isHiddenWhenLocked": true,
-            "queryType": 0,
-            "resourceType": "microsoft.operationalinsights/workspaces",
-            "id": "e01c2b5a-3ecf-4ba8-9112-208a012a7bbe"
-          },
-          {
             "id": "398ed1df-fb30-4ed7-a872-c1f10a752b40",
             "version": "KqlParameterItem/1.0",
             "name": "Subscription",
@@ -75,7 +63,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct InitiativeId_s, InitiativeName_s, TenantGuid_g\r\n| join kind=leftouter (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| where isnotempty(InitiativeId_s)\r\n| extend InitiativeName = iif(InitiativeId_s has_any ('managementgroups','subscriptions'),strcat(InitiativeName_s, ' (', Scope_s, ')'), InitiativeName_s)\r\n| project-away TenantGuid_g*, InitiativeName_s, Scope_s\r\n| distinct InitiativeId_s, InitiativeName\r\n| project-reorder Initiative* asc\r\n| order by InitiativeName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct InitiativeId_s, InitiativeName_s\r\n| where isnotempty(InitiativeId_s)\r\n| distinct InitiativeId_s, InitiativeName_s\r\n| order by InitiativeName_s asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -90,6 +78,21 @@
             ]
           },
           {
+            "id": "34bfe4a4-f7d0-4970-96ba-9fae4136706b",
+            "version": "KqlParameterItem/1.0",
+            "name": "FilterByInitiative",
+            "label": "Filter by Initiative",
+            "type": 10,
+            "description": "Whether to filter definitions and assignments by selected initiatives",
+            "isRequired": true,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\"Yes\", \"No\"]",
+            "value": "No"
+          },
+          {
             "id": "494d3d43-f908-490a-b1cf-8f501ec873f5",
             "version": "KqlParameterItem/1.0",
             "name": "Definition",
@@ -98,7 +101,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where InitiativeId_s in ({Initiative})\r\n| distinct DefinitionId_s, DefinitionName_s, TenantGuid_g\r\n| join kind=leftouter (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend DefinitionName = iif(DefinitionId_s has_any ('managementgroups','subscriptions'),strcat(DefinitionName_s, ' (', Scope_s, ')'), DefinitionName_s)\r\n| project-away TenantGuid_g*, DefinitionName_s, Scope_s\r\n| project-reorder Definition* asc\r\n| distinct DefinitionId_s, DefinitionName\r\n| order by DefinitionName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}), true)\r\n| distinct DefinitionId_s, DefinitionName_s\r\n| distinct DefinitionId_s, DefinitionName_s\r\n| order by DefinitionName_s asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -120,7 +123,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition})\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct AssignmentId_s, AssignmentName_s, TenantGuid_g\r\n| join kind=leftouter (\r\n    AzureOptimizationRBACAssignmentsV1_CL\r\n    | where TimeGenerated > todatetime('{LastRBACGeneratedDateTime}')-12h\r\n    | where Model_s == 'AzureAD'\r\n    | distinct Scope_s, TenantGuid_g\r\n) on TenantGuid_g\r\n| extend AssignmentName = strcat(AssignmentName_s, ' (', Scope_s, ')')\r\n| project-away TenantGuid_g*, AssignmentName_s, Scope_s\r\n| project-reorder Assignment* asc\r\n| order by AssignmentName asc",
+            "query": "AzureOptimizationPolicyStatesV1_CL\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}), InitiativeId_s in ({Initiative}) or DefinitionId_s in ({Definition}))\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| distinct AssignmentId_s, AssignmentName_s\r\n| order by AssignmentName_s asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -306,9 +309,9 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "\r\npolicyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment})\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policyassignments'\r\n    | project assignmentId = tolower(id), assignmentName = tostring(properties.displayName)\r\n) on assignmentId\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), policyName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, assignmentName, initiativeId, initiativeName, policyId, policyName, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize count() by complianceState",
+              "query": "\r\npolicyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policyassignments'\r\n    | project assignmentId = tolower(id), assignmentName = tostring(properties.displayName)\r\n) on assignmentId\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), policyName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, assignmentName, initiativeId, initiativeName, policyId, policyName, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize count() by complianceState",
               "size": 1,
-              "title": "Overall Compliance State",
+              "title": "Overall Compliance (raw states)",
               "queryType": 1,
               "resourceType": "microsoft.resources/tenants",
               "crossComponentResources": [
@@ -343,9 +346,9 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment})\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policyassignments'\r\n    | project assignmentId = tolower(id), assignmentName = tostring(properties.displayName)\r\n) on assignmentId\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), policyName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, assignmentName, initiativeId, initiativeName, policyId, policyName, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize count() by initiativeName",
+              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policyassignments'\r\n    | project assignmentId = tolower(id), assignmentName = tostring(properties.displayName)\r\n) on assignmentId\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), policyName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, assignmentName, initiativeId, initiativeName, policyId, policyName, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| distinct resourceId, complianceState\r\n| summarize complianceStates=make_list(complianceState) by resourceId\r\n| extend fullComplianceState = iif(complianceStates !contains 'NonCompliant', iif(complianceStates contains 'Exempt' and array_length(complianceStates) == 1, 'Exempt', 'Compliant'), 'NonCompliant')\r\n| summarize dcount(resourceId) by fullComplianceState",
               "size": 1,
-              "title": "Non-compliant states by Initiative",
+              "title": "Resource Compliance",
               "queryType": 1,
               "resourceType": "microsoft.resources/tenants",
               "crossComponentResources": [
@@ -374,15 +377,89 @@
               }
             },
             "customWidth": "50",
-            "name": "argComplianceByInitiative"
+            "name": "argComplianceSummaryResources"
           },
           {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment})\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| project resourceId, resourceGroup, subscriptionId, assignmentId, initiativeId, initiativeName, policyId, complianceState\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize StatesCount=count(), CompliantCount=countif(complianceState == 'Compliant'), NonCompliantCount=countif(complianceState == 'NonCompliant'), ExemptCount=countif(complianceState == 'Exempt') by initiativeName\r\n| project initiativeName, CompliantPercent = round(todouble(CompliantCount)/StatesCount*100), NonCompliantPercent = round(todouble(NonCompliantCount)/StatesCount*100), ExemptPercent = round(todouble(ExemptCount)/StatesCount*100)\r\n| order by NonCompliantPercent, initiativeName asc",
+              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, initiativeId, policyId, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| distinct resourceId, subscriptionId\r\n| summarize dcount(resourceId) by subscriptionId\r\n| join kind=leftouter (\r\n    resourcecontainers\r\n    | where type == 'microsoft.resources/subscriptions'\r\n    | project Subscription=name, subscriptionId\r\n) on subscriptionId\r\n| project-away subscriptionId, subscriptionId1",
               "size": 1,
-              "title": "Initiative Compliance State",
+              "title": "Non-compliant resources by Subscription",
+              "queryType": 1,
+              "resourceType": "microsoft.resources/tenants",
+              "crossComponentResources": [
+                "value::tenant"
+              ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Compliant",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "Excluded",
+                    "color": "gray"
+                  },
+                  {
+                    "seriesName": "NonCompliant",
+                    "color": "redBright"
+                  },
+                  {
+                    "seriesName": "Exempt",
+                    "color": "turquoise"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "argNonComplianceBySubscriptionSummaryResources"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, initiativeId, policyId, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>', true, iif('{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}'))\r\n| extend TagValue = iif('{TagName:label}' == '<unset>', 'N/A', tostring(tags['{TagName:label}']))\r\n| distinct resourceId, TagValue\r\n| summarize dcount(resourceId) by TagValue",
+              "size": 1,
+              "title": "Non-compliant resources by Tag",
+              "queryType": 1,
+              "resourceType": "microsoft.resources/tenants",
+              "crossComponentResources": [
+                "value::tenant"
+              ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Compliant",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "Excluded",
+                    "color": "gray"
+                  },
+                  {
+                    "seriesName": "NonCompliant",
+                    "color": "redBright"
+                  },
+                  {
+                    "seriesName": "Exempt",
+                    "color": "turquoise"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "argNonComplianceByTagSummaryResources"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| where isnotempty(initiativeName)\r\n| project resourceId, resourceGroup, subscriptionId, assignmentId, initiativeId, initiativeName, policyId, complianceState\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| distinct resourceId, complianceState, initiativeName\r\n| summarize complianceStates=make_list(complianceState) by resourceId, initiativeName\r\n| extend fullComplianceState = iif(complianceStates !contains 'NonCompliant', iif(complianceStates contains 'Exempt' and array_length(complianceStates) == 1, 'Exempt', 'Compliant'), 'NonCompliant')\r\n| summarize StatesCount=dcount(resourceId), CompliantCount=dcountif(resourceId, fullComplianceState == 'Compliant'), NonCompliantCount=dcountif(resourceId, fullComplianceState == 'NonCompliant'), ExemptCount=dcountif(resourceId, fullComplianceState == 'Exempt') by initiativeName\r\n| project initiativeName, CompliantPercent = round(todouble(CompliantCount)/StatesCount*100), NonCompliantPercent = round(todouble(NonCompliantCount)/StatesCount*100), ExemptPercent = round(todouble(ExemptCount)/StatesCount*100)\r\n| order by NonCompliantPercent, initiativeName asc",
+              "size": 0,
+              "title": "Resource Compliance (by Initiative)",
               "queryType": 1,
               "resourceType": "microsoft.resources/tenants",
               "crossComponentResources": [
@@ -470,6 +547,10 @@
                 ],
                 "labelSettings": [
                   {
+                    "columnId": "initiativeName",
+                    "label": "Initiative"
+                  },
+                  {
                     "columnId": "CompliantPercent",
                     "label": "Compliant"
                   },
@@ -505,15 +586,15 @@
               }
             },
             "customWidth": "50",
-            "name": "argComplianceByInitiativePercentage"
+            "name": "argComplianceByInitiativePercentageResources"
           },
           {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment})\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), definitionName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceGroup, subscriptionId, assignmentId, initiativeId, policyId, definitionName, complianceState\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize StatesCount=count(), CompliantCount=countif(complianceState == 'Compliant'), NonCompliantCount=countif(complianceState == 'NonCompliant'), ExemptCount=countif(complianceState == 'Exempt') by definitionName\r\n| project definitionName, CompliantPercent = round(todouble(CompliantCount)/StatesCount*100), NonCompliantPercent = round(todouble(NonCompliantCount)/StatesCount*100), ExemptPercent = round(todouble(ExemptCount)/StatesCount*100)\r\n| order by NonCompliantPercent, definitionName asc",
-              "size": 1,
-              "title": "Definition Compliance State",
+              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), definitionName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceGroup, subscriptionId, assignmentId, initiativeId, policyId, definitionName, complianceState\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize StatesCount=count(), CompliantCount=countif(complianceState == 'Compliant'), NonCompliantCount=countif(complianceState == 'NonCompliant'), ExemptCount=countif(complianceState == 'Exempt') by definitionName\r\n| project definitionName, CompliantPercent = round(todouble(CompliantCount)/StatesCount*100), NonCompliantPercent = round(todouble(NonCompliantCount)/StatesCount*100), ExemptPercent = round(todouble(ExemptCount)/StatesCount*100)\r\n| order by NonCompliantPercent, definitionName asc",
+              "size": 0,
+              "title": "Resource Compliance (by Definition)",
               "queryType": 1,
               "resourceType": "microsoft.resources/tenants",
               "crossComponentResources": [
@@ -600,6 +681,12 @@
                   }
                 ],
                 "rowLimit": 10000,
+                "sortBy": [
+                  {
+                    "itemKey": "$gen_thresholds_NonCompliantPercent_2",
+                    "sortOrder": 2
+                  }
+                ],
                 "labelSettings": [
                   {
                     "columnId": "definitionName",
@@ -619,6 +706,12 @@
                   }
                 ]
               },
+              "sortBy": [
+                {
+                  "itemKey": "$gen_thresholds_NonCompliantPercent_2",
+                  "sortOrder": 2
+                }
+              ],
               "chartSettings": {
                 "seriesLabelSettings": [
                   {
@@ -647,15 +740,75 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment})\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policyassignments'\r\n    | project assignmentId = tolower(id), assignmentName = tostring(properties.displayName)\r\n) on assignmentId\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), policyName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, assignmentName, initiativeId, initiativeName, policyId, policyName, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize count() by policyName",
-              "size": 1,
-              "title": "Non-compliant states by Definition",
+              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policyassignments'\r\n    | project assignmentId = tolower(id), assignmentName = tostring(properties.displayName)\r\n) on assignmentId\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| where isnotempty(initiativeName)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), policyName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, assignmentName, initiativeId, initiativeName, policyId, policyName, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| distinct resourceId, initiativeName\r\n| summarize dcount(resourceId) by initiativeName\r\n| order by dcount_resourceId",
+              "size": 0,
+              "title": "Non-compliant resources by Initiative",
               "queryType": 1,
               "resourceType": "microsoft.resources/tenants",
               "crossComponentResources": [
                 "value::tenant"
               ],
-              "visualization": "piechart",
+              "gridSettings": {
+                "labelSettings": [
+                  {
+                    "columnId": "initiativeName",
+                    "label": "Initiative"
+                  },
+                  {
+                    "columnId": "dcount_resourceId",
+                    "label": "Resource #"
+                  }
+                ]
+              },
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "Compliant",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "Excluded",
+                    "color": "gray"
+                  },
+                  {
+                    "seriesName": "NonCompliant",
+                    "color": "redBright"
+                  },
+                  {
+                    "seriesName": "Exempt",
+                    "color": "turquoise"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "argComplianceByInitiativeResources"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where iif('{FilterByInitiative}' == 'Yes', initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment}), policyId in ({Definition}) and assignmentId in ({Assignment}))\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policyassignments'\r\n    | project assignmentId = tolower(id), assignmentName = tostring(properties.displayName)\r\n) on assignmentId\r\n| join kind=leftouter ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policysetdefinitions'\r\n    | project initiativeId = tolower(id), initiativeName = tostring(properties.displayName)\r\n) on initiativeId\r\n| join kind=inner ( \r\n    policyresources\r\n    | where type == 'microsoft.authorization/policydefinitions'\r\n    | project policyId = tolower(id), policyName = tostring(properties.displayName)\r\n) on policyId\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, assignmentName, initiativeId, initiativeName, policyId, policyName, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize ['Resource #']=dcount(resourceId) by policyName\r\n| order by ['Resource #']",
+              "size": 0,
+              "title": "Non-compliant resources by Definition",
+              "queryType": 1,
+              "resourceType": "microsoft.resources/tenants",
+              "crossComponentResources": [
+                "value::tenant"
+              ],
+              "visualization": "table",
+              "gridSettings": {
+                "labelSettings": [
+                  {
+                    "columnId": "policyName",
+                    "label": "Definition"
+                  },
+                  {
+                    "columnId": "count_",
+                    "label": "Resource #"
+                  }
+                ]
+              },
               "chartSettings": {
                 "seriesLabelSettings": [
                   {
@@ -679,80 +832,6 @@
             },
             "customWidth": "50",
             "name": "argComplianceByDefinition"
-          },
-          {
-            "type": 3,
-            "content": {
-              "version": "KqlItem/1.0",
-              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment})\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, initiativeId, policyId, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}')\r\n| summarize count() by subscriptionId\r\n| join kind=leftouter (\r\n    resourcecontainers\r\n    | where type == 'microsoft.resources/subscriptions'\r\n    | project Subscription=name, subscriptionId\r\n) on subscriptionId\r\n| project-away subscriptionId, subscriptionId1",
-              "size": 1,
-              "title": "Non-compliant states by Subscription",
-              "queryType": 1,
-              "resourceType": "microsoft.resources/tenants",
-              "crossComponentResources": [
-                "value::tenant"
-              ],
-              "visualization": "piechart",
-              "chartSettings": {
-                "seriesLabelSettings": [
-                  {
-                    "seriesName": "Compliant",
-                    "color": "green"
-                  },
-                  {
-                    "seriesName": "Excluded",
-                    "color": "gray"
-                  },
-                  {
-                    "seriesName": "NonCompliant",
-                    "color": "redBright"
-                  },
-                  {
-                    "seriesName": "Exempt",
-                    "color": "turquoise"
-                  }
-                ]
-              }
-            },
-            "customWidth": "50",
-            "name": "argNonComplianceBySubscriptionSummary"
-          },
-          {
-            "type": 3,
-            "content": {
-              "version": "KqlItem/1.0",
-              "query": "policyresources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend assignmentId = tolower(properties.policyAssignmentId)\r\n| extend initiativeId = tolower(properties.policySetDefinitionId)\r\n| extend policyId = tolower(properties.policyDefinitionId)\r\n| where initiativeId in ({Initiative}) and policyId in ({Definition}) and assignmentId in ({Assignment})\r\n| extend complianceState = tostring(properties.complianceState)\r\n| where complianceState == 'NonCompliant' and (\"{Subscription}\" == \"'*'\" or subscriptionId in ({Subscription}))\r\n| extend resourceType = tolower(properties.resourceType)\r\n| extend stateWeight = tostring(properties.stateWeight)\r\n| extend timeGenerated = tostring(properties.timestamp)\r\n| extend resourceId = tolower(properties.resourceId)\r\n| project resourceId, resourceType, resourceGroup, subscriptionId, assignmentId, initiativeId, policyId, complianceState, stateWeight, timeGenerated\r\n| join kind=leftouter (\r\n    resources\r\n    | project resourceId=tolower(id), tags\r\n) on resourceId\r\n| project-away resourceId1\r\n| where iif('{TagName:label}' == '<unset>', true, iif('{TagValue:label}' == '<unset>', true, isnotempty(tags['{TagName:label}']) and tostring(tags['{TagName:label}']) =~ '{TagValue}'))\r\n| extend TagValue = iif('{TagName:label}' == '<unset>', 'N/A', tostring(tags['{TagName:label}']))\r\n| summarize count() by TagValue",
-              "size": 1,
-              "title": "Non-compliant states by Tag",
-              "queryType": 1,
-              "resourceType": "microsoft.resources/tenants",
-              "crossComponentResources": [
-                "value::tenant"
-              ],
-              "visualization": "piechart",
-              "chartSettings": {
-                "seriesLabelSettings": [
-                  {
-                    "seriesName": "Compliant",
-                    "color": "green"
-                  },
-                  {
-                    "seriesName": "Excluded",
-                    "color": "gray"
-                  },
-                  {
-                    "seriesName": "NonCompliant",
-                    "color": "redBright"
-                  },
-                  {
-                    "seriesName": "Exempt",
-                    "color": "turquoise"
-                  }
-                ]
-              }
-            },
-            "customWidth": "50",
-            "name": "argNonComplianceByTagSummary"
           }
         ]
       },
@@ -773,7 +852,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and ComplianceState_s == 'Excluded' and 'Excluded' in ({ComplianceState})\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| where (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1))\r\n| summarize StatesCount=sum(ResourceCount) by SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s;\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s !in ('Compliant','Excluded')\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| summarize StatesCount=count() by SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s;\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s == 'Compliant'\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| project SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s, StatesCount=tolong(StatesCount_s)\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h \r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions' \r\n    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s\r\n) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by InitiativeName_s asc, DefinitionName_s asc, SubscriptionName asc\r\n| project-reorder DefinitionName_s, InitiativeName_s, AssignmentName_s, SubscriptionName, Effect_s, ComplianceState_s, StatesCount",
+              "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}), DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}))\r\n| where ComplianceState_s == 'Excluded' and 'Excluded' in ({ComplianceState})\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| where (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1))\r\n| summarize StatesCount=sum(ResourceCount) by SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s;\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}), DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}))\r\n| where Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s !in ('Compliant','Excluded')\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| summarize StatesCount=count() by SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s;\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}), DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}))\r\n| where Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s == 'Compliant'\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| project SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s, StatesCount=tolong(StatesCount_s)\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h \r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions' \r\n    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s\r\n) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by InitiativeName_s asc, DefinitionName_s asc, SubscriptionName asc\r\n| project-reorder DefinitionName_s, InitiativeName_s, AssignmentName_s, SubscriptionName, Effect_s, ComplianceState_s, StatesCount",
               "size": 0,
               "showAnalytics": true,
               "title": "Policy Compliance (select line to analyze further)",
@@ -1217,7 +1296,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and ComplianceState_s == 'Excluded' and 'Excluded' in ({ComplianceState})\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| where (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1))\r\n| project ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount, GroupByTag='';\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s !in ('Compliant','Excluded')\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| extend GroupByTag = iif('{FRTagName:label}' == '<unset>' or isempty(parse_json(Tags_s)['{FRTagName:label}']), '', tostring(parse_json(Tags_s)['{FRTagName:label}']))\r\n| distinct ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, GroupByTag;\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s == 'Compliant'\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| project SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s, StatesCount=tolong(StatesCount_s), GroupByTag=''\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions' \r\n    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s\r\n) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by InitiativeName_s asc, DefinitionName_s asc, SubscriptionName asc\r\n| extend ResourceId = iif(ResourceId has 'policyinsights', substring(ResourceId, 0, indexof(ResourceId, '/providers/microsoft.policyinsights/')), ResourceId)\r\n| extend ResourceCount = iif(isnotempty(ResourceCount), ResourceCount, iif(isnotempty(StatesCount), StatesCount, 1))\r\n| distinct ResourceId, GroupByTag, SubscriptionName, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount",
+              "query": "let ExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}), DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}))\r\n| where ComplianceState_s == 'Excluded' and 'Excluded' in ({ComplianceState})\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| extend SubscriptionGuid_g = iif(ResourceId startswith '/subscriptions/', tostring(split(ResourceId,'/')[2]), '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project SubscriptionGuid_g, SubscriptionResourceCount=ResourceCount_s\r\n    )\r\n    on SubscriptionGuid_g\r\n| extend ManagementGroupId = iif(isempty(SubscriptionGuid_g),ResourceId, '')\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | mv-expand MGAncestor = parse_json(ContainerProperties_s).managementGroupAncestorsChain\r\n    | extend ManagementGroupId = tolower(strcat('/providers/microsoft.management/managementgroups/',MGAncestor.name))\r\n    | project SubscriptionIdForMG=SubscriptionGuid_g, ManagementGroupId, MGSubscriptionResourceCount=ResourceCount_s\r\n) on ManagementGroupId\r\n| extend SubscriptionGuid_g = iif(isempty(SubscriptionGuid_g), SubscriptionIdForMG, SubscriptionGuid_g)\r\n| where (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| extend ResourceGroupId = ResourceId\r\n| join kind=leftouter (\r\n    AzureOptimizationResourceContainersV1_CL\r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s == 'microsoft.resources/subscriptions/resourcegroups'\r\n    | extend ResourceGroupId = InstanceId_s\r\n    | project ResourceGroupId, ResourceGroupResourceCount=ResourceCount_s\r\n) on ResourceGroupId\r\n| extend ResourceCount = iif(ResourceId !has 'resourcegroups', iif(ResourceId has 'subscriptions', toint(SubscriptionResourceCount), toint(MGSubscriptionResourceCount)), iif(isnotempty(ResourceGroupResourceCount), toint(ResourceGroupResourceCount), 1))\r\n| project ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount, GroupByTag='';\r\nlet AllButCompliantOrExcludedStates = AzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where iif('{FilterByInitiative}' == 'Yes', InitiativeId_s in ({Initiative}) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}), DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}))\r\n| where Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s !in ('Compliant','Excluded')\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| extend GroupByTag = iif('{FRTagName:label}' == '<unset>' or isempty(parse_json(Tags_s)['{FRTagName:label}']), '', tostring(parse_json(Tags_s)['{FRTagName:label}']))\r\n| distinct ResourceId, SubscriptionGuid_g, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, GroupByTag;\r\nAzureOptimizationPolicyStatesV1_CL\r\n| where TimeGenerated > todatetime('{LastPolicyGeneratedDateTime}')-12h\r\n| where (\"{Initiative}\" == \"'*'\" or InitiativeId_s in ({Initiative})) and DefinitionId_s in ({Definition}) and AssignmentId_s in ({Assignment}) and Effect_s in ({Effect}) and ComplianceState_s in ({ComplianceState}) and (\"{Subscription}\" == \"'*'\" or SubscriptionGuid_g in ({Subscription}))\r\n| where ComplianceState_s == 'Compliant'\r\n| where iif('{TagName:label}' == '<unset>' or '{TagValue:label}' == '<unset>', true, isnotempty(parse_json(Tags_s)['{TagName:label}']) and tostring(parse_json(Tags_s)['{TagName:label}']) =~ '{TagValue}')\r\n| project SubscriptionGuid_g, InitiativeName_s, AssignmentName_s, DefinitionName_s, Effect_s, ComplianceState_s, StatesCount=tolong(StatesCount_s), GroupByTag=''\r\n| union (AllButCompliantOrExcludedStates)\r\n| union (ExcludedStates)\r\n| join kind=leftouter ( AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > todatetime('{LastSubsGeneratedDateTime}')-12h\r\n    | where ContainerType_s =~ 'microsoft.resources/subscriptions' \r\n    | project SubscriptionGuid_g, SubscriptionName = ContainerName_s\r\n) on SubscriptionGuid_g\r\n| project-away SubscriptionGuid_g*\r\n| order by InitiativeName_s asc, DefinitionName_s asc, SubscriptionName asc\r\n| extend ResourceId = iif(ResourceId has 'policyinsights', substring(ResourceId, 0, indexof(ResourceId, '/providers/microsoft.policyinsights/')), ResourceId)\r\n| extend ResourceCount = iif(isnotempty(ResourceCount), ResourceCount, iif(isnotempty(StatesCount), StatesCount, 1))\r\n| distinct ResourceId, GroupByTag, SubscriptionName, DefinitionName_s, InitiativeName_s, AssignmentName_s, Effect_s, ComplianceState_s, ComplianceReason_s, ResourceCount\r\n| order by InitiativeName_s asc",
               "size": 2,
               "showAnalytics": true,
               "title": "Policy Compliance Full Report",

@@ -10,7 +10,7 @@
             "id": "a1de1642-eb3d-47b4-84b1-ab98bc398a5b",
             "version": "KqlParameterItem/1.0",
             "name": "TenantId",
-            "label": "Azure AD Tenant",
+            "label": "Microsoft Entra Tenant",
             "type": 2,
             "multiSelect": true,
             "quote": "'",
@@ -41,7 +41,7 @@
     {
       "type": 1,
       "content": {
-        "json": "For full functionality, this workbook requires Azure AD exports. If you had not assigned the Global Reader role to the AOE managed identity yet, please do so ([see requirements](https://github.com/helderpinto/AzureOptimizationEngine#requirements)).",
+        "json": "For full functionality, this workbook requires Microsoft Entra ID exports. If you had not assigned the Global Reader role to the AOE managed identity yet, please do so ([see requirements](https://github.com/helderpinto/AzureOptimizationEngine#requirements)).",
         "style": "info"
       },
       "name": "text - 22"
@@ -52,7 +52,7 @@
         "version": "KqlItem/1.0",
         "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TenantGuid_g in ({TenantId})\r\n| distinct ObjectId_g, ObjectType_s\r\n| summarize count() by ObjectType_s",
         "size": 4,
-        "title": "Azure AD objects count (today)",
+        "title": "Microsoft Entra objects count (today)",
         "timeContext": {
           "durationMs": 86400000
         },
@@ -69,7 +69,7 @@
         "version": "KqlItem/1.0",
         "query": "AzureOptimizationAADObjectsV1_CL\r\n| where TenantGuid_g in ({TenantId}) and ObjectType_s == 'User'\r\n| distinct ObjectId_g, ObjectSubType_s\r\n| summarize count() by ObjectSubType_s",
         "size": 4,
-        "title": "Azure AD users count (today)",
+        "title": "Microsoft Entra ID users count (today)",
         "timeContext": {
           "durationMs": 86400000
         },
@@ -86,7 +86,7 @@
         "version": "KqlItem/1.0",
         "query": "AzureOptimizationRBACAssignmentsV1_CL\r\n| where TenantGuid_g in ({TenantId}) and Model_s == 'AzureAD'\r\n| distinct PrincipalId_g, RoleDefinition_s\r\n| summarize count() by RoleDefinition_s",
         "size": 4,
-        "title": "Azure AD roles count (today)",
+        "title": "Microsoft Entra ID roles count (today)",
         "timeContext": {
           "durationMs": 86400000
         },
@@ -124,7 +124,7 @@
             "id": "18ec41b4-6b72-4311-ae38-28ffb61afab1",
             "cellValue": "selectedTab",
             "linkTarget": "parameter",
-            "linkLabel": "Azure AD Credentials",
+            "linkLabel": "Microsoft Entra ID Credentials",
             "subTarget": "aadCredentials",
             "style": "link"
           },
@@ -132,7 +132,7 @@
             "id": "bd735f44-2601-43be-b9d2-537cbce18176",
             "cellValue": "selectedTab",
             "linkTarget": "parameter",
-            "linkLabel": "Azure AD Roles",
+            "linkLabel": "Microsoft Entra ID Roles",
             "subTarget": "aadRoles",
             "style": "link"
           },

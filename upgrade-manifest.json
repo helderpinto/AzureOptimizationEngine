@@ -76,7 +76,7 @@
         },
         {
             "name": "AzureOptimization_ExportARGDaily",
-            "offset": "PT1H",
+            "offset": "PT1H05M",
             "frequency": "Day"
         },
         {
@@ -106,57 +106,57 @@
         },
         {
             "name": "AzureOptimization_IngestARGPublicIPsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGNICsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGNSGsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVNetsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H31M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVHDsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVMsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGVMSSDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGSqlDbDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H32M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGAppServicePlanDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H33M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestPolicyStateDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H33M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestARGResourceContainersDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H33M",
             "frequency": "Day"
         },
         {
@@ -171,12 +171,12 @@
         },
         {
             "name": "AzureOptimization_ExportRBACDaily",
-            "offset": "PT1H",
+            "offset": "PT1H02M",
             "frequency": "Day"
         },
         {
             "name": "AzureOptimization_IngestRBACDaily",
-            "offset": "PT2H",
+            "offset": "PT2H02M",
             "frequency": "Day"
         },
         {
@@ -196,7 +196,7 @@
         },
         {
             "name": "AzureOptimization_IngestRemediationLogsDaily",
-            "offset": "PT1H30M",
+            "offset": "PT1H35M",
             "frequency": "Day"
         },
         {
@@ -221,37 +221,37 @@
         },
         {
             "name": "AzureOptimization_ExportMonitorSqlDbDtuAvgHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceCpuMaxHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceCpuAvgHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceMemoryMaxHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H16M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorAppServiceMemoryAvgHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H17M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorDiskIOPSHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H17M",
             "frequency": "Hour"
         },
         {
             "name": "AzureOptimization_ExportMonitorDiskMBPsHourly",
-            "offset": "PT1H15M",
+            "offset": "PT1H17M",
             "frequency": "Hour"
         },
         {
@@ -266,17 +266,17 @@
         },
         {
             "name": "AzureOptimization_ExportPricesWeekly",
-            "offset": "PT1H30M",
+            "offset": "PT1H35M",
             "frequency": "Week"
         },
         {
             "name": "AzureOptimization_IngestPricesheetWeekly",
-            "offset": "PT2H",
+            "offset": "PT2H10M",
             "frequency": "Week"
         },
         {
             "name": "AzureOptimization_IngestReservationsPriceWeekly",
-            "offset": "PT2H",
+            "offset": "PT2H10M",
             "frequency": "Week"
         },
         {
@@ -294,14 +294,14 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Ingest-OptimizationCSVExportsToLogAnalytics.ps1",
-                "version": "1.4.6.0"
+                "version": "1.5.0.0"
             },
             "source": "dataCollection"
         },
         {
             "runbook": {
                 "name": "runbooks/recommendations/Ingest-RecommendationsToSQLServer.ps1",
-                "version": "1.6.3.0"
+                "version": "1.6.5.0"
             },
             "source": "recommendations",
             "schedule": "AzureOptimization_IngestRecommendationsWeekly"
@@ -309,7 +309,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Ingest-RecommendationsToLogAnalytics.ps1",
-                "version": "1.0.0.0"
+                "version": "1.0.2.0"
             },
             "source": "recommendations",
             "schedule": "AzureOptimization_IngestRecommendationsWeekly"
@@ -335,7 +335,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AADObjectsToBlobStorage.ps1",
-                "version": "1.2.0.0"
+                "version": "1.2.2.1"
             },
             "container": "aadobjectsexports",
             "requiredVariables": [
@@ -346,7 +346,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGAppGatewayPropertiesToBlobStorage.ps1",
-                "version": "1.1.3.0"
+                "version": "1.1.4.1"
             },
             "container": "argappgwexports",
             "requiredVariables": [
@@ -357,7 +357,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGAvailabilitySetPropertiesToBlobStorage.ps1",
-                "version": "1.1.3.0"
+                "version": "1.1.4.1"
             },
             "container": "argavailsetexports",
             "requiredVariables": [
@@ -368,7 +368,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGLoadBalancerPropertiesToBlobStorage.ps1",
-                "version": "1.1.3.0"
+                "version": "1.1.4.1"
             },
             "container": "arglbexports",
             "requiredVariables": [
@@ -379,7 +379,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGManagedDisksPropertiesToBlobStorage.ps1",
-                "version": "1.3.3.0"
+                "version": "1.3.4.1"
             },
             "container": "argdiskexports",
             "requiredVariables": [
@@ -390,7 +390,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGNICPropertiesToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.1"
             },
             "container": "argnicexports",
             "requiredVariables": [
@@ -401,7 +401,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGNSGPropertiesToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.1"
             },
             "container": "argnsgexports",
             "requiredVariables": [
@@ -412,7 +412,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGPublicIpPropertiesToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.1"
             },
             "container": "argpublicipexports",
             "requiredVariables": [
@@ -423,7 +423,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGResourceContainersPropertiesToBlobStorage.ps1",
-                "version": "1.0.3.0"
+                "version": "1.0.5.1"
             },
             "container": "argrescontainersexports",
             "requiredVariables": [
@@ -434,7 +434,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGUnmanagedDisksPropertiesToBlobStorage.ps1",
-                "version": "1.1.3.0"
+                "version": "1.1.4.1"
             },
             "container": "argvhdexports",
             "requiredVariables": [
@@ -445,7 +445,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGVNetPropertiesToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.1"
             },
             "container": "argvnetexports",
             "requiredVariables": [
@@ -456,7 +456,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGVirtualMachinesPropertiesToBlobStorage.ps1",
-                "version": "1.4.3.0"
+                "version": "1.4.4.1"
             },
             "container": "argvmexports",
             "requiredVariables": [
@@ -467,7 +467,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGVMSSPropertiesToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.1"
             },
             "container": "argvmssexports",
             "requiredVariables": [
@@ -478,7 +478,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGSqlDatabasePropertiesToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.1"
             },
             "container": "argsqldbexports",
             "requiredVariables": [
@@ -489,7 +489,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ARGAppServicePlanPropertiesToBlobStorage.ps1",
-                "version": "1.0.0.0"
+                "version": "1.0.1.1"
             },
             "container": "argappserviceplanexports",
             "requiredVariables": [
@@ -500,7 +500,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AdvisorRecommendationsToBlobStorage.ps1",
-                "version": "1.4.0.0"
+                "version": "1.4.2.1"
             },
             "container": "advisorexports",
             "requiredVariables": [
@@ -511,7 +511,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ConsumptionToBlobStorage.ps1",
-                "version": "2.0.2.0"
+                "version": "2.0.4.1"
             },
             "container": "consumptionexports",
             "requiredVariables": [
@@ -522,7 +522,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-RBACAssignmentsToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.4.1"
             },
             "container": "rbacexports",
             "requiredVariables": [
@@ -533,7 +533,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-PolicyComplianceToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.3.1"
             },
             "container": "policystateexports",
             "requiredVariables": [
@@ -544,7 +544,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-AzMonitorMetricsToBlobStorage.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.2.1"
             },
             "container": "azmonitorexports",
             "requiredVariables": [
@@ -679,7 +679,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-PriceSheetToBlobStorage.ps1",
-                "version": "1.1.0.0"
+                "version": "1.1.1.1"
             },
             "container": "pricesheetexports",
             "requiredVariables": [
@@ -694,7 +694,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ReservationsPriceToBlobStorage.ps1",
-                "version": "1.0.0.0"
+                "version": "1.0.1.1"
             },
             "container": "reservationspriceexports",
             "requiredVariables": [
@@ -709,7 +709,7 @@
         {
             "runbook": {
                 "name": "runbooks/data-collection/Export-ReservationsUsageToBlobStorage.ps1",
-                "version": "1.1.1.0"
+                "version": "1.1.2.1"
             },
             "container": "reservationsexports",
             "requiredVariables": [
@@ -722,7 +722,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-AADExpiringCredentialsToBlobStorage.ps1",
-                "version": "1.1.9.0"
+                "version": "1.1.10.0"
             },
             "requiredVariables": [
                 {
@@ -739,7 +739,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-AdvisorAsIsToBlobStorage.ps1",
-                "version": "1.5.4.0"
+                "version": "1.5.5.0"
             },
             "requiredVariables": [
             ],
@@ -748,7 +748,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-AdvisorCostAugmentedToBlobStorage.ps1",
-                "version": "2.9.0.0"
+                "version": "2.9.1.0"
             },
             "requiredVariables": [
                 {
@@ -760,8 +760,8 @@
         },
         {
             "runbook": {
-                "name": "runbooks/recommendations/Recommend-LongDeallocatedVmsToBlobStorage.ps1",
-                "version": "1.2.6.0"
+                "name": "runbooks/recommendations/Recommend-VMOptimizationsToBlobStorage.ps1",
+                "version": "1.0.0.0"
             },
             "requiredVariables": [
                 {
@@ -778,7 +778,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-UnattachedDisksToBlobStorage.ps1",
-                "version": "2.4.7.0"
+                "version": "2.4.8.0"
             },
             "requiredVariables": [
                 {
@@ -791,7 +791,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-UnusedAppGWsToBlobStorage.ps1",
-                "version": "1.2.8.0"
+                "version": "1.2.9.0"
             },
             "requiredVariables": [
                 {
@@ -804,7 +804,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-UnusedLoadBalancersToBlobStorage.ps1",
-                "version": "1.2.8.0"
+                "version": "1.2.9.0"
             },
             "requiredVariables": [
                 {
@@ -817,7 +817,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-VMsHighAvailabilityToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
             ],
@@ -826,7 +826,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-ARMOptimizationsToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
                 {
@@ -843,7 +843,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-VNetOptimizationsToBlobStorage.ps1",
-                "version": "1.0.3.0"
+                "version": "1.0.4.0"
             },
             "requiredVariables": [
                 {
@@ -864,7 +864,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-VMSSOptimizationsToBlobStorage.ps1",
-                "version": "1.1.0.0"
+                "version": "1.1.1.0"
             },
             "requiredVariables": [
                 {
@@ -885,7 +885,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-SqlDbOptimizationsToBlobStorage.ps1",
-                "version": "1.1.1.0"
+                "version": "1.1.2.0"
             },
             "requiredVariables": [
                 {
@@ -906,7 +906,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-StorageAccountOptimizationsToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
                 {
@@ -927,7 +927,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-AppServiceOptimizationsToBlobStorage.ps1",
-                "version": "1.0.2.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
                 {
@@ -948,7 +948,7 @@
         {
             "runbook": {
                 "name": "runbooks/recommendations/Recommend-DiskOptimizationsToBlobStorage.ps1",
-                "version": "1.1.0.0"
+                "version": "1.1.1.0"
             },
             "requiredVariables": [
                 {
@@ -967,7 +967,7 @@
         {
             "runbook": {
                 "name": "runbooks/remediations/Remediate-AdvisorRightSizeFiltered.ps1",
-                "version": "1.2.2.0"
+                "version": "1.2.4.0"
             },
             "requiredVariables": [
                 {
@@ -983,7 +983,7 @@
         {
             "runbook": {
                 "name": "runbooks/remediations/Remediate-LongDeallocatedVMsFiltered.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
                 {
@@ -999,7 +999,7 @@
         {
             "runbook": {
                 "name": "runbooks/remediations/Remediate-UnattachedDisksFiltered.ps1",
-                "version": "1.0.1.0"
+                "version": "1.0.3.0"
             },
             "requiredVariables": [
                 {
@@ -1025,7 +1025,8 @@
         "Recommend-VMsNoAvailSetToBlobStorage",
         "Recommend-VMsSingleInAvailSetToBlobStorage",
         "Recommend-VMsWithDisksMultipleStorageAccountsToBlobStorage",
-        "Recommend-VMsWithUnmanagedDisksToBlobStorage"
+        "Recommend-VMsWithUnmanagedDisksToBlobStorage",
+        "Recommend-LongDeallocatedVmsToBlobStorage"
     ],
     "overwriteVariables": [
         {

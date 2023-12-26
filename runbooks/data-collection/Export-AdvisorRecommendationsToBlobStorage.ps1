@@ -1,18 +1,15 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $targetSubscription = "",
+    [string] $targetSubscription,
 
     [Parameter(Mandatory = $false)]
-    [string] $advisorFilter = "all",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $externalTenantId,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
-
-    [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = ""
+    [string] $externalCredentialName
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,51 +19,78 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
 }
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
+}
 
-# get Advisor exports sink (storage account) details
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkEnv = Get-AutomationVariable -Name "AzureOptimization_StorageSinkEnvironment" -ErrorAction SilentlyContinue
+if (-not($storageAccountSinkEnv))
+{
+    $storageAccountSinkEnv = $cloudEnvironment    
+}
+$storageAccountSinkKeyCred = Get-AutomationPSCredential -Name "AzureOptimization_StorageSinkKey" -ErrorAction SilentlyContinue
+$storageAccountSinkKey = $null
+if ($storageAccountSinkKeyCred)
+{
+    $storageAccountSink = $storageAccountSinkKeyCred.UserName
+    $storageAccountSinkKey = $storageAccountSinkKeyCred.GetNetworkCredential().Password
+}
+
 $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_AdvisorContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
     $storageAccountSinkContainer = "advisorexports"
 }
 
+$CategoryFilter = Get-AutomationVariable -Name  "AzureOptimization_AdvisorFilter" -ErrorAction SilentlyContinue
+if ([string]::IsNullOrEmpty($CategoryFilter))
+{
+    $CategoryFilter = "HighAvailability,Security,Performance,OperationalExcellence" # comma-separated list of categories
+}
+$CategoryFilter += ",Cost"
+
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
     $externalCredential = Get-AutomationPSCredential -Name $externalCredentialName
 }
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    "UserAssignedManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment -AccountId $uamiClientID
         break
     }
-    "ManagedIdentity" { 
+    Default { #ManagedIdentity
         Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment 
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
         break
     }
 }
 
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+if (-not($storageAccountSinkKey))
+{
+    Write-Output "Getting Storage Account context with login"
+    Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+    $saCtx = (Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink).Context
+}
+else
+{
+    Write-Output "Getting Storage Account context with key"
+    $saCtx = New-AzStorageContext -StorageAccountName $storageAccountSink -StorageAccountKey $storageAccountSinkKey -Environment $storageAccountSinkEnv
+}
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
+    "Logging in to Azure with $externalCredentialName external credential..."
     Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
     $cloudEnvironment = $externalCloudEnvironment   
 }
@@ -100,20 +124,28 @@ $recommendationsARG = @()
 
 $resultsSoFar = 0
 
-$filter = ""
-if ($advisorFilter -ne "all" -and -not([string]::IsNullOrEmpty($advisorFilter)))
+$FinalCategoryFilter = ""
+
+if (-not([string]::IsNullOrEmpty($CategoryFilter)))
 {
-    $filter = " and properties.category =~ '$advisorFilter'"
+    $categories = $CategoryFilter.Split(',')
+    for ($i = 0; $i -lt $categories.Count; $i++)
+    {
+        $categories[$i] = "'" + $categories[$i] + "'"
+    }    
+    $FinalCategoryFilter = " and properties.category in (" + ($categories -join ",") + ")"
 }
 
 $argQuery = @"
 advisorresources
 | where type == 'microsoft.advisor/recommendations'
-| where isnull(properties.suppressionIds)$filter
+| where isnull(properties.suppressionIds)$FinalCategoryFilter
+| extend resourceId = tostring(split(tolower(id),'/providers/microsoft.advisor')[0])
+| join kind=leftouter (resources | project resourceId=tolower(id), resourceTags=tags) on resourceId
 | project id, category = properties.category, impact = properties.impact, impactedArea = properties.impactedField,
     description = properties.shortDescription.problem, recommendationText = properties.shortDescription.solution,
     recommendationTypeId = properties.recommendationTypeId, instanceName = properties.impactedValue,
-    additionalInfo = properties.extendedProperties
+    additionalInfo = properties.extendedProperties, tags=resourceTags
 | order by id asc
 "@
 
@@ -162,7 +194,7 @@ foreach ($advisorRecommendation in $recommendationsARG)
 
     if (-not([string]::IsNullOrEmpty($advisorRecommendation.additionalInfo)))
     {
-        $additionalInfo = $advisorRecommendation.additionalInfo | ConvertTo-Json
+        $additionalInfo = $advisorRecommendation.additionalInfo | ConvertTo-Json -Compress
     }
     else
     {
@@ -180,6 +212,7 @@ foreach ($advisorRecommendation in $recommendationsARG)
         RecommendationTypeId = $advisorRecommendation.recommendationTypeId
         InstanceId = $instanceId
         InstanceName = $advisorRecommendation.instanceName
+        Tags = $advisorRecommendation.tags
         AdditionalInfo = $additionalInfo
         ResourceGroup = $resourceGroup
         SubscriptionGuid = $subscriptionId
@@ -189,10 +222,10 @@ foreach ($advisorRecommendation in $recommendationsARG)
     $recommendations += $recommendation    
 }
 
-Write-Output "Found $($recommendations.Count) ($advisorFilter) recommendations..."
+Write-Output "Found $($recommendations.Count) ($CategoryFilter) recommendations..."
 
 $fileDate = $datetime.ToString("yyyyMMdd")
-$advisorFilter = $advisorFilter.ToLower()
+$advisorFilter = $CategoryFilter.Replace(',','').ToLower()
 $csvExportPath = "$fileDate-$advisorFilter-$scope.csv"
 
 $recommendations | Export-Csv -NoTypeInformation -Path $csvExportPath
@@ -201,7 +234,7 @@ Write-Output "Export to $csvExportPath"
 $csvBlobName = $csvExportPath
 $csvProperties = @{"ContentType" = "text/csv"};
 
-Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force
 
 $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
 Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."

@@ -7,10 +7,14 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
+}
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
 }
 
 $workspaceId = Get-AutomationVariable -Name  "AzureOptimization_LogAnalyticsWorkspaceId"
@@ -48,21 +52,15 @@ $LogAnalyticsIngestControlTable = "LogAnalyticsIngestControl"
 
 # Authenticate against Azure
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    "UserAssignedManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment -AccountId $uamiClientID
         break
     }
-    "ManagedIdentity" { 
-        Connect-AzAccount -Identity
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    Default { #ManagedIdentity
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment 
         break
     }
 }
@@ -217,8 +215,8 @@ foreach ($result in $results)
         RecommendationType = "BestPractices"
         RecommendationSubType = "AADExpiringCredentials"
         RecommendationSubTypeId = "3292c489-2782-498b-aad0-a4cef50f6ca2"
-        RecommendationDescription = "Azure AD application with credentials expired or about to expire"
-        RecommendationAction = "Update the Azure AD application credential before the expiration date"
+        RecommendationDescription = "Microsoft Entra application with credentials expired or about to expire"
+        RecommendationAction = "Update the Microsoft Entra application credential before the expiration date"
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary
@@ -333,8 +331,8 @@ foreach ($result in $results)
         RecommendationType = "BestPractices"
         RecommendationSubType = "AADNotExpiringCredentials"
         RecommendationSubTypeId = "ecd969c8-3f16-481a-9577-5ed32e5e1a1d"
-        RecommendationDescription = "Azure AD application with credentials expiration not set or too far in time"
-        RecommendationAction = "Update the Azure AD application credential with a shorter expiration date"
+        RecommendationDescription = "Microsoft Entra application with credentials expiration not set or too far in time"
+        RecommendationAction = "Update the Microsoft Entra application credential with a shorter expiration date"
         InstanceId = $result.ApplicationId_g
         InstanceName = $result.DisplayName_s
         AdditionalInfo = $additionalInfoDictionary

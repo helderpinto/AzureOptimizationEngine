@@ -10,10 +10,14 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
+}
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
 }
 
 $sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
@@ -50,7 +54,7 @@ if (-not($tagsFilter)) {
 }
 $tagsFilter = $tagsFilter | ConvertFrom-Json
 
-$remediationAction = [double] (Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksAction" -ErrorAction SilentlyContinue) # Delete / Downsize
+$remediationAction = Get-AutomationVariable -Name  "AzureOptimization_RemediateUnattachedDisksAction" -ErrorAction SilentlyContinue # Delete / Downsize
 if (-not($remediationAction)) {
     $remediationAction = "Delete"
 }
@@ -63,28 +67,22 @@ if (-not($recommendationId)) {
 $SqlTimeout = 0
 $recommendationsTable = "Recommendations"
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    "UserAssignedManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment -AccountId $uamiClientID
         break
     }
-    "ManagedIdentity" { 
-        Connect-AzAccount -Identity
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    Default { #ManagedIdentity
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment 
         break
     }
 }
 
 # get reference to storage sink
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+$saCtx = (Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink).Context
 
 Write-Output "Querying for unattached disks recommendations with fit score >= $minFitScore made consecutively for the last $minWeeksInARow weeks."
 
@@ -247,7 +245,7 @@ foreach ($disk in $unattachedDisks.Rows)
         InstanceName = $instanceName.ToLower()
         InstanceId = $disk.InstanceId.ToLower()
         Simulate = $Simulate
-        LogDetails = $logDetails | ConvertTo-Json
+        LogDetails = $logDetails | ConvertTo-Json -Compress
         RecommendationSubTypeId = $recommendationId
     }
     
@@ -263,4 +261,4 @@ $csvBlobName = $csvExportPath
 
 $csvProperties = @{"ContentType" = "text/csv"};
 
-Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force

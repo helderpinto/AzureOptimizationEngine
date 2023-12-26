@@ -6,9 +6,6 @@ param (
     [string] $AzureEnvironment = "AzureCloud",
 
     [Parameter(Mandatory = $false)]
-    [string] $ArtifactsSasToken,
-
-    [Parameter(Mandatory = $false)]
     [switch] $DoPartialUpgrade,
 
     [Parameter(Mandatory = $false)]
@@ -204,7 +201,7 @@ if ((Test-Path -Path $lastDeploymentStatePath) -and !$silentDeploy)
     }
 }
 
-$GitHubOriginalUri = "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/master/azuredeploy.json"
+$GitHubOriginalUri = "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/master/azuredeploy.bicep"
 
 if ([string]::IsNullOrEmpty($TemplateUri)) {
     $TemplateUri = $GitHubOriginalUri
@@ -217,25 +214,15 @@ try {
     $isTemplateAvailable = $true
 }
 catch {
-    $saNameEnd = $TemplateUri.IndexOf(".blob.core.")
-    if ($saNameEnd -gt 0) {
-        $FullTemplateUri = $TemplateUri + $ArtifactsSasToken
-        try {
-            Invoke-WebRequest -Uri $FullTemplateUri | Out-Null
-            $isTemplateAvailable = $true
-            $TemplateUri = $FullTemplateUri
-        }
-        catch {
-            Write-Host "The template URL ($TemplateUri) is not available. Please, provide a valid SAS Token in the ArtifactsSasToken parameter (Read permission and Object level access are sufficient)." -ForegroundColor Red
-        }
-    }
-    else {
-        Write-Host "The template URL ($TemplateUri) is not available. Please, put it in a publicly accessible HTTPS location." -ForegroundColor Red
-    }
+    Write-Host "The template URL ($TemplateUri) is not available. Please, put it in a publicly accessible HTTPS location." -ForegroundColor Red
 }
 
 if (!$isTemplateAvailable) {
     throw "Terminating due to template unavailability."
+}
+
+if (-not((Test-Path -Path "./azuredeploy.bicep") -and (Test-Path -Path "./azuredeploy-nested.bicep"))) {
+    throw "Terminating due to template unavailability. Please, change directory to where azuredeploy.bicep and azuredeploy-nested.bicep are located."
 }
 
 $cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
@@ -288,7 +275,7 @@ if ($subscriptions.Count -gt 1) {
     }
     if ($selectedSubscription -eq -1)
     {
-        throw "The selected subscription does not exist. Check if you are logged in with the right Azure AD account."        
+        throw "The selected subscription does not exist. Check if you are logged in with the right Microsoft Entra ID user."        
     }
 }
 else
@@ -304,7 +291,7 @@ else
 }
 
 if ($subscriptions.Count -eq 0) {
-    throw "No subscriptions found. Check if you are logged in with the right Azure AD account."
+    throw "No subscriptions found. Check if you are logged in with the right Microsoft Entra ID account."
 }
 
 $subscriptionId = $subscriptions[$selectedSubscription].Id
@@ -701,22 +688,12 @@ if ("Y", "y" -contains $continueInput) {
         do {
             $deploymentTries++
             try {
-                if ([string]::IsNullOrEmpty($ArtifactsSasToken)) {
-                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags
-                }
-                else {
-                    $deployment = New-AzDeployment -TemplateUri $TemplateUri -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
-                        -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
-                        -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
-                        -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
-                        -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                        -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags -artifactsLocationSasToken (ConvertTo-SecureString $ArtifactsSasToken -AsPlainText -Force)        
-                }            
+                $deployment = New-AzDeployment -TemplateFile ".\azuredeploy.bicep" -templateLocation $TemplateUri.Replace("azuredeploy.bicep", "") -Location $targetLocation -rgName $resourceGroupName -Name $deploymentName `
+                    -projectLocation $targetlocation -logAnalyticsReuse $logAnalyticsReuse -baseTime $baseTime `
+                    -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
+                    -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
+                    -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
+                    -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags -WarningAction SilentlyContinue
                 $deploymentSucceeded = $true
             }
             catch {
@@ -748,7 +725,7 @@ if ("Y", "y" -contains $continueInput) {
 
         Write-Host "Importing runbooks..." -ForegroundColor Green
         $allRunbooks = $upgradeManifest.baseIngest.runbook + $upgradeManifest.dataCollection.runbook + $upgradeManifest.recommendations.runbook + $upgradeManifest.remediations.runbook
-        $runbookBaseUri = $TemplateUri.Replace("azuredeploy.json", "")
+        $runbookBaseUri = $TemplateUri.Replace("azuredeploy.bicep", "")
         $topTemplateJson = "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", " + `
             "`"contentVersion`": `"1.0.0.0`", `"resources`": ["
         $bottomTemplateJson = "] }"
@@ -761,7 +738,7 @@ if ("Y", "y" -contains $continueInput) {
                 $runbookJson = "{ `"name`": `"$automationAccountName/$runbookName`", `"type`": `"Microsoft.Automation/automationAccounts/runbooks`", " + `
                 "`"apiVersion`": `"2018-06-30`", `"location`": `"$targetLocation`", `"tags`": $($ResourceTags | ConvertTo-Json), `"properties`": { " + `
                 "`"runbookType`": `"PowerShell`", `"logProgress`": false, `"logVerbose`": false, " + `
-                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i].name)`", `"version`": `"$runbookBaseUri$($allRunbooks[$i].version)`" } } }"
+                "`"publishContentLink`": { `"uri`": `"$runbookBaseUri$($allRunbooks[$i].name)`", `"version`": `"$($allRunbooks[$i].version)`" } } }"
                 $runbookDeploymentTemplateJson += $runbookJson
                 if ($i -lt $allRunbooks.Count - 1)
                 {
@@ -774,9 +751,11 @@ if ("Y", "y" -contains $continueInput) {
             }
         }
         $runbookDeploymentTemplateJson += $bottomTemplateJson
-        $templateObject = ConvertFrom-Json $runbookDeploymentTemplateJson | ConvertTo-Hashtable
+        $runbooksTemplatePath = "./aoe-runbooks-deployment.json"
+        $runbookDeploymentTemplateJson | Out-File -FilePath $runbooksTemplatePath -Force
         Write-Host "Executing runbooks deployment..." -ForegroundColor Green
-        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
+        New-AzResourceGroupDeployment -TemplateFile $runbooksTemplatePath -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "runbooks") | Out-Null
+        Remove-Item -Path $runbooksTemplatePath -Force
         Write-Host "Runbooks update deployed."
 
         Write-Host "Importing modules..." -ForegroundColor Green
@@ -800,9 +779,11 @@ if ("Y", "y" -contains $continueInput) {
             Write-Host "$($allModules[$i].name) imported."
         }
         $modulesDeploymentTemplateJson += $bottomTemplateJson
-        $templateObject = ConvertFrom-Json $modulesDeploymentTemplateJson | ConvertTo-Hashtable
+        $modulesTemplatePath = "./aoe-modules-deployment.json"
+        $modulesDeploymentTemplateJson | Out-File -FilePath $modulesTemplatePath -Force
         Write-Host "Executing modules deployment..." -ForegroundColor Green
-        New-AzResourceGroupDeployment -TemplateObject $templateObject -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "modules") | Out-Null
+        New-AzResourceGroupDeployment -TemplateFile $modulesTemplatePath -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f "modules") | Out-Null
+        Remove-Item -Path $modulesTemplatePath -Force
         Write-Host "Modules update deployed."
 
         Write-Host "Updating schedules..." -ForegroundColor Green
@@ -1247,24 +1228,24 @@ if ("Y", "y" -contains $continueInput) {
         $deploymentOptions["DeployWorkbooks"] = "Y"
         $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
         Write-Host "Publishing workbooks..." -ForegroundColor Green
-        $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith("-arm.json") }
+        $workbooks = Get-ChildItem -Path "./views/workbooks/" | Where-Object { $_.Name.EndsWith(".bicep") }
         $la = Get-AzOperationalInsightsWorkspace -ResourceGroupName $laWorkspaceResourceGroup -Name $laWorkspaceName
         foreach ($workbook in $workbooks)
         {
-            $armTemplate = Get-Content -Path $workbook.FullName | ConvertFrom-Json
-            Write-Host "Deploying $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook..."
+            $workbookFileName = [System.IO.Path]::GetFileNameWithoutExtension($workbook.Name)
+            Write-Host "Deploying $workbookFileName workbook..."
             try {
-                New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbook.Name) `
-                    -workbookSourceId $la.ResourceId -resourceTags $ResourceTags | Out-Null        
+                New-AzResourceGroupDeployment -TemplateFile $workbook.FullName -ResourceGroupName $resourceGroupName -Name ($deploymentNameTemplate -f $workbookFileName) `
+                    -workbookSourceId $la.ResourceId -resourceTags $ResourceTags -WarningAction SilentlyContinue | Out-Null        
             }
             catch {
-                Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $($armTemplate.parameters.workbookDisplayName.defaultValue) workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
+                Write-Host "Failed to deploy the workbook. If you are upgrading AOE, please remove first the $workbookFileName workbook from the $laWorkspaceName Log Analytics workspace and then re-deploy." -ForegroundColor Yellow            
             }
         }
     }
     #endregion
 
-    #region Grant Azure AD role to AOE principal
+    #region Grant Microsoft Entra ID role to AOE principal
     if ($null -eq $spnId)
     {
         $auto = Get-AzAutomationAccount -Name $automationAccountName -ResourceGroupName $resourceGroupName
@@ -1286,7 +1267,7 @@ if ("Y", "y" -contains $continueInput) {
         Import-Module Microsoft.Graph.Authentication
         Import-Module Microsoft.Graph.Identity.DirectoryManagement
 
-        Write-Host "Granting Azure AD Global Reader role to the Automation Account (requires administrative permissions in Azure AD and MS Graph PowerShell SDK >= 2.4.0)..." -ForegroundColor Green
+        Write-Host "Granting Microsoft Entra ID Global Reader role to the Automation Account (requires administrative permissions in Microsoft Entra and MS Graph PowerShell SDK >= 2.4.0)..." -ForegroundColor Green
 
         #workaround for https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/888
         $localPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
@@ -1342,7 +1323,7 @@ if ("Y", "y" -contains $continueInput) {
     catch
     {
         Write-Host $Error[0] -ForegroundColor Yellow
-        Write-Host "Could not grant role. If you want Azure AD-based recommendations, please grant the Global Reader role manually to the $automationAccountName managed identity or, for previous versions of AOE, to the Run As Account principal." -ForegroundColor Red
+        Write-Host "Could not grant role. If you want Microsoft Entra-based recommendations, please grant the Global Reader role manually to the $automationAccountName managed identity or, for previous versions of AOE, to the Run As Account principal." -ForegroundColor Red
     }
     #endregion
 

@@ -6,22 +6,22 @@ param(
     [string] $BillingProfileID,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCloudEnvironment = "",
+    [string] $externalCloudEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalTenantId = "",
+    [string] $externalTenantId,
 
     [Parameter(Mandatory = $false)]
-    [string] $externalCredentialName = "",
+    [string] $externalCredentialName,
 
     [Parameter(Mandatory = $false)] 
-    [string] $billingPeriod = "", # YYYYMM format
+    [string] $billingPeriod, # YYYYMM format
 
     [Parameter(Mandatory = $false)] 
-    [string] $meterCategories = $null, # comma-separated meter categories (e.g., "Virtual Machines,Storage")
+    [string] $meterCategories, # comma-separated meter categories (e.g., "Virtual Machines,Storage")
 
     [Parameter(Mandatory = $false)] 
-    [string] $meterRegions = $null # comma-separated billing meter regions (e.g., "EU North,EU West")
+    [string] $meterRegions # comma-separated billing meter regions (e.g., "EU North,EU West")
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,25 +29,20 @@ $ErrorActionPreference = "Stop"
 function Authenticate-AzureWithOption {
     param (
         [string] $authOption = "ManagedIdentity",
-        [string] $cloudEnv = "AzureCloud"
+        [string] $cloudEnv = "AzureCloud",
+        [string] $clientID 
     )
 
     switch ($authOption) {
-        "RunAsAccount" { 
-            $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-            Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnv -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+        "UserAssignedManagedIdentity" { 
+            Connect-AzAccount -Identity -EnvironmentName $cloudEnv -AccountId $clientID
             break
         }
-        "ManagedIdentity" { 
-            Connect-AzAccount -Identity -EnvironmentName $cloudEnv
+        Default { #ManagedIdentity
+            Connect-AzAccount -Identity -EnvironmentName $cloudEnv 
             break
         }
-        Default {
-            $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-            Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnv -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
-            break
-        }
-    }        
+    }
 }
 
 $cloudEnvironment = Get-AutomationVariable -Name "AzureOptimization_CloudEnvironment" -ErrorAction SilentlyContinue # AzureCloud|AzureChinaCloud
@@ -55,16 +50,32 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
 }
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
+}
 
-# get Consumption exports sink (storage account) details
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkEnv = Get-AutomationVariable -Name "AzureOptimization_StorageSinkEnvironment" -ErrorAction SilentlyContinue
+if (-not($storageAccountSinkEnv))
+{
+    $storageAccountSinkEnv = $cloudEnvironment    
+}
+$storageAccountSinkKeyCred = Get-AutomationPSCredential -Name "AzureOptimization_StorageSinkKey" -ErrorAction SilentlyContinue
+$storageAccountSinkKey = $null
+if ($storageAccountSinkKeyCred)
+{
+    $storageAccountSink = $storageAccountSinkKeyCred.UserName
+    $storageAccountSinkKey = $storageAccountSinkKeyCred.GetNetworkCredential().Password
+}
+
 $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_PriceSheetContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
@@ -82,16 +93,32 @@ $meterRegionsVar = Get-AutomationVariable -Name "AzureOptimization_PriceSheetMet
 $BillingAccountIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingAccountID" -ErrorAction SilentlyContinue
 $BillingProfileIDVar = Get-AutomationVariable -Name  "AzureOptimization_BillingProfileID" -ErrorAction SilentlyContinue
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
-Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment -clientID $uamiClientID
+}
+else
+{    
+    Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
+}
 
-# get reference to storage sink
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+if (-not($storageAccountSinkKey))
+{
+    Write-Output "Getting Storage Account context with login"
+    Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+    $saCtx = (Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink).Context
+}
+else
+{
+    Write-Output "Getting Storage Account context with key"
+    $saCtx = New-AzStorageContext -StorageAccountName $storageAccountSink -StorageAccountKey $storageAccountSinkKey -Environment $storageAccountSinkEnv
+}
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
+    "Logging in to Azure with $externalCredentialName external credential..."
     Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
     $cloudEnvironment = $externalCloudEnvironment   
 }
@@ -260,7 +287,7 @@ function Generate-Pricesheet {
 
     $csvBlobName = [System.IO.Path]::GetFileName($OutputCSVPath)
     $csvProperties = @{"ContentType" = "text/csv"};
-    Set-AzStorageBlobContent -File $OutputCSVPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force
+    Set-AzStorageBlobContent -File $OutputCSVPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force
         
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     Write-Output "[$now] Uploaded $csvBlobName to Blob Storage..."
@@ -380,8 +407,15 @@ if ($result.StatusCode -in (200,202))
         {
             Write-Output "Had an authentication issue. Will login again and sleep just a couple of seconds."
 
-            Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
-
+            if ($authenticationOption -eq "UserAssignedManagedIdentity")
+            {
+                Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment -clientID $uamiClientID
+            }
+            else
+            {    
+                Authenticate-AzureWithOption -authOption $authenticationOption -cloudEnv $cloudEnvironment
+            }
+            
             $sleepSeconds = 2
         }
         else

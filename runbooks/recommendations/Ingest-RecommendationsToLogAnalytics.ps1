@@ -5,10 +5,14 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
+}
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
 }
 
 $sqlserver = Get-AutomationVariable -Name  "AzureOptimization_SQLServerHostname"
@@ -123,26 +127,15 @@ Function Post-OMSData($workspaceId, $sharedKey, $body, $logType, $TimeStampField
 #endregion Functions
 
 
-Write-Output "Logging in to Azure with $authenticationOption..."
+"Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    "UserAssignedManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment -AccountId $uamiClientID
         break
     }
-    "ManagedIdentity" { 
-        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment
-        break
-    }
-    "User" { 
-        $cred = Get-AutomationPSCredential –Name $authenticationCredential
-        Connect-AzAccount -Credential $cred -EnvironmentName $cloudEnvironment
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    Default { #ManagedIdentity
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment 
         break
     }
 }
@@ -150,7 +143,7 @@ switch ($authenticationOption) {
 # get reference to storage sink
 Write-Output "Getting reference to $storageAccountSink storage account (recommendations exports sink)"
 Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+$saCtx = (Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink).Context
 
 $allblobs = @()
 
@@ -158,7 +151,7 @@ Write-Output "Getting blobs list..."
 $continuationToken = $null
 do
 {
-    $blobs = Get-AzStorageBlob -Container $storageAccountSinkContainer -MaxCount $StorageBlobsPageSize -ContinuationToken $continuationToken -Context $sa.Context | Sort-Object -Property LastModified
+    $blobs = Get-AzStorageBlob -Container $storageAccountSinkContainer -MaxCount $StorageBlobsPageSize -ContinuationToken $continuationToken -Context $saCtx | Sort-Object -Property LastModified
     if ($blobs.Count -le 0) { break }
     $allblobs += $blobs
     $continuationToken = $blobs[$blobs.Count -1].ContinuationToken;
@@ -231,7 +224,7 @@ Write-Output "Found $($unprocessedBlobs.Count) new blobs to process..."
 foreach ($blob in $unprocessedBlobs) {
     $newProcessedTime = $blob.LastModified.UtcDateTime.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     Write-Output "About to process $($blob.Name)..."
-    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $sa.Context -Force
+    Get-AzStorageBlobContent -CloudBlob $blob.ICloudBlob -Context $saCtx -Force
     $jsonObject = Get-Content -Path $blob.Name | ConvertFrom-Json
     Write-Output "Blob contains $($jsonObject.Count) results..."
 
@@ -275,8 +268,8 @@ foreach ($blob in $unprocessedBlobs) {
                 {
                     $jsonObjectSplitted[$j][$i].RecommendationDescription = $jsonObjectSplitted[$j][$i].RecommendationDescription.Replace("'", "")
                     $jsonObjectSplitted[$j][$i].RecommendationAction = $jsonObjectSplitted[$j][$i].RecommendationAction.Replace("'", "")            
-                    $jsonObjectSplitted[$j][$i].AdditionalInfo = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json
-                    $jsonObjectSplitted[$j][$i].Tags = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json
+                    $jsonObjectSplitted[$j][$i].AdditionalInfo = $jsonObjectSplitted[$j][$i].AdditionalInfo | ConvertTo-Json -Compress
+                    $jsonObjectSplitted[$j][$i].Tags = $jsonObjectSplitted[$j][$i].Tags | ConvertTo-Json -Compress
                 }
                     
                 $jsonObject = ConvertTo-Json -InputObject $jsonObjectSplitted[$j]                

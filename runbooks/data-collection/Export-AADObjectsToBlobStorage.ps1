@@ -86,16 +86,32 @@ if ([string]::IsNullOrEmpty($cloudEnvironment))
 {
     $cloudEnvironment = "AzureCloud"
 }
-$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # RunAsAccount|ManagedIdentity
+$authenticationOption = Get-AutomationVariable -Name  "AzureOptimization_AuthenticationOption" -ErrorAction SilentlyContinue # ManagedIdentity|UserAssignedManagedIdentity
 if ([string]::IsNullOrEmpty($authenticationOption))
 {
     $authenticationOption = "ManagedIdentity"
 }
+if ($authenticationOption -eq "UserAssignedManagedIdentity")
+{
+    $uamiClientID = Get-AutomationVariable -Name "AzureOptimization_UAMIClientID"
+}
 
-# get Advisor exports sink (storage account) details
 $storageAccountSink = Get-AutomationVariable -Name  "AzureOptimization_StorageSink"
 $storageAccountSinkRG = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkRG"
 $storageAccountSinkSubscriptionId = Get-AutomationVariable -Name  "AzureOptimization_StorageSinkSubId"
+$storageAccountSinkEnv = Get-AutomationVariable -Name "AzureOptimization_StorageSinkEnvironment" -ErrorAction SilentlyContinue
+if (-not($storageAccountSinkEnv))
+{
+    $storageAccountSinkEnv = $cloudEnvironment    
+}
+$storageAccountSinkKeyCred = Get-AutomationPSCredential -Name "AzureOptimization_StorageSinkKey" -ErrorAction SilentlyContinue
+$storageAccountSinkKey = $null
+if ($storageAccountSinkKeyCred)
+{
+    $storageAccountSink = $storageAccountSinkKeyCred.UserName
+    $storageAccountSinkKey = $storageAccountSinkKeyCred.GetNetworkCredential().Password
+}
+
 $storageAccountSinkContainer = Get-AutomationVariable -Name  "AzureOptimization_AADObjectsContainer" -ErrorAction SilentlyContinue
 if ([string]::IsNullOrEmpty($storageAccountSinkContainer))
 {
@@ -129,27 +145,31 @@ if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 "Logging in to Azure with $authenticationOption..."
 
 switch ($authenticationOption) {
-    "RunAsAccount" { 
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
+    "UserAssignedManagedIdentity" { 
+        Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment -AccountId $uamiClientID
         break
     }
-    "ManagedIdentity" { 
+    Default { #ManagedIdentity
         Connect-AzAccount -Identity -EnvironmentName $cloudEnvironment 
-        break
-    }
-    Default {
-        $ArmConn = Get-AutomationConnection -Name AzureRunAsConnection
-        Connect-AzAccount -ServicePrincipal -EnvironmentName $cloudEnvironment -Tenant $ArmConn.TenantID -ApplicationId $ArmConn.ApplicationID -CertificateThumbprint $ArmConn.CertificateThumbprint
         break
     }
 }
 
-Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
-$sa = Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink
+if (-not($storageAccountSinkKey))
+{
+    Write-Output "Getting Storage Account context with login"
+    Select-AzSubscription -SubscriptionId $storageAccountSinkSubscriptionId
+    $saCtx = (Get-AzStorageAccount -ResourceGroupName $storageAccountSinkRG -Name $storageAccountSink).Context
+}
+else
+{
+    Write-Output "Getting Storage Account context with key"
+    $saCtx = New-AzStorageContext -StorageAccountName $storageAccountSink -StorageAccountKey $storageAccountSinkKey -Environment $storageAccountSinkEnv
+}
 
 if (-not([string]::IsNullOrEmpty($externalCredentialName)))
 {
+    "Logging in to Azure with $externalCredentialName external credential..."
     Connect-AzAccount -ServicePrincipal -EnvironmentName $externalCloudEnvironment -Tenant $externalTenantId -Credential $externalCredential 
     $cloudEnvironment = $externalCloudEnvironment   
 }
@@ -186,7 +206,16 @@ switch ($cloudEnvironment) {
     }
 }
 
-Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
+if (-not([string]::IsNullOrEmpty($externalCredentialName)))
+{
+    "Logging in to Microsoft Graph with $externalCredentialName external credential..."
+    Connect-MgGraph -TenantId $externalTenantId -ClientSecretCredential $externalCredential -Environment $graphEnvironment -NoWelcome
+}
+else
+{
+    "Logging in to Microsoft Graph..."
+    Connect-MgGraph -Identity -Environment $graphEnvironment -NoWelcome
+}
     
 $datetime = (get-date).ToUniversalTime()
 $timestamp = $datetime.ToString("yyyy-MM-ddTHH:mm:00.000Z")
@@ -208,7 +237,7 @@ if ("Application" -in $aadObjectsTypes)
         $owners = $null
         if ($app.Owners.Count -gt 0)
         {
-            $owners = ($app.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json
+            $owners = ($app.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json -Compress
         }
         $createdDate = $null
         if ($app.CreatedDateTime)
@@ -230,8 +259,8 @@ if ("Application" -in $aadObjectsTypes)
             DisplayName = $app.DisplayName
             SecurityEnabled = "N/A"
             ApplicationId = $app.AppId
-            Keys = (Build-CredObjectWithDates -appObject $app) | ConvertTo-Json
-            PrincipalNames = (Build-PrincipalNames -appObject $app) | ConvertTo-Json
+            Keys = (Build-CredObjectWithDates -appObject $app) | ConvertTo-Json -Compress
+            PrincipalNames = (Build-PrincipalNames -appObject $app) | ConvertTo-Json -Compress
             Owners = $owners
             CreatedDate = $createdDate
             DeletedDate = $deletedDate
@@ -242,7 +271,7 @@ if ("Application" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-apps.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-apps.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    $aadObjects | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
     "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
     "JSON Import: $($aadObjectsJson.Count) lines"
@@ -252,7 +281,7 @@ if ("Application" -in $aadObjectsTypes)
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
     
-    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     "[$now] Uploaded $csvBlobName to Blob Storage..."
@@ -281,7 +310,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
         $owners = $null
         if ($spn.Owners.Count -gt 0)
         {
-            $owners = ($spn.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json
+            $owners = ($spn.Owners | Where-Object { [string]::IsNullOrEmpty($_.DeletedDateTime) }).Id | ConvertTo-Json -Compress
         }
         $deletedDate = $null
         if ($spn.DeletedDateTime)
@@ -298,8 +327,8 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
             DisplayName = $spn.DisplayName
             SecurityEnabled = $spn.AccountEnabled
             ApplicationId = $spn.AppId
-            Keys = (Build-CredObjectWithDates -appObject $spn) | ConvertTo-Json
-            PrincipalNames = (Build-PrincipalNames -appObject $spn) | ConvertTo-Json
+            Keys = (Build-CredObjectWithDates -appObject $spn) | ConvertTo-Json -Compress
+            PrincipalNames = (Build-PrincipalNames -appObject $spn) | ConvertTo-Json -Compress
             Owners = $owners
             DeletedDate = $deletedDate
         }
@@ -309,7 +338,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-spns.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-spns.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    $aadObjects | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
     "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
     "JSON Import: $($aadObjectsJson.Count) lines"
@@ -319,7 +348,7 @@ if ("ServicePrincipal" -in $aadObjectsTypes)
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
     
-    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     "[$now] Uploaded $csvBlobName to Blob Storage..."
@@ -388,7 +417,7 @@ if ("User" -in $aadObjectsTypes)
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
     
-    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     "[$now] Uploaded $csvBlobName to Blob Storage..."
@@ -420,7 +449,7 @@ if ("Group" -in $aadObjectsTypes)
         $groupMembers = $null
         if ($group.Members.Count -gt 0)
         {
-            $groupMembers = $group.Members.Id | ConvertTo-Json
+            $groupMembers = $group.Members.Id | ConvertTo-Json -Compress
         }
         $createdDate = $null
         if ($group.CreatedDateTime)
@@ -438,7 +467,7 @@ if ("Group" -in $aadObjectsTypes)
             Cloud = $cloudEnvironment
             ObjectId = $group.Id
             ObjectType = "Group"
-            ObjectSubType = $group.GroupTypes | ConvertTo-Json
+            ObjectSubType = $group.GroupTypes | ConvertTo-Json -Compress
             DisplayName = $group.DisplayName
             SecurityEnabled = $group.SecurityEnabled
             PrincipalNames = $groupMembers
@@ -451,7 +480,7 @@ if ("Group" -in $aadObjectsTypes)
     $jsonExportPath = "$fileDate-$tenantId-aadobjects-groups.json"
     $csvExportPath = "$fileDate-$tenantId-aadobjects-groups.csv"
     
-    $aadObjects | ConvertTo-Json -Depth 3 | Out-File $jsonExportPath
+    $aadObjects | ConvertTo-Json -Depth 3 -Compress | Out-File $jsonExportPath
     "Exported to JSON: $($aadObjects.Count) lines"
     $aadObjectsJson = Get-Content -Path $jsonExportPath | ConvertFrom-Json
     "JSON Import: $($aadObjectsJson.Count) lines"
@@ -461,7 +490,7 @@ if ("Group" -in $aadObjectsTypes)
     $csvBlobName = $csvExportPath
     $csvProperties = @{"ContentType" = "text/csv"};
     
-    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $sa.Context -Force        
+    Set-AzStorageBlobContent -File $csvExportPath -Container $storageAccountSinkContainer -Properties $csvProperties -Blob $csvBlobName -Context $saCtx -Force        
 
     $now = (Get-Date).ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'")
     "[$now] Uploaded $csvBlobName to Blob Storage..."
