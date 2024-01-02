@@ -289,7 +289,7 @@ $tags = @{"Service"="aoe";"Environment"="Demo"}
 .\Deploy-AzureOptimizationEngine.ps1 -ResourceTags $tags
 ```
 
-If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. You must ensure the entire AOE project structure is available at the same base URL.
+If you choose to deploy all the dependencies from your own local repository, you must publish the solution files into a publicly reachable URL. You must ensure the entire AOE project structure is available at the same base URL. Storage Account SAS Token-based URLs are not supported.
 
 ```powershell
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri <URL to the Bicep file (e.g., https://contoso.com/azuredeploy.bicep)> [-AzureEnvironment <AzureUSGovernment|AzureGermanCloud|AzureCloud>]
@@ -297,9 +297,9 @@ If you choose to deploy all the dependencies from your own local repository, you
 # Example - Deploying from a public endpoint
 .\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://contoso.com/azuredeploy.bicep"
 
-# Example 2 - Deploying from a public endpoint, using a resource tags
+# Example 2 - Deploying from a public endpoint, using resource tags
 $tags = @{"CostCenter"="FinOps";"Environment"="Production"}
-.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://contoso.com/azuredeploy.bicep"
+.\Deploy-AzureOptimizationEngine.ps1 -TemplateUri "https://contoso.com/azuredeploy.bicep" -ResourceTags $tags
 ```
 
 Optionally, you can also use the `SilentDeploymentSettingsPath` input parameter to deploy AOE in a more automated way.  
