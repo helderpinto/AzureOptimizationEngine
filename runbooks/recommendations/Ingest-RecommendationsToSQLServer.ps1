@@ -201,7 +201,8 @@ foreach ($blob in $unprocessedBlobs) {
                     $subscriptionName = "NULL"
                     if ($jsonObjectSplitted[$j][$i].SubscriptionName)
                     {
-                        $subscriptionName = "'$($jsonObjectSplitted[$j][$i].SubscriptionName)'"
+                        $subscriptionName = $jsonObjectSplitted[$j][$i].SubscriptionName.Replace("'", "")
+                        $subscriptionName = "'$subscriptionName'"
                     }
                     $resourceGroup = "NULL"
                     if ($jsonObjectSplitted[$j][$i].ResourceGroup)
@@ -221,7 +222,7 @@ foreach ($blob in $unprocessedBlobs) {
                         $sqlStatement += ","
                     }
                 }
-        
+
                 $Conn2 = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlserver,1433;Database=$sqldatabase;User ID=$SqlUsername;Password=$SqlPass;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
                 $Conn2.Open() 
         
