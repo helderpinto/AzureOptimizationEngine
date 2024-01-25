@@ -1389,7 +1389,7 @@ if ("Y", "y" -contains $continueInput) {
                 {
                     $billingRoleAssignmentName = ([System.Guid]::NewGuid()).Guid
                     $uri = "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleAssignments/$($billingRoleAssignmentName)?api-version=2019-10-01-preview"
-                    $body = "{`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e`"}"
+                    $body = "{`"properties`": {`"principalId`":`"$principalId`",`"principalTenantId`":`"$tenantId`",`"roleDefinitionId`":`"/providers/Microsoft.Billing/billingAccounts/$billingAccountId/billingRoleDefinitions/24f8edb6-1668-4659-b5e2-40bb5f3a7d7e`"}}"
                     $roleAssignmentResponse = Invoke-AzRestMethod -Method PUT -Uri $uri -Payload $body
                     if (-not($roleAssignmentResponse.StatusCode -in (200,201,202)))
                     {
