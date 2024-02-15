@@ -393,7 +393,7 @@ if (-not($deploymentOptions["ResourceGroupName"]))
 else
 {
     # With a silent deploy, overrule any custom resource naming if a NamePrefix is provided
-    if($silentDeploy -and $namePrefix -ne "EmptyNamePrefix")
+    if($silentDeploy -and (![string]::IsNullOrEmpty($namePrefix))
     {
         $deploymentName = $deploymentNameTemplate -f $namePrefix
         $resourceGroupName = $resourceGroupNameTemplate -f $namePrefix
