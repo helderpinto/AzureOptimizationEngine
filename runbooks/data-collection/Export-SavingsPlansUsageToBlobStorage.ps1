@@ -132,7 +132,8 @@ else
         {
             throw "Billing Profile ID does not follow pattern for MCA: ([A-Za-z0-9]+(-[A-Za-z0-9]+)+)"
         }
-        $scope = "/providers/Microsoft.BillingBenefits"
+        #$scope = "/providers/Microsoft.BillingBenefits"
+        $scope = "/providers/Microsoft.Billing/billingaccounts/$BillingAccountID"
     }
     else
     {
@@ -146,7 +147,8 @@ Write-Output "[$now] Starting savings plans export process for scope $scope..."
 $savingsPlansUsage = @()
 if ($BillingAccountID -match $mcaBillingAccountIdRegex)
 {
-    $savingsPlansUsagePath = "$scope/savingsPlans?api-version=2021-07-01-privatepreview&refreshsummary=true&take=100"
+    #$savingsPlansUsagePath = "$scope/savingsPlans?api-version=2022-11-01&refreshsummary=true&take=100"
+    $savingsPlansUsagePath = "$scope/savingsPlans?api-version=2022-10-01-privatepreview&refreshsummary=true&take=100&`$filter=(properties/billingProfileId eq '/providers/Microsoft.Billing/billingAccounts/$BillingAccountID/billingProfiles/$BillingProfileID/')"
 }
 else
 {
