@@ -285,8 +285,18 @@
             "frequency": "Day"
         },
         {
+            "name": "AzureOptimization_ExportSavingsPlansDaily",
+            "offset": "PT2H05M",
+            "frequency": "Day"
+        },
+        {
             "name": "AzureOptimization_IngestReservationsUsageDaily",
             "offset": "PT2H30M",
+            "frequency": "Day"
+        },
+        {
+            "name": "AzureOptimization_IngestSavingsPlansUsageDaily",
+            "offset": "PT2H35M",
             "frequency": "Day"
         }
     ],
@@ -716,6 +726,17 @@
             ],
             "exportSchedule": "AzureOptimization_ExportReservationsDaily",
             "ingestSchedule": "AzureOptimization_IngestReservationsUsageDaily"
+        },
+        {
+            "runbook": {
+                "name": "runbooks/data-collection/Export-SavingsPlansUsageToBlobStorage.ps1",
+                "version": "1.0.0.0"
+            },
+            "container": "savingsplansexports",
+            "requiredVariables": [
+            ],
+            "exportSchedule": "AzureOptimization_ExportSavingsPlansDaily",
+            "ingestSchedule": "AzureOptimization_IngestSavingsPlansUsageDaily"
         }
     ],
     "recommendations": [

@@ -53,6 +53,7 @@ param argAppServicePlanExportJobId string = newGuid()
 param pricesheetExportJobId string = newGuid()
 param reservationPricesExportJobId string = newGuid()
 param reservationUsageExportJobId string = newGuid()
+param savingsPlansUsageExportJobId string = newGuid()
 param argDiskIngestJobId string = newGuid()
 param argVhdIngestJobId string = newGuid()
 param argVmIngestJobId string = newGuid()
@@ -77,6 +78,7 @@ param argAppServicePlanIngestJobId string = newGuid()
 param pricesheetIngestJobId string = newGuid()
 param reservationPricesIngestJobId string = newGuid()
 param reservationUsageIngestJobId string = newGuid()
+param savingsPlansUsageIngestJobId string = newGuid()
 param unattachedDisksRecommendationJobId string = newGuid()
 param advisorCostAugmentedRecommendationJobId string = newGuid()
 param advisorAsIsRecommendationJobId string = newGuid()
@@ -122,6 +124,7 @@ var argAppServicePlanExportsRunbookName = 'Export-ARGAppServicePlanPropertiesToB
 var reservationsExportsRunbookName = 'Export-ReservationsUsageToBlobStorage'
 var reservationsPriceExportsRunbookName = 'Export-ReservationsPriceToBlobStorage'
 var priceSheetExportsRunbookName = 'Export-PriceSheetToBlobStorage'
+var savingsPlansExportsRunbookName = 'Export-SavingsPlansUsageToBlobStorage'
 var advisorExportsScheduleName = 'AzureOptimization_ExportAdvisorWeekly'
 var argExportsScheduleName = 'AzureOptimization_ExportARGDaily'
 var consumptionExportsScheduleName = 'AzureOptimization_ExportConsumptionDaily'
@@ -141,6 +144,7 @@ var monitorDiskIOPSAvgExportsScheduleName = 'AzureOptimization_ExportMonitorDisk
 var monitorDiskMBPsAvgExportsScheduleName = 'AzureOptimization_ExportMonitorDiskMBPsHourly'
 var priceExportsScheduleName = 'AzureOptimization_ExportPricesWeekly'
 var reservationsUsageExportsScheduleName = 'AzureOptimization_ExportReservationsDaily'
+var savingsPlansUsageExportsScheduleName = 'AzureOptimization_ExportSavingsPlansDaily'
 var csvExportsSchedules = [
   {
     exportSchedule: argExportsScheduleName
@@ -254,6 +258,12 @@ var csvExportsSchedules = [
     exportSchedule: reservationsUsageExportsScheduleName
     exportDescription: 'Daily Reservation Usage exports'
     exportTimeOffset: 'PT2H'
+    exportFrequency: 'Day'
+  }
+  {
+    exportSchedule: savingsPlansUsageExportsScheduleName
+    exportDescription: 'Daily Savings Plans Usage exports'
+    exportTimeOffset: 'PT2H05M'
     exportFrequency: 'Day'
   }
 ]
@@ -578,6 +588,20 @@ var csvExports = [
     ingestJobId: reservationUsageIngestJobId
     exportSchedule: reservationsUsageExportsScheduleName
     exportJobId: reservationUsageExportJobId
+  }
+  {
+    runbookName: savingsPlansExportsRunbookName
+    isOneToMany: false
+    containerName: 'savingsplansexports'
+    variableName: 'AzureOptimization_SavingsPlansContainer'
+    variableDescription: 'The Storage Account container where Savings Plans Usage exports are dumped to'
+    ingestSchedule: 'AzureOptimization_IngestSavingsPlansUsageDaily'
+    ingestDescription: 'Daily Savings Plans Usage ingests'
+    ingestTimeOffset: 'PT2H35M'
+    ingestFrequency: 'Day'
+    ingestJobId: savingsPlansUsageIngestJobId
+    exportSchedule: savingsPlansUsageExportsScheduleName
+    exportJobId: savingsPlansUsageExportJobId
   }
 ]
 var csvParameterizedExports = [
@@ -1017,7 +1041,7 @@ var runbooks = [
   {
     name: reservationsExportsRunbookName
     version: '1.1.2.1'
-    description: 'Exports Reservations Usage to Blob Storage using the Enterprise Enrollment APIs'
+    description: 'Exports Reservations Usage to Blob Storage using the EA or MCA APIs'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/data-collection/${reservationsExportsRunbookName}.ps1')
   }
@@ -1031,9 +1055,16 @@ var runbooks = [
   {
     name: priceSheetExportsRunbookName
     version: '1.1.1.1'
-    description: 'Exports Price Sheet to Blob Storage using the Enterprise Enrollment APIs'
+    description: 'Exports Price Sheet to Blob Storage using the EA or MCA APIs'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/data-collection/${priceSheetExportsRunbookName}.ps1')
+  }
+  {
+    name: savingsPlansExportsRunbookName
+    version: '1.0.0.0'
+    description: 'Exports Savings Plans Usage to Blob Storage using the EA or MCA APIs'
+    type: 'PowerShell'
+    scriptUri: uri(templateLocation, 'runbooks/data-collection/${savingsPlansExportsRunbookName}.ps1')
   }
   {
     name: csvIngestRunbookName

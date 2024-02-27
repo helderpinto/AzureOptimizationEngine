@@ -148,7 +148,7 @@ $savingsPlansUsage = @()
 if ($BillingAccountID -match $mcaBillingAccountIdRegex)
 {
     #$savingsPlansUsagePath = "$scope/savingsPlans?api-version=2022-11-01&refreshsummary=true&take=100"
-    $savingsPlansUsagePath = "$scope/savingsPlans?api-version=2022-10-01-privatepreview&refreshsummary=true&take=100&`$filter=(properties/billingProfileId eq '/providers/Microsoft.Billing/billingAccounts/$BillingAccountID/billingProfiles/$BillingProfileID/')"
+    $savingsPlansUsagePath = "$scope/savingsPlans?api-version=2022-10-01-privatepreview&refreshsummary=true&take=100&`$filter=(properties/billingProfileId eq '/providers/Microsoft.Billing/billingAccounts/$BillingAccountID/billingProfiles/$BillingProfileID')"
 }
 else
 {
