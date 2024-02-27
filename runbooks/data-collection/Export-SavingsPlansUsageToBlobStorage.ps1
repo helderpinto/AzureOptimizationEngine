@@ -188,8 +188,9 @@ foreach ($usage in $savingsPlansUsage)
         ProvisioningState = $usage.properties.displayProvisioningState
         AppliedScopeType = $usage.properties.userFriendlyAppliedScopeType
         RenewState = $usage.properties.renew
-        PurchaseDate = $usage.properties.purchaseDate
-        ExpiryDate = $usage.properties.expiryDate
+        PurchaseDate = $usage.properties.purchaseDateTime
+        BenefitStart = $usage.properties.benefitStartTime
+        ExpiryDate = $usage.properties.expiryDateTime
         EffectiveDate = $usage.properties.effectiveDateTime
         BillingScopeId = $usage.properties.billingScopeId
         BillingAccountId = $usage.properties.billingAccountId
