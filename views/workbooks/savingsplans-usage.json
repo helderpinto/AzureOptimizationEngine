@@ -41,33 +41,6 @@
             }
           },
           {
-            "id": "08c51931-8b6c-419d-8de2-f9d24e8e6dd7",
-            "version": "KqlParameterItem/1.0",
-            "name": "ResourceType",
-            "label": "Resource Type",
-            "type": 2,
-            "isRequired": true,
-            "multiSelect": true,
-            "quote": "'",
-            "delimiter": ",",
-            "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| distinct MeterCategory_s\r\n| order by MeterCategory_s asc",
-            "typeSettings": {
-              "additionalResourceOptions": [
-                "value::all"
-              ],
-              "showDefault": false
-            },
-            "timeContext": {
-              "durationMs": 0
-            },
-            "timeContextFromParameter": "LookbackPeriod",
-            "queryType": 0,
-            "resourceType": "microsoft.operationalinsights/workspaces",
-            "value": [
-              "value::all"
-            ]
-          },
-          {
             "id": "5b2d78e9-7177-4d9b-86fa-2a9b12dd470a",
             "version": "KqlParameterItem/1.0",
             "name": "SavingsPlan",
@@ -77,7 +50,7 @@
             "multiSelect": true,
             "quote": "'",
             "delimiter": ",",
-            "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan' and MeterCategory_s in ({ResourceType:value})\r\n| distinct benefitId_s, benefitName_s\r\n| order by benefitName_s asc",
+            "query": "AzureOptimizationSavingsPlansUsageV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ProvisioningState_s == 'Succeeded'\r\n| distinct SavingsPlanId_g, DisplayName_s\r\n| order by DisplayName_s asc",
             "typeSettings": {
               "additionalResourceOptions": [
                 "value::all"
@@ -104,7 +77,7 @@
               "durationMs": 2592000000
             },
             "id": "a3fb4877-28ef-43fc-8821-376df486fa2a",
-            "value": ""
+            "value": null
           }
         ],
         "style": "above",
@@ -130,36 +103,6 @@
       "name": "text - 10"
     },
     {
-      "type": 3,
-      "content": {
-        "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and ResourceLocation_s !startswith 'china'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| extend PricingModel = iif(isnotempty(PricingModel_s), PricingModel_s, iif(isnotempty(ReservationName_s), 'Reservation', iif(MeterName_s endswith 'Spot', 'Spot', iif(isnotempty(benefitName_s), 'SavingsPlan', 'OnDemand'))))\r\n| extend FullCost = todouble(Quantity_s) * todouble(EffectivePrice_s)\r\n| summarize FullCost=sum(FullCost) by PricingModel, bin(todatetime(Date_s), 1d)",
-        "size": 1,
-        "title": "Cost of Pricing Model over time",
-        "timeContextFromParameter": "LookbackPeriod",
-        "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces",
-        "visualization": "timechart"
-      },
-      "customWidth": "50",
-      "name": "pricingModelOverTime"
-    },
-    {
-      "type": 3,
-      "content": {
-        "version": "KqlItem/1.0",
-        "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'UnusedSavingsPlan'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| where benefitId_s in ({SavingsPlan:value})\r\n| where todouble(CostInBillingCurrency_s) > 0\r\n| extend UnusedCost = todouble(CostInBillingCurrency_s)\r\n| project todatetime(Date_s), benefitName_s, UnusedCost",
-        "size": 1,
-        "title": "Cost of Unused Savings Plans over time",
-        "timeContextFromParameter": "LookbackPeriod",
-        "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces",
-        "visualization": "barchart"
-      },
-      "customWidth": "50",
-      "name": "unusedSavingsPlansOverTime"
-    },
-    {
       "type": 11,
       "content": {
         "version": "LinkItem/1.0",
@@ -171,6 +114,14 @@
             "linkTarget": "parameter",
             "linkLabel": "Savings Plans Usage Analysis",
             "subTarget": "savingsPlansAnalysis",
+            "style": "link"
+          },
+          {
+            "id": "b9dd48c2-3dce-4977-af3e-44df1d8758b7",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Usage by Tag",
+            "subTarget": "usageByTag",
             "style": "link"
           },
           {
@@ -203,23 +154,100 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let LinuxOnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption' and MeterSubCategory_s !endswith \"Windows\"\r\n| extend MeterSubCategory_s = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Linux'))\r\n| summarize LinuxUnitPrice=max(todouble(UnitPrice_s)) by LinuxMeterId=MeterID_g, MeterName_s, MeterSubCategory_s, MeterRegion_s, LinuxUnitOfMeasure=UnitOfMeasure_s;\r\nlet VMOnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption'\r\n| extend NonWindowsMeterSubcategory = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Windows'))\r\n| extend WindowsMeterSubCategory = MeterSubCategory_s\r\n| extend NonWindowsMeterSubcategory = substring(NonWindowsMeterSubcategory, 0, indexof(NonWindowsMeterSubcategory, ' Linux'))\r\n| summarize UnitPrice_s=max(todouble(UnitPrice_s)) by MeterID_g, MeterName_s, NonWindowsMeterSubcategory, WindowsMeterSubCategory, MeterRegion_s, UnitOfMeasure_s\r\n| join kind=leftouter ( LinuxOnDemandPriceSheet ) on MeterName_s, MeterRegion_s, $left.NonWindowsMeterSubcategory == $right.MeterSubCategory_s\r\n| extend PricesheetPrice = iif(isnotempty(LinuxUnitPrice), LinuxUnitPrice, UnitPrice_s)\r\n| extend PricesheetUnitOfMeasure = iif(isnotempty(LinuxUnitOfMeasure), LinuxUnitOfMeasure, UnitOfMeasure_s)\r\n| extend UnitHrs = toint(substring(PricesheetUnitOfMeasure, 0, indexof(PricesheetUnitOfMeasure, 'Hour')-1))\r\n| extend OnDemandUnitPrice = PricesheetPrice/UnitHrs\r\n| distinct MeterID_g, OnDemandUnitPrice;\r\nlet OnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s != 'Virtual Machines' and MeterCategory_s in ({ResourceType:value}) and PriceType_s == 'Consumption'\r\n| summarize OnDemandUnitPrice = max(todouble(UnitPrice_s)) by MeterID_g\r\n| distinct MeterID_g, OnDemandUnitPrice\r\n| union (VMOnDemandPriceSheet);\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| where benefitId_s in ({SavingsPlan:value})\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| join kind=leftouter (OnDemandPriceSheet) on $left.MeterId_g == $right.MeterID_g\r\n| extend DiscountPercent = (1 - todouble(EffectivePrice_s)/OnDemandUnitPrice) * 100\r\n| summarize UsedSPsHourly=round(sum(todouble(CostInBillingCurrency_s)/24),2), DiscountPercent=round(avg(DiscountPercent),2) by Date_s, benefitId_s, benefitName_s\r\n| summarize UsedSPsHourly=round(avg(UsedSPsHourly),2), DiscountPercent=round(avg(DiscountPercent),2) by benefitId_s, benefitName_s\r\n| project benefitId_s, benefitName_s, UsedSPsHourly, DiscountPercent",
+              "query": "let LinuxOnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption' and MeterSubCategory_s !endswith \"Windows\"\r\n| extend MeterSubCategory_s = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Linux'))\r\n| summarize LinuxUnitPrice=max(todouble(UnitPrice_s)) by LinuxMeterId=MeterID_g, MeterName_s, MeterSubCategory_s, MeterRegion_s, LinuxUnitOfMeasure=UnitOfMeasure_s;\r\nlet VMOnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption'\r\n| extend NonWindowsMeterSubcategory = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Windows'))\r\n| extend WindowsMeterSubCategory = MeterSubCategory_s\r\n| extend NonWindowsMeterSubcategory = substring(NonWindowsMeterSubcategory, 0, indexof(NonWindowsMeterSubcategory, ' Linux'))\r\n| summarize UnitPrice_s=max(todouble(UnitPrice_s)) by MeterID_g, MeterName_s, NonWindowsMeterSubcategory, WindowsMeterSubCategory, MeterRegion_s, UnitOfMeasure_s\r\n| join kind=leftouter ( LinuxOnDemandPriceSheet ) on MeterName_s, MeterRegion_s, $left.NonWindowsMeterSubcategory == $right.MeterSubCategory_s\r\n| extend PricesheetPrice = iif(isnotempty(LinuxUnitPrice), LinuxUnitPrice, UnitPrice_s)\r\n| extend PricesheetUnitOfMeasure = iif(isnotempty(LinuxUnitOfMeasure), LinuxUnitOfMeasure, UnitOfMeasure_s)\r\n| extend UnitHrs = toint(substring(PricesheetUnitOfMeasure, 0, indexof(PricesheetUnitOfMeasure, 'Hour')-1))\r\n| extend OnDemandUnitPrice = PricesheetPrice/UnitHrs\r\n| distinct MeterID_g, OnDemandUnitPrice;\r\nlet OnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s != 'Virtual Machines' and PriceType_s == 'Consumption'\r\n| summarize OnDemandUnitPrice = max(todouble(UnitPrice_s)) by MeterID_g\r\n| distinct MeterID_g, OnDemandUnitPrice\r\n| union (VMOnDemandPriceSheet)\r\n| summarize OnDemandUnitPrice=min(OnDemandUnitPrice) by MeterID_g;\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId in ({SavingsPlan:value})\r\n| join kind=leftouter (OnDemandPriceSheet) on $left.MeterId_g == $right.MeterID_g\r\n| extend DiscountPercent = (1 - todouble(EffectivePrice_s)/OnDemandUnitPrice) * 100\r\n| summarize UsedSPsHourly=round(sum(todouble(CostInBillingCurrency_s)/24),2), DiscountPercent=round(avg(DiscountPercent),2) by Date_s, savingsPlanId\r\n| summarize UsedSPsHourly=round(avg(UsedSPsHourly),2), DiscountPercent=round(avg(DiscountPercent),2) by savingsPlanId\r\n| join kind=rightouter (\r\n    AzureOptimizationSavingsPlansUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where SavingsPlanId_g in~ ({SavingsPlan:value})\r\n    | summarize arg_max(TimeGenerated, *) by SavingsPlanId_g\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | project savingsPlanId=SavingsPlanId_g, benefitName_s=DisplayName_s, CommitmentAmount_s, CommitmentGrain_s, CommitmentCurrencyCode_s, Term_s, Util7Days_s=round(todouble(Util7Days_s)), Util30Days_s=round(todouble(Util30Days_s))\r\n) on savingsPlanId\r\n| project savingsPlanId, benefitName_s, CommitmentAmount_s, UsedSPsHourly=iif(isempty(UsedSPsHourly),0.0,UsedSPsHourly), CommitmentCurrencyCode_s, CommitmentGrain_s, Term_s, Util7Days_s, Util30Days_s, DiscountPercent",
               "size": 0,
               "title": "Savings Plan Usage Details",
               "timeContextFromParameter": "LookbackPeriod",
-              "exportFieldName": "benefitId_s",
+              "exportFieldName": "savingsPlanId",
               "exportParameterName": "selectedSavingsPlan",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "gridSettings": {
                 "formatters": [
                   {
-                    "columnMatch": "benefitId_s",
+                    "columnMatch": "savingsPlanId",
                     "formatter": 5
+                  },
+                  {
+                    "columnMatch": "benefitName_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "24ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "CommitmentAmount_s",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "UsedSPsHourly",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "15ch"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "CommitmentCurrencyCode_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "13ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "CommitmentGrain_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "10ch"
+                    }
+                  },
+                  {
+                    "columnMatch": "Util7Days_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "14ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Util30Days_s",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "15ch"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
                   },
                   {
                     "columnMatch": "DiscountPercent",
                     "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "13ch"
+                    },
                     "numberFormat": {
                       "unit": 1,
                       "options": {
@@ -227,21 +255,53 @@
                         "maximumFractionDigits": 0
                       }
                     }
+                  },
+                  {
+                    "columnMatch": "benefitId_s",
+                    "formatter": 5
                   }
                 ],
                 "rowLimit": 5000,
                 "labelSettings": [
                   {
+                    "columnId": "savingsPlanId",
+                    "label": "Savings Plan ID"
+                  },
+                  {
                     "columnId": "benefitName_s",
                     "label": "Savings Plan"
                   },
                   {
+                    "columnId": "CommitmentAmount_s",
+                    "label": "Commited"
+                  },
+                  {
                     "columnId": "UsedSPsHourly",
-                    "label": "Avg. Hourly Usage"
+                    "label": "Used (Avg.)"
+                  },
+                  {
+                    "columnId": "CommitmentCurrencyCode_s",
+                    "label": "Currency"
+                  },
+                  {
+                    "columnId": "CommitmentGrain_s",
+                    "label": "Grain"
+                  },
+                  {
+                    "columnId": "Term_s",
+                    "label": "Term"
+                  },
+                  {
+                    "columnId": "Util7Days_s",
+                    "label": "Used (7d)"
+                  },
+                  {
+                    "columnId": "Util30Days_s",
+                    "label": "Used (30d)"
                   },
                   {
                     "columnId": "DiscountPercent",
-                    "label": "Avg. Discount"
+                    "label": "Discount"
                   }
                 ]
               },
@@ -254,47 +314,10 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let absoluteSPUsage = toscalar(AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}')\r\n    and TimeGenerated < todatetime('{LookbackPeriod:endISO}')\r\n    and ChargeType_s == 'Usage'\r\n    and PricingModel_s == 'SavingsPlan'\r\n| where benefitId_s == '{selectedSavingsPlan:value}'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| summarize sum(todouble(CostInBillingCurrency_s)));\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| where benefitId_s == '{selectedSavingsPlan:value}'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| extend Tags_s = iif(Tags_s startswith \"{\", Tags_s, strcat(\"{\", Tags_s, \"}\"))\r\n| extend AggregatorTag = tostring(parse_json(Tags_s)['{Aggregator}'])\r\n| summarize UsedSPPercentage=round(sum(todouble(CostInBillingCurrency_s)) / absoluteSPUsage * 100, 2) by AggregatorTag, SubscriptionId\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionId=SubscriptionGuid_g\r\n) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder AggregatorTag, Subscription, UsedSPPercentage\r\n| order by AggregatorTag asc, UsedSPPercentage",
-              "size": 0,
-              "showAnalytics": true,
-              "title": "Savings Plan Usage by Tag (select Savings Plan first)",
-              "timeContextFromParameter": "LookbackPeriod",
-              "exportFieldName": "benefitId_s",
-              "exportParameterName": "selectedSavingsPlan",
-              "showExportToExcel": true,
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "gridSettings": {
-                "formatters": [
-                  {
-                    "columnMatch": "ReservationId_g",
-                    "formatter": 5
-                  }
-                ],
-                "rowLimit": 5000,
-                "labelSettings": [
-                  {
-                    "columnId": "AggregatorTag",
-                    "label": "Aggregator Tag"
-                  },
-                  {
-                    "columnId": "UsedSPPercentage",
-                    "label": "Savings Plan Usage %"
-                  }
-                ]
-              }
-            },
-            "customWidth": "45",
-            "name": "spUsageDailyAverageByInstance"
-          },
-          {
-            "type": 3,
-            "content": {
-              "version": "KqlItem/1.0",
-              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| where benefitId_s == '{selectedSavingsPlan:value}'\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| extend VMSize = tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ConsumedSize = iif(isnotempty(VMSize), VMSize, strcat(MeterSubCategory_s, ' ', MeterName_s))\r\n| summarize round(sum(todouble(CostInBillingCurrency_s)/24),1) by todatetime(Date_s), ConsumedSize",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId == '{selectedSavingsPlan:value}'\r\n| extend VMSize = tostring(parse_json(AdditionalInfo_s).ServiceType)\r\n| extend ConsumedSize = iif(isnotempty(VMSize), VMSize, strcat(MeterSubCategory_s, ' ', MeterName_s))\r\n| summarize round(sum(todouble(CostInBillingCurrency_s)/24),1) by todatetime(Date_s), ConsumedSize",
               "size": 0,
               "aggregation": 3,
-              "title": "Avg. Savings Plan Hourly Usage by Size (select Savings Plan first)",
+              "title": "Avg. Savings Plan Hourly Usage by SKU (click on a line in the table at the left)",
               "timeContextFromParameter": "LookbackPeriod",
               "exportFieldName": "ReservationId_g",
               "exportParameterName": "selectedReservation",
@@ -317,7 +340,98 @@
                 "customThresholdLineStyle": 1
               }
             },
+            "customWidth": "45",
             "name": "spUsageDailyAverageBySize"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let absoluteSPUsage = toscalar(AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}')\r\n    and TimeGenerated < todatetime('{LookbackPeriod:endISO}')\r\n    and ChargeType_s == 'Usage'\r\n    and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId == '{selectedSavingsPlan:value}'\r\n| summarize sum(todouble(CostInBillingCurrency_s)));\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId == '{selectedSavingsPlan:value}'\r\n| summarize UsedSPPercentage=round(sum(todouble(CostInBillingCurrency_s)) / absoluteSPUsage * 100, 2) by ResourceId, SubscriptionId, ResourceLocation_s\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionId=SubscriptionGuid_g\r\n) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder ResourceId, ResourceLocation_s, Subscription, UsedSPPercentage\r\n| order by ResourceId asc, UsedSPPercentage",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Savings Plan Usage by Resource (click on a line in the table above)",
+              "timeContextFromParameter": "LookbackPeriod",
+              "exportFieldName": "benefitId_s",
+              "exportParameterName": "selectedSavingsPlan",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "ReservationId_g",
+                    "formatter": 5
+                  }
+                ],
+                "rowLimit": 5000,
+                "labelSettings": [
+                  {
+                    "columnId": "ResourceId",
+                    "label": "Resource ID"
+                  },
+                  {
+                    "columnId": "ResourceLocation_s",
+                    "label": "Location"
+                  },
+                  {
+                    "columnId": "Subscription",
+                    "label": "Subscription"
+                  },
+                  {
+                    "columnId": "UsedSPPercentage",
+                    "label": "Savings Plan Usage %"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "spUsageDailyAverageByResource"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let absoluteSPUsage = toscalar(AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}')\r\n    and TimeGenerated < todatetime('{LookbackPeriod:endISO}')\r\n    and ChargeType_s == 'Usage'\r\n    and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId == '{selectedSavingsPlan:value}'\r\n| summarize sum(todouble(CostInBillingCurrency_s)));\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId == '{selectedSavingsPlan:value}'\r\n| extend Tags_s = iif(Tags_s startswith \"{\", Tags_s, strcat(\"{\", Tags_s, \"}\"))\r\n| extend AggregatorTag = tostring(parse_json(Tags_s)['{Aggregator}'])\r\n| summarize UsedSPPercentage=round(sum(todouble(CostInBillingCurrency_s)) / absoluteSPUsage * 100, 2) by AggregatorTag, ResourceLocation_s, SubscriptionId\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionId=SubscriptionGuid_g\r\n) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| project-reorder AggregatorTag, ResourceLocation_s, Subscription, UsedSPPercentage\r\n| order by AggregatorTag asc, UsedSPPercentage",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Savings Plan Usage by Tag (click on a line in the table above)",
+              "timeContextFromParameter": "LookbackPeriod",
+              "exportFieldName": "benefitId_s",
+              "exportParameterName": "selectedSavingsPlan",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "ReservationId_g",
+                    "formatter": 5
+                  }
+                ],
+                "rowLimit": 5000,
+                "labelSettings": [
+                  {
+                    "columnId": "AggregatorTag",
+                    "label": "Aggregator Tag"
+                  },
+                  {
+                    "columnId": "ResourceLocation_s",
+                    "label": "Location"
+                  },
+                  {
+                    "columnId": "Subscription",
+                    "label": "Subscription"
+                  },
+                  {
+                    "columnId": "UsedSPPercentage",
+                    "label": "Savings Plan Usage %"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "spUsageDailyAverageByInstance"
           }
         ]
       },
@@ -338,19 +452,10 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let UsageBySavingsPlan = AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| where benefitId_s in ({SavingsPlan:value})\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| summarize TotalSPUsage=sum(todouble(CostInBillingCurrency_s)) by benefitId_s;\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| where benefitId_s in ({SavingsPlan:value})\r\n| where MeterCategory_s in ({ResourceType:value})\r\n| extend Tags_s = iif(Tags_s startswith \"{\", Tags_s, strcat(\"{\", Tags_s, \"}\"))\r\n| extend AggregatorTag = tostring(parse_json(Tags_s)['{Aggregator}'])\r\n| join kind=inner (UsageBySavingsPlan) on benefitId_s\r\n| summarize UsedSP=round(sum(todouble(CostInBillingCurrency_s)), 2) by benefitName_s, AggregatorTag, SubscriptionId, TotalSPUsage\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionId=SubscriptionGuid_g\r\n) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| extend UsedSPPercentage = UsedSP / TotalSPUsage * 100\r\n| project benefitName_s, AggregatorTag, Subscription, UsedSPPercentage\r\n| order by AggregatorTag asc, UsedSPPercentage",
+              "query": "let UsageBySavingsPlan = AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId in ({SavingsPlan:value})\r\n| summarize TotalSPUsage=sum(todouble(CostInBillingCurrency_s)) by benefitId_s;\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId in ({SavingsPlan:value})\r\n| extend Tags_s = iif(Tags_s startswith \"{\", Tags_s, strcat(\"{\", Tags_s, \"}\"))\r\n| extend AggregatorTag = tostring(parse_json(Tags_s)['{Aggregator}'])\r\n| join kind=inner (UsageBySavingsPlan) on benefitId_s\r\n| summarize UsedSP=round(sum(todouble(CostInBillingCurrency_s)), 2) by benefitName_s, AggregatorTag, SubscriptionId, TotalSPUsage\r\n| join kind=leftouter ( \r\n    AzureOptimizationResourceContainersV1_CL \r\n    | where TimeGenerated > ago(1d) and ContainerType_s == 'microsoft.resources/subscriptions'\r\n    | project Subscription=ContainerName_s, SubscriptionId=SubscriptionGuid_g\r\n) on SubscriptionId\r\n| project-away SubscriptionId*\r\n| extend UsedSPPercentage = UsedSP / TotalSPUsage * 100\r\n| project benefitName_s, AggregatorTag, Subscription, UsedSPPercentage\r\n| order by AggregatorTag asc, UsedSPPercentage",
               "size": 2,
-              "exportedParameters": [
-                {
-                  "fieldName": "ReservationId_g",
-                  "parameterName": "selectedReservation"
-                },
-                {
-                  "fieldName": "ReservationName_s",
-                  "parameterName": "selectedReservationName",
-                  "parameterType": 1
-                }
-              ],
+              "exportFieldName": "ReservationName_s",
+              "exportParameterName": "selectedReservationName",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "gridSettings": {
@@ -415,6 +520,267 @@
                 ]
               }
             },
+            "name": "spUsageByTagQuery"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "usageByTag"
+      },
+      "name": "usageByTagGroup"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let LinuxOnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption' and MeterSubCategory_s !endswith \"Windows\"\r\n| extend MeterSubCategory_s = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Linux'))\r\n| summarize LinuxUnitPrice=max(todouble(UnitPrice_s)) by LinuxMeterId=MeterID_g, MeterName_s, MeterSubCategory_s, MeterRegion_s, LinuxUnitOfMeasure=UnitOfMeasure_s;\r\nlet VMOnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s == 'Virtual Machines' and PriceType_s == 'Consumption'\r\n| extend NonWindowsMeterSubcategory = substring(MeterSubCategory_s, 0, indexof(MeterSubCategory_s, ' Windows'))\r\n| extend WindowsMeterSubCategory = MeterSubCategory_s\r\n| extend NonWindowsMeterSubcategory = substring(NonWindowsMeterSubcategory, 0, indexof(NonWindowsMeterSubcategory, ' Linux'))\r\n| summarize UnitPrice_s=max(todouble(UnitPrice_s)) by MeterID_g, MeterName_s, NonWindowsMeterSubcategory, WindowsMeterSubCategory, MeterRegion_s, UnitOfMeasure_s\r\n| join kind=leftouter ( LinuxOnDemandPriceSheet ) on MeterName_s, MeterRegion_s, $left.NonWindowsMeterSubcategory == $right.MeterSubCategory_s\r\n| extend PricesheetPrice = iif(isnotempty(LinuxUnitPrice), LinuxUnitPrice, UnitPrice_s)\r\n| extend PricesheetUnitOfMeasure = iif(isnotempty(LinuxUnitOfMeasure), LinuxUnitOfMeasure, UnitOfMeasure_s)\r\n| extend UnitHrs = toint(substring(PricesheetUnitOfMeasure, 0, indexof(PricesheetUnitOfMeasure, 'Hour')-1))\r\n| extend OnDemandUnitPrice = PricesheetPrice/UnitHrs\r\n| distinct MeterID_g, OnDemandUnitPrice;\r\nlet OnDemandPriceSheet = AzureOptimizationPricesheetV1_CL\r\n| where TimeGenerated > ago(14d)\r\n| where MeterCategory_s != 'Virtual Machines' and PriceType_s == 'Consumption'\r\n| summarize OnDemandUnitPrice = max(todouble(UnitPrice_s)) by MeterID_g\r\n| distinct MeterID_g, OnDemandUnitPrice\r\n| union (VMOnDemandPriceSheet)\r\n| summarize OnDemandUnitPrice=min(OnDemandUnitPrice) by MeterID_g;\r\nAzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'Usage' and PricingModel_s == 'SavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId in ({SavingsPlan:value})\r\n| join kind=leftouter (OnDemandPriceSheet) on $left.MeterId_g == $right.MeterID_g\r\n| extend DiscountPercent = (1 - todouble(EffectivePrice_s)/OnDemandUnitPrice) * 100\r\n| summarize UsedSPsHourly=round(sum(todouble(CostInBillingCurrency_s)/24),2), DiscountPercent=round(avg(DiscountPercent),2) by Date_s, savingsPlanId\r\n| summarize UsedSPsHourly=round(avg(UsedSPsHourly),2), DiscountPercent=round(avg(DiscountPercent),2) by savingsPlanId\r\n| join kind=rightouter (\r\n    AzureOptimizationSavingsPlansUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where SavingsPlanId_g in~ ({SavingsPlan:value})\r\n    | summarize arg_max(TimeGenerated, *) by SavingsPlanId_g\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | project savingsPlanId=SavingsPlanId_g, benefitName_s=DisplayName_s, CommitmentAmount_s, CommitmentGrain_s, CommitmentCurrencyCode_s, Term_s, AppliedScopeType_s, Util7Days_s=round(todouble(Util7Days_s)), Util30Days_s=round(todouble(Util30Days_s)), ExpiryDate_t\r\n) on savingsPlanId\r\n| extend HoursUntilExpiry=(ExpiryDate_t-now())/1h\r\n| extend AmountRemainingToConsume = round(todouble(CommitmentAmount_s) * HoursUntilExpiry)\r\n| project savingsPlanId, benefitName_s, CommitmentAmount_s, UsedSPsHourly=iif(isempty(UsedSPsHourly),0.0,UsedSPsHourly), CommitmentCurrencyCode_s, CommitmentGrain_s, Term_s, AppliedScopeType_s, ExpiryDate_t, AmountRemainingToConsume, Util7Days_s, Util30Days_s, DiscountPercent, SavingsMargin=round(todouble(Util7Days_s))-100.0+DiscountPercent ",
+              "size": 2,
+              "exportedParameters": [
+                {
+                  "fieldName": "ReservationId_g",
+                  "parameterName": "selectedReservation"
+                },
+                {
+                  "fieldName": "ReservationName_s",
+                  "parameterName": "selectedReservationName",
+                  "parameterType": 1
+                }
+              ],
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "savingsPlanId",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "CommitmentAmount_s",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "UsedSPsHourly",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "ExpiryDate_t",
+                    "formatter": 6,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "15ch"
+                    },
+                    "dateFormat": {
+                      "showUtcTime": true,
+                      "formatName": "shortDatePattern"
+                    }
+                  },
+                  {
+                    "columnMatch": "AmountRemainingToConsume",
+                    "formatter": 0,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "20ch"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Util7Days_s",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Util30Days_s",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal"
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "DiscountPercent",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SavingsMargin",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "<",
+                          "thresholdValue": "5",
+                          "representation": "yellow"
+                        },
+                        {
+                          "operator": "<",
+                          "thresholdValue": "0",
+                          "representation": "redBright",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "green",
+                          "text": "{0}{1}"
+                        }
+                      ]
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "UsedSPPercentage",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "ReservationId_g",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "TotalUsedRIs",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "DaysSeen",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "ReservationId_g1",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "TotalReservedQuantity_s",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "UsedRIPercentage",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 1,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ],
+                "rowLimit": 10000,
+                "labelSettings": [
+                  {
+                    "columnId": "savingsPlanId",
+                    "label": "Savings Plan ID"
+                  },
+                  {
+                    "columnId": "benefitName_s",
+                    "label": "Savings Plan"
+                  },
+                  {
+                    "columnId": "CommitmentAmount_s",
+                    "label": "Committed"
+                  },
+                  {
+                    "columnId": "UsedSPsHourly",
+                    "label": "Used (Avg.)"
+                  },
+                  {
+                    "columnId": "CommitmentCurrencyCode_s",
+                    "label": "Currency"
+                  },
+                  {
+                    "columnId": "CommitmentGrain_s",
+                    "label": "Grain"
+                  },
+                  {
+                    "columnId": "Term_s",
+                    "label": "Term"
+                  },
+                  {
+                    "columnId": "AppliedScopeType_s",
+                    "label": "Scope"
+                  },
+                  {
+                    "columnId": "ExpiryDate_t",
+                    "label": "Expires On"
+                  },
+                  {
+                    "columnId": "AmountRemainingToConsume",
+                    "label": "Remain. Commit."
+                  },
+                  {
+                    "columnId": "Util7Days_s",
+                    "label": "Used (7d)"
+                  },
+                  {
+                    "columnId": "Util30Days_s",
+                    "label": "Used (30d)"
+                  },
+                  {
+                    "columnId": "DiscountPercent",
+                    "label": "Discount"
+                  },
+                  {
+                    "columnId": "SavingsMargin",
+                    "label": "Savings"
+                  }
+                ]
+              }
+            },
             "name": "spUsageFullReport"
           }
         ]
@@ -436,7 +802,22 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'UnusedSavingsPlan'\r\n| where benefitId_s in ({SavingsPlan:value})\r\n| summarize TotalUnusedCost = sum(todouble(CostInBillingCurrency_s)) by benefitName_s\r\n| where round(TotalUnusedCost) > 0\r\n| project-reorder benefitName_s, TotalUnusedCost\r\n| order by TotalUnusedCost\r\n",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'UnusedSavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId in ({SavingsPlan:value})\r\n| where todouble(CostInBillingCurrency_s) > 0\r\n| extend UnusedCost = todouble(CostInBillingCurrency_s)\r\n| project todatetime(Date_s), benefitName_s, UnusedCost",
+              "size": 1,
+              "title": "Cost of Unused Savings Plans over time",
+              "timeContextFromParameter": "LookbackPeriod",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "barchart"
+            },
+            "customWidth": "50",
+            "name": "unusedSavingsPlansOverTime"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AzureOptimizationConsumptionV1_CL\r\n| where TimeGenerated > todatetime('{LookbackPeriod:startISO}') and TimeGenerated < todatetime('{LookbackPeriod:endISO}') and ChargeType_s == 'UnusedSavingsPlan'\r\n| extend savingsPlanId = tostring(split(benefitId_s,'/')[-1])\r\n| where savingsPlanId in ({SavingsPlan:value})\r\n| summarize TotalUnusedCost = sum(todouble(CostInBillingCurrency_s)) by benefitName_s, savingsPlanId\r\n| where round(TotalUnusedCost) > 0\r\n| join kind=inner (\r\n    AzureOptimizationSavingsPlansUsageV1_CL\r\n    | where TimeGenerated > ago(1d)\r\n    | where SavingsPlanId_g in~ ({SavingsPlan:value})\r\n    | summarize arg_max(TimeGenerated, *) by SavingsPlanId_g\r\n    | where ProvisioningState_s == 'Succeeded'\r\n    | extend UnusedQuantity = todouble(CommitmentAmount_s) - (todouble(CommitmentAmount_s) * todouble(Util7Days_s) / 100)\r\n    | extend UnusedQuantity30d = todouble(CommitmentAmount_s) - (todouble(CommitmentAmount_s) * todouble(Util30Days_s) / 100)\r\n    | project savingsPlanId=SavingsPlanId_g, CommitmentAmount_s, CommitmentGrain_s, CommitmentCurrencyCode_s, Term_s, Util7Days_s=round(todouble(Util7Days_s)), UnusedQuantity, Util30Days_s=round(todouble(Util30Days_s)), UnusedQuantity30d, ExpiryDate_t\r\n) on savingsPlanId\r\n| project-reorder benefitName_s, TotalUnusedCost\r\n| order by TotalUnusedCost\r\n",
               "size": 2,
               "title": "Unused Savings Plans Details",
               "timeContextFromParameter": "LookbackPeriod",
