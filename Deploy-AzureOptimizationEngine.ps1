@@ -1211,7 +1211,7 @@ if ("Y", "y" -contains $continueInput) {
     if (-not($sqlServerName -like "*.database.*"))
     {
         Write-Host "Deleting temporary SQL Server firewall rule..." -ForegroundColor Green
-        Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -ErrorAction Continue  
+        Remove-AzSqlServerFirewallRule -FirewallRuleName $tempFirewallRuleName -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -ErrorAction Continue  | Out-Null
     }    
     #endregion
 
