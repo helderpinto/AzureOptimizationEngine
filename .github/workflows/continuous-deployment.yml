@@ -11,6 +11,14 @@ jobs:
   AOE-CD:
     environment: prod
     runs-on: ubuntu-latest
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AOE_SQL_ADMIN: ${{ secrets.AOE_SQL_ADMIN }}
+      AOE_SQL_PASSWD: ${{ secrets.AOE_SQL_PASSWD }}
+      MCA_BILLING_ACCOUNT_ID: ${{ secrets.MCA_BILLING_ACCOUNT_ID }}
+      MCA_BILLING_PROFILE_ID: ${{ secrets.MCA_BILLING_PROFILE_ID }}
     steps:
       - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub for the ${{ github.ref }} branch of the ${{ github.repository }} repository!"
       - name: Installing modules
@@ -23,10 +31,26 @@ jobs:
       - name: Login via Az module
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }} 
+          client-id: $AZURE_CLIENT_ID
+          tenant-id: $AZURE_TENANT_ID
+          subscription-id: $AZURE_SUBSCRIPTION_ID
           enable-AzPSSession: true 
+      - name: Create Deployment Settings JSON file
+        run: |
+          echo '{
+            "SubscriptionId": "'"$AZURE_SUBSCRIPTION_ID"'",
+            "NamePrefix": "aoeprdgithub",
+            "WorkspaceReuse": "n",
+            "DeployWorkbooks": "y",
+            "SqlAdmin": "'"$AOE_SQL_ADMIN"'",
+            "SqlPass": "'"$AOE_SQL_PASSWD"'",
+            "TargetLocation": "westeurope",
+            "DeployBenefitsUsageDependencies": "y",
+            "CustomerType": "MCA",
+            "BillingAccountId": "'"$MCA_BILLING_ACCOUNT_ID"'",
+            "BillingProfileId": "'"$MCA_BILLING_PROFILE_ID"'",
+            "CurrencyCode": "EUR"
+          }' > ./deploymentSettings.json          
       - name: Testing PowerShell script call
         shell: pwsh
         run: |
