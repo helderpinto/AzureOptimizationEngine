@@ -15,6 +15,10 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AOE_SQL_ADMIN: ${{ secrets.AOE_SQL_ADMIN }}
       AOE_SQL_PASSWD: ${{ secrets.AOE_SQL_PASSWD }}
+      AOE_LOCATION: ${{ secrets.AOE_LOCATION }}
+      AOE_NAMEPREFIX: ${{ secrets.AOE_NAMEPREFIX }}
+      AOE_WORKSPACENAME: ${{ secrets.AOE_WORKSPACENAME }}
+      AOE_WORKSPACERG: ${{ secrets.AOE_WORKSPACERG }}
     steps:
       - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub for the ${{ github.ref }} branch of the ${{ github.repository }} repository!"
       - name: Installing modules
@@ -35,14 +39,14 @@ jobs:
         run: |
           echo '{
             "SubscriptionId": "'"$AZURE_SUBSCRIPTION_ID"'",
-            "NamePrefix": "aoedevgithub",
+            "NamePrefix": "'"$AOE_NAMEPREFIX"'",
             "WorkspaceReuse": "y",
-            "WorkspaceName": "helderpintopfe",
-            "WorkspaceResourceGroupName": "pfe-governance-rg",
+            "WorkspaceName": "'"$AOE_WORKSPACENAME"'",
+            "WorkspaceResourceGroupName": "'"$AOE_WORKSPACERG"'",
             "DeployWorkbooks": "y",
             "SqlAdmin": "'"$AOE_SQL_ADMIN"'",
             "SqlPass": "'"$AOE_SQL_PASSWD"'",
-            "TargetLocation": "westeurope",
+            "TargetLocation": "'"$AOE_LOCATION"'",
             "DeployBenefitsUsageDependencies": "n"
           }' > ./deploymentSettings.json          
       - name: Testing PowerShell script call
