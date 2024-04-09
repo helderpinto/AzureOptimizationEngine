@@ -1,0 +1,34 @@
+name: AOE Clean Up (DEV NEW)
+on: 
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # This will run the action every day at midnight
+permissions:
+      id-token: write
+      contents: read      
+jobs:
+  AOE-CD:
+    environment: devnew
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub for the ${{ github.ref }} branch of the ${{ github.repository }} repository!"
+      - name: Installing modules
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Az.Accounts,Az.Resources -Force
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Login via Az module
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true 
+      - name: Testing PowerShell script call
+        shell: pwsh
+        run: |
+          $aoeResource = Get-AzResource -Id "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AOE_NAMEPREFIX }}-rg/providers/Microsoft.Automation/automationAccounts/${{ secrets.AOE_NAMEPREFIX }}-auto" -ExpandProperties
+          if ((Get-Date) -gt $aoeResource.Properties.creationTime.AddDays(${{ vars.AOE_MAXAGEDAYS }})) { Write-Host "Deleting Resource Group"; Remove-AzResourceGroup -Name "${{ secrets.AOE_NAMEPREFIX }}-rg" -Force -AsJob } else { Write-Host "Resource Group is not old enough to delete" }
+      - run: echo "🍏 This job's status is ${{ job.status }}."
