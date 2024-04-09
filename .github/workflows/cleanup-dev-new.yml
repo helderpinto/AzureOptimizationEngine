@@ -7,9 +7,11 @@ permissions:
       id-token: write
       contents: read      
 jobs:
-  AOE-CD:
+  AOE-CLEANUP:
     environment: devnew
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    
     steps:
       - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub for the ${{ github.ref }} branch of the ${{ github.repository }} repository!"
       - name: Installing modules
