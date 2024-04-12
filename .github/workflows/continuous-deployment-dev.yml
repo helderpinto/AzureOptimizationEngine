@@ -1,15 +1,15 @@
-name: AOE Continuous Deployment (PROD)
+name: AOE Continuous Deployment (DEV)
 on: 
   workflow_dispatch:
   push:
     branches:
-      - master
+      - dev
 permissions:
       id-token: write
       contents: read      
 jobs:
   AOE-CD:
-    environment: prod
+    environment: dev
     runs-on: ubuntu-latest
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -17,6 +17,8 @@ jobs:
       AOE_SQL_PASSWD: ${{ secrets.AOE_SQL_PASSWD }}
       AOE_LOCATION: ${{ secrets.AOE_LOCATION }}
       AOE_NAMEPREFIX: ${{ secrets.AOE_NAMEPREFIX }}
+      AOE_WORKSPACENAME: ${{ secrets.AOE_WORKSPACENAME }}
+      AOE_WORKSPACERG: ${{ secrets.AOE_WORKSPACERG }}
     steps:
       - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub for the ${{ github.ref }} branch of the ${{ github.repository }} repository!"
       - name: Installing modules
@@ -38,7 +40,9 @@ jobs:
           echo '{
             "SubscriptionId": "'"$AZURE_SUBSCRIPTION_ID"'",
             "NamePrefix": "'"$AOE_NAMEPREFIX"'",
-            "WorkspaceReuse": "n",
+            "WorkspaceReuse": "y",
+            "WorkspaceName": "'"$AOE_WORKSPACENAME"'",
+            "WorkspaceResourceGroupName": "'"$AOE_WORKSPACERG"'",
             "DeployWorkbooks": "y",
             "SqlAdmin": "'"$AOE_SQL_ADMIN"'",
             "SqlPass": "'"$AOE_SQL_PASSWD"'",
@@ -48,5 +52,5 @@ jobs:
       - name: Testing PowerShell script call
         shell: pwsh
         run: |
-          ./Deploy-AzureOptimizationEngine.ps1 -SilentDeploymentSettingsPath ./deploymentSettings.json
+          ./Deploy-AzureOptimizationEngine.ps1 -SilentDeploymentSettingsPath ./deploymentSettings.json -TemplateUri "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/dev/azuredeploy.bicep" -DoPartialUpgrade
       - run: echo "🍏 This job's status is ${{ job.status }}."

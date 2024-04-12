@@ -1,15 +1,15 @@
-name: AOE Continuous Deployment (PROD)
+name: AOE Continuous Deployment (DEV NEW)
 on: 
   workflow_dispatch:
   push:
     branches:
-      - master
+      - dev
 permissions:
       id-token: write
       contents: read      
 jobs:
   AOE-CD:
-    environment: prod
+    environment: devnew
     runs-on: ubuntu-latest
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -37,7 +37,7 @@ jobs:
         run: |
           echo '{
             "SubscriptionId": "'"$AZURE_SUBSCRIPTION_ID"'",
-            "NamePrefix": "'"$AOE_NAMEPREFIX"'",
+            "NamePrefix": "'"$AOE_NAMEPREFIX$(date '+%Y%m%d%H')"'",
             "WorkspaceReuse": "n",
             "DeployWorkbooks": "y",
             "SqlAdmin": "'"$AOE_SQL_ADMIN"'",
@@ -48,5 +48,5 @@ jobs:
       - name: Testing PowerShell script call
         shell: pwsh
         run: |
-          ./Deploy-AzureOptimizationEngine.ps1 -SilentDeploymentSettingsPath ./deploymentSettings.json
+          ./Deploy-AzureOptimizationEngine.ps1 -SilentDeploymentSettingsPath ./deploymentSettings.json -TemplateUri "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/dev/azuredeploy.bicep"
       - run: echo "🍏 This job's status is ${{ job.status }}."
