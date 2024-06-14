@@ -10,10 +10,10 @@ param logAnalyticsWorkspaceName string
 param logAnalyticsWorkspaceRG string
 param logAnalyticsRetentionDays int
 param sqlBackupRetentionDays int
-param sqlAdminLogin string
+param userObjectId string
+param userPrincipalName string
 
 @secure()
-param sqlAdminPassword string
 param cloudEnvironment string
 param authenticationOption string
 param baseTime string
@@ -1676,11 +1676,17 @@ resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' = {
   location: projectLocation
   tags: resourceTags
   properties: {
-    administratorLogin: sqlAdminLogin
-    administratorLoginPassword: sqlAdminPassword
     version: '12.0'
     publicNetworkAccess: 'Enabled'
     minimalTlsVersion: '1.2'
+    administrators: {
+      administratorType: 'ActiveDirectory'
+      azureADOnlyAuthentication: true
+      login: userPrincipalName
+      principalType: 'User'
+      sid: userObjectId
+      tenantId: tenant().tenantId
+    }
   }
 }
 
@@ -1839,16 +1845,6 @@ resource automationVariables_LogAnalyticsWorkspaceKey 'Microsoft.Automation/auto
     description: 'The shared key for the Log Analytics Workspace where optimization data will be ingested'
     value: '"${listKeys(((!logAnalyticsReuse) ? logAnalyticsWorkspace.id : resourceId(logAnalyticsWorkspaceRG, 'microsoft.operationalinsights/workspaces', logAnalyticsWorkspaceName)), '2020-08-01').primarySharedKey}"'
     isEncrypted: true
-  }
-}
-
-resource automatinCredentials_SQLServer 'Microsoft.Automation/automationAccounts/credentials@2020-01-13-preview' = {
-  parent: automationAccount  
-  name: 'AzureOptimization_SQLServerCredential'
-  properties: {
-    description: 'Azure Optimization SQL Database Credentials'
-    password: sqlAdminPassword
-    userName: sqlAdminLogin
   }
 }
 

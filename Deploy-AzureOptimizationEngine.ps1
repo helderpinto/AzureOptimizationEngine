@@ -50,29 +50,6 @@ function ConvertTo-Hashtable {
     }
 }
 
-function Test-SqlPasswordComplexity {
-    param (
-        [string]$Username,    
-        [string]$Password
-    )
-
-    # Check if the username is present in the password
-    if ($Password -match $Username) {
-        throw "SQL password cannot contain the SQL username."
-        return $false
-    }
-
-    # Password must be minimum 8 characters, contains at least one uppercase, lowercase letter, contains at least one digit, contains at least one special character
-    $regex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$'
-    if ($Password -match $regex) {
-        Write-Host "SQL password is valid." -ForegroundColor Green
-        return $true
-    } else {
-        throw "Password does not meet the complexity requirements."
-        return $false
-    }
-}
-
 $ErrorActionPreference = "Stop"
 
 #region Deployment environment settings
@@ -146,14 +123,6 @@ if(-not([string]::IsNullOrEmpty($SilentDeploymentSettingsPath)) -and (Test-Path 
     if (-not($deploymentOptions["DeployWorkbooks"]) -or ($deploymentOptions["DeployWorkbooks"] -ne "y" -and $deploymentOptions["DeployWorkbooks"] -ne "n"))
     {
         throw "DeployWorkbooks set to 'y' or 'n' is required for silent deployment."
-    }
-    if (-not($deploymentOptions["SqlAdmin"]))
-    {
-        throw "SqlAdmin is required for silent deployment."
-    }
-    if (-not($deploymentOptions["SqlPass"]))
-    {
-        throw "SqlPass is required for silent deployment."
     }
     if (-not($deploymentOptions["TargetLocation"]))
     {
@@ -539,33 +508,6 @@ else
 {
     $targetLocation = $deploymentOptions["TargetLocation"]    
 }
-
-if (-not($deploymentOptions["SqlAdmin"]))
-{
-    $sqlAdmin = Read-Host "Please, input the SQL Admin username"
-    $deploymentOptions["SqlAdmin"] = $sqlAdmin
-}
-else
-{
-    $sqlAdmin = $deploymentOptions["SqlAdmin"]    
-}
-if (-not($deploymentOptions["SqlPass"]))
-{
-    $sqlPass = Read-Host "Please, input the SQL Admin ($sqlAdmin) password" -AsSecureString
-}
-else
-{
-    $sqlPass = $deploymentOptions["SqlPass"]
-    if(Test-SqlPasswordComplexity -Username $sqlAdmin -Password $sqlPass -ErrorAction SilentlyContinue)
-    {
-        Write-Host "Password complexity check passed" -ForegroundColor Green
-        $sqlPass = ConvertTo-SecureString -AsPlainText $sqlPass -Force
-    }
-    else
-    {
-        throw "SQL password complexity check failed. Please, fix the password and try again."
-    }
-}
 #endregion
 
 #region Partial upgrade dependent resource checks
@@ -648,11 +590,6 @@ else
 }
 if ("Y", "y" -contains $continueInput) {
 
-    # If we deploy silently, be sure to strip the SQL password from the output
-    if ($silentDeploy)
-    {
-        $deploymentOptions.Remove("SqlPass")
-    }
     $deploymentOptions | ConvertTo-Json | Out-File -FilePath $lastDeploymentStatePath -Force
     #region Computing schedules base time
     $baseTime = (Get-Date).ToUniversalTime().ToString("u")
@@ -685,7 +622,7 @@ if ("Y", "y" -contains $continueInput) {
                 }
             }    
         }
-    
+
         Write-Host "Deploying Azure Optimization Engine resources..." -ForegroundColor Green
         $deploymentTries = 0
         $maxDeploymentTries = 2
@@ -698,7 +635,7 @@ if ("Y", "y" -contains $continueInput) {
                     -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                     -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
                     -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                    -sqlAdminLogin $sqlAdmin -sqlAdminPassword $sqlPass -resourceTags $ResourceTags -WarningAction SilentlyContinue
+                    -userPrincipalName $ctx.Account.Id -userObjectId $ctx.Account.ExtendedProperties["HomeAccountId"].Split(".")[0] -resourceTags $ResourceTags -WarningAction SilentlyContinue
                 $deploymentSucceeded = $true
             }
             catch {
@@ -1087,7 +1024,6 @@ if ("Y", "y" -contains $continueInput) {
     #region SQL Database model deployment
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
-    $sqlPassPlain = (New-Object PSCredential "user", $sqlPass).GetNetworkCredential().Password     
     if (-not($sqlServerName -like "*.database.*"))
     {
         $sqlServerEndpoint = "$sqlServerName$($cloudDetails.SqlDatabaseDnsSuffix)"
@@ -1104,8 +1040,11 @@ if ("Y", "y" -contains $continueInput) {
         $tries++
         try {
     
+            $azureSqlDomain = $cloudDetails.SqlDatabaseDnsSuffix.Substring(1)
+            $dbToken = Get-AzAccessToken -ResourceUrl "https://$azureSqlDomain/"
     
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $createTableQuery = Get-Content -Path "./model/loganalyticsingestcontrol-table.sql"
@@ -1116,7 +1055,8 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
     
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $initTableQuery = Get-Content -Path "./model/loganalyticsingestcontrol-initialize.sql"
@@ -1127,7 +1067,8 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
     
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $upgradeTableQuery = Get-Content -Path "./model/loganalyticsingestcontrol-upgrade.sql"
@@ -1138,7 +1079,8 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
     
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $createTableQuery = Get-Content -Path "./model/sqlserveringestcontrol-table.sql"
@@ -1149,7 +1091,8 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
 
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $initTableQuery = Get-Content -Path "./model/sqlserveringestcontrol-initialize.sql"
@@ -1160,7 +1103,8 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
 
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $createTableQuery = Get-Content -Path "./model/recommendations-table.sql"
@@ -1171,7 +1115,8 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
 
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $createTableQuery = Get-Content -Path "./model/recommendations-sp.sql"
@@ -1182,7 +1127,8 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
 
-            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;User ID=$sqlAdmin;Password=$sqlPassPlain;Trusted_Connection=False;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
             $Conn.Open() 
     
             $createTableQuery = Get-Content -Path "./model/filters-table.sql"
