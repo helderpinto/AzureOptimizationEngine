@@ -1139,6 +1139,18 @@ if ("Y", "y" -contains $continueInput) {
             $Cmd.ExecuteReader()
             $Conn.Close()
 
+            $Conn = New-Object System.Data.SqlClient.SqlConnection("Server=tcp:$sqlServerEndpoint,1433;Database=$databaseName;Encrypt=True;Connection Timeout=$SqlTimeout;") 
+            $Conn.AccessToken = $dbToken.Token
+            $Conn.Open() 
+    
+            $createUserQuery = (Get-Content -Path "./model/automation-user.sql").Replace("<automation-account-name>", $automationAccountName)
+            $Cmd = new-object system.Data.SqlClient.SqlCommand
+            $Cmd.Connection = $Conn
+            $Cmd.CommandTimeout = $SqlTimeout
+            $Cmd.CommandText = $createUserQuery
+            $Cmd.ExecuteReader()
+            $Conn.Close()
+            
             $connectionSuccess = $true
         }
         catch {
