@@ -194,8 +194,6 @@ if (-not((Test-Path -Path "./azuredeploy.bicep") -and (Test-Path -Path "./azured
     throw "Terminating due to template unavailability. Please, change directory to where azuredeploy.bicep and azuredeploy-nested.bicep are located."
 }
 
-$cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
-
 $ctx = Get-AzContext
 if (-not($ctx)) {
     Connect-AzAccount -Environment $AzureEnvironment
@@ -208,6 +206,8 @@ else {
         $ctx = Get-AzContext
     }
 }
+
+$cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
 
 #endregion
 
