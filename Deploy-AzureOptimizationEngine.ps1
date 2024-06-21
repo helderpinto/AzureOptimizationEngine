@@ -207,6 +207,15 @@ else {
     }
 }
 
+$userPrincipalName = $ctx.Account.Id
+$userObjectId = $ctx.Account.ExtendedProperties["HomeAccountId"].Split(".")[0]
+$user = Get-AzADUser -Filter "mail eq '$userPrincipalName'" -Select UserType,UserPrincipalName,Id
+if ($user.UserType -eq "Guest") 
+{
+    $userPrincipalName = $user.UserPrincipalName
+    $userObjectId = $user.Id
+}
+
 $cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
 
 #endregion
@@ -635,7 +644,7 @@ if ("Y", "y" -contains $continueInput) {
                     -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                     -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
                     -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                    -userPrincipalName $ctx.Account.Id -userObjectId $ctx.Account.ExtendedProperties["HomeAccountId"].Split(".")[0] -resourceTags $ResourceTags -WarningAction SilentlyContinue
+                    -userPrincipalName $userPrincipalName -userObjectId $userObjectId -resourceTags $ResourceTags -WarningAction SilentlyContinue
                 $deploymentSucceeded = $true
             }
             catch {
@@ -653,6 +662,7 @@ if ("Y", "y" -contains $continueInput) {
     else
     {
         #region Partial upgrade deployment
+
         $upgradeManifest = Get-Content -Path "./upgrade-manifest.json" | ConvertFrom-Json
         Write-Host "Creating missing storage account containers..." -ForegroundColor Green
         $upgradeContainers = $upgradeManifest.dataCollection.container
@@ -1002,6 +1012,16 @@ if ("Y", "y" -contains $continueInput) {
     }
     #endregion
 
+    # Ensuring SQL Server allows only Entra ID authentication
+    if (-not((Get-AzSqlServerActiveDirectoryOnlyAuthentication -ServerName $sqlServerName -ResourceGroupName $resourceGroupName).AzureADOnlyAuthentication))
+    {
+        Write-Host "Setting $userPrincipalName as Microsoft Entra admin in SQL Database..." -ForegroundColor Green
+        Set-AzSqlServerActiveDirectoryAdministrator -ObjectId $userObjectId `
+            -ServerName $sqlServerName -ResourceGroupName $resourceGroupName -DisplayName $userPrincipalName | Out-Null
+        Write-Host "Enabling Entra ID-only authentication in SQL Database..." -ForegroundColor Green
+        Enable-AzSqlServerActiveDirectoryOnlyAuthentication -ServerName $sqlServerName -ResourceGroupName $resourceGroupName | Out-Null
+    }
+
     #region Open SQL Server firewall rule
     if (-not($sqlServerName -like "*.database.*"))
     {
@@ -1020,7 +1040,7 @@ if ("Y", "y" -contains $continueInput) {
         New-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $sqlServerName -FirewallRuleName $tempFirewallRuleName -StartIpAddress $myPublicIp -EndIpAddress $myPublicIp -ErrorAction Continue | Out-Null
     }
     #endregion
-    
+
     #region SQL Database model deployment
     Write-Host "Deploying SQL Database model..." -ForegroundColor Green
     
