@@ -13,7 +13,6 @@ param sqlBackupRetentionDays int
 param userObjectId string
 param userPrincipalName string
 
-@secure()
 param cloudEnvironment string
 param authenticationOption string
 param baseTime string
@@ -950,7 +949,7 @@ var runbooks = [
   }
   {
     name: aadObjectsExportsRunbookName
-    version: '1.2.2.1'
+    version: '1.3.0.0'
     description: 'Exports Azure AAD Objects to Blob Storage using Azure ARM API'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/data-collection/${aadObjectsExportsRunbookName}.ps1')
@@ -978,7 +977,7 @@ var runbooks = [
   }
   {
     name: rbacExportsRunbookName
-    version: '1.0.4.1'
+    version: '1.1.0.0'
     description: 'Exports RBAC assignments to Blob Storage using ARM and Microsoft Entra'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/data-collection/${rbacExportsRunbookName}.ps1')
@@ -1069,161 +1068,161 @@ var runbooks = [
   }
   {
     name: csvIngestRunbookName
-    version: '1.5.0.0'
+    version: '1.6.0.0'
     description: 'Ingests CSV blobs as custom logs to Log Analytics'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/data-collection/${csvIngestRunbookName}.ps1')
   }
   {
     name: unattachedDisksRecommendationsRunbookName
-    version: '2.4.8.0'
+    version: '2.5.0.0'
     description: 'Generates unattached disks recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${unattachedDisksRecommendationsRunbookName}.ps1')
   }
   {
     name: advisorCostAugmentedRecommendationsRunbookName
-    version: '2.9.1.0'
+    version: '2.10.0.0'
     description: 'Generates augmented Advisor Cost recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${advisorCostAugmentedRecommendationsRunbookName}.ps1')
   }
   {
     name: advisorAsIsRecommendationsRunbookName
-    version: '1.5.5.0'
+    version: '1.6.0.0'
     description: 'Generates all types of Advisor recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${advisorAsIsRecommendationsRunbookName}.ps1')
   }
   {
     name: vmsHARecommendationsRunbookName
-    version: '1.0.3.0'
+    version: '1.1.0.0'
     description: 'Generates VMs High Availability recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${vmsHARecommendationsRunbookName}.ps1')
   }
   {
     name: vmOptimizationsRecommendationsRunbookName
-    version: '1.0.0.0'
+    version: '1.1.0.0'
     description: 'Generates VM optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${vmOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: aadExpiringCredsRecommendationsRunbookName
-    version: '1.1.10.0'
+    version: '1.2.0.0'
     description: 'Generates AAD Objects with expiring credentials recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${aadExpiringCredsRecommendationsRunbookName}.ps1')
   }
   {
     name: unusedLBsRecommendationsRunbookName
-    version: '1.2.9.0'
+    version: '1.3.0.0'
     description: 'Generates unused Load Balancers recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${unusedLBsRecommendationsRunbookName}.ps1')
   }
   {
     name: unusedAppGWsRecommendationsRunbookName
-    version: '1.2.9.0'
+    version: '1.3.0.0'
     description: 'Generates unused Application Gateways recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${unusedAppGWsRecommendationsRunbookName}.ps1')
   }
   {
     name: armOptimizationsRecommendationsRunbookName
-    version: '1.0.3.0'
+    version: '1.1.0.0'
     description: 'Generates ARM optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${armOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: vnetOptimizationsRecommendationsRunbookName
-    version: '1.0.4.0'
+    version: '1.1.0.0'
     description: 'Generates Virtual Network optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${vnetOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: vmssOptimizationsRecommendationsRunbookName
-    version: '1.1.1.0'
+    version: '1.2.0.0'
     description: 'Generates VM Scale Set optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${vmssOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: sqldbOptimizationsRecommendationsRunbookName
-    version: '1.1.2.0'
+    version: '1.2.0.0'
     description: 'Generates SQL DB optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${sqldbOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: storageOptimizationsRecommendationsRunbookName
-    version: '1.0.3.0'
+    version: '1.1.0.0'
     description: 'Generates Storage Account optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${storageOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: appServiceOptimizationsRecommendationsRunbookName
-    version: '1.0.3.0'
+    version: '1.1.0.0'
     description: 'Generates App Service optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${appServiceOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: diskOptimizationsRecommendationsRunbookName
-    version: '1.1.1.0'
+    version: '1.2.0.0'
     description: 'Generates Disk optimizations recommendations'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${diskOptimizationsRecommendationsRunbookName}.ps1')
   }
   {
     name: recommendationsIngestRunbookName
-    version: '1.6.5.0'
+    version: '1.7.0.0'
     description: 'Ingests JSON-based recommendations into an Azure SQL Database'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${recommendationsIngestRunbookName}.ps1')
   }
   {
     name: recommendationsLogAnalyticsIngestRunbookName
-    version: '1.0.2.0'
+    version: '1.1.0.0'
     description: 'Ingests JSON-based recommendations into Log Analytics'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${recommendationsLogAnalyticsIngestRunbookName}.ps1')
   }
   {
     name: suppressionsLogAnalyticsIngestRunbookName
-    version: '1.0.0.0'
+    version: '1.1.0.0'
     description: 'Ingests suppressions into Log Analytics'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/recommendations/${suppressionsLogAnalyticsIngestRunbookName}.ps1')
   }
   {
     name: advisorRightSizeFilteredRemediationRunbookName
-    version: '1.2.4.0'
+    version: '1.3.0.0'
     description: 'Remediates Azure Advisor right-size recommendations given fit and tag filters'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/remediations/${advisorRightSizeFilteredRemediationRunbookName}.ps1')
   }
   {
     name: longDeallocatedVMsFilteredRemediationRunbookName
-    version: '1.0.3.0'
+    version: '1.1.0.0'
     description: 'Remediates long-deallocated VMs recommendations given fit and tag filters'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/remediations/${longDeallocatedVMsFilteredRemediationRunbookName}.ps1')
   }
   {
     name: unattachedDisksFilteredRemediationRunbookName
-    version: '1.0.3.0'
+    version: '1.1.0.0'
     description: 'Remediates unattached disks recommendations given fit and tag filters'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/remediations/${unattachedDisksFilteredRemediationRunbookName}.ps1')
   }
   {
     name: cleanUpOlderRecommendationsRunbookName
-    version: '1.0.0.0'
+    version: '1.1.0.0'
     description: 'Cleans up older recommendations from SQL Database'
     type: 'PowerShell'
     scriptUri: uri(templateLocation, 'runbooks/maintenance/${cleanUpOlderRecommendationsRunbookName}.ps1')
