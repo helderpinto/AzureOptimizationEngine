@@ -41,7 +41,7 @@ jobs:
             "TargetLocation": "'"$AOE_LOCATION"'",
             "DeployBenefitsUsageDependencies": "n"
           }' > ./deploymentSettings.json          
-      - name: Executing PowerShell deployment script
+      - name: Executing AOE PowerShell deployment script
         shell: pwsh
         run: |
           ./Deploy-AzureOptimizationEngine.ps1 -SilentDeploymentSettingsPath ./deploymentSettings.json -TemplateUri "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/feature/sqlauth/azuredeploy.bicep" -SqlAdminPrincipalName ${{ secrets.AOE_SQL_ADMIN_PRINCIPAL_NAME }} -SqlAdminPrincipalObjectId ${{ secrets.AOE_SQL_ADMIN_PRINCIPAL_ID }}
