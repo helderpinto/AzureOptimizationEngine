@@ -15,7 +15,13 @@ param (
     [string] $SilentDeploymentSettingsPath,
 
     [Parameter(Mandatory = $false)]
-    [hashtable] $ResourceTags = @{}
+    [hashtable] $ResourceTags = @{},
+
+    [Parameter(Mandatory = $false)]
+    [string] $SqlAdminPrincipalName,
+
+    [Parameter(Mandatory = $false)]
+    [string] $SqlAdminPrincipalObjectId
 )
 
 function ConvertTo-Hashtable {
@@ -207,13 +213,31 @@ else {
     }
 }
 
-$userPrincipalName = $ctx.Account.Id
-$userObjectId = $ctx.Account.ExtendedProperties["HomeAccountId"].Split(".")[0]
-$user = Get-AzADUser -Filter "mail eq '$userPrincipalName'" -Select UserType,UserPrincipalName,Id
-if ($user.UserType -eq "Guest") 
+try 
 {
-    $userPrincipalName = $user.UserPrincipalName
-    $userObjectId = $user.Id
+    $user = Get-AzADUser -SignedIn -Select UserType, UserPrincipalName, Id
+    if (-not([string]::IsNullOrEmpty($user.UserPrincipalName)) -and -not([string]::IsNullOrEmpty($user.Id)))
+    {
+        $userPrincipalName = $user.UserPrincipalName
+        $userObjectId = $user.Id    
+    }
+    else
+    {
+        throw "Could not get the signed-in user details."
+    }
+}
+catch
+{
+    if (-not([string]::IsNullOrEmpty($SqlAdminPrincipalName)) -and -not([string]::IsNullOrEmpty($SqlAdminPrincipalObjectId)))
+    {
+        $userPrincipalName = $SqlAdminPrincipalName
+
+        $userObjectId = $SqlAdminPrincipalObjectId
+    }
+    else
+    {
+        throw "Could not get the principal user details."
+    }
 }
 
 $cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
