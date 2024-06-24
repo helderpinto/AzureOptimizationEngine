@@ -37,7 +37,7 @@ jobs:
             "SubscriptionId": "'"$AZURE_SUBSCRIPTION_ID"'",
             "NamePrefix": "'"$AOE_NAMEPREFIX"'",
             "WorkspaceReuse": "n",
-            "DeployWorkbooks": "n",
+            "DeployWorkbooks": "y",
             "TargetLocation": "'"$AOE_LOCATION"'",
             "DeployBenefitsUsageDependencies": "n"
           }' > ./deploymentSettings.json          
