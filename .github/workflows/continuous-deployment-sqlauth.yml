@@ -35,7 +35,7 @@ jobs:
         run: |
           echo '{
             "SubscriptionId": "'"$AZURE_SUBSCRIPTION_ID"'",
-            "NamePrefix": "'"$AOE_NAMEPREFIX$(date '+%Y%m%d%H')"'",
+            "NamePrefix": "'"$AOE_NAMEPREFIX"'",
             "WorkspaceReuse": "n",
             "DeployWorkbooks": "y",
             "TargetLocation": "'"$AOE_LOCATION"'",
