@@ -12,6 +12,7 @@ param logAnalyticsRetentionDays int
 param sqlBackupRetentionDays int
 param userObjectId string
 param userPrincipalName string
+param sqlAdminPrincipalType string
 
 param cloudEnvironment string
 param authenticationOption string
@@ -1682,7 +1683,7 @@ resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' = {
       administratorType: 'ActiveDirectory'
       azureADOnlyAuthentication: true
       login: userPrincipalName
-      principalType: 'User'
+      principalType: sqlAdminPrincipalType
       sid: userObjectId
       tenantId: tenant().tenantId
     }

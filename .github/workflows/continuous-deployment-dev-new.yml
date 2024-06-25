@@ -44,5 +44,5 @@ jobs:
       - name: Testing PowerShell script call
         shell: pwsh
         run: |
-          ./Deploy-AzureOptimizationEngine.ps1 -SilentDeploymentSettingsPath ./deploymentSettings.json -TemplateUri "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/dev/azuredeploy.bicep" -SqlAdminPrincipalName ${{ secrets.AOE_SQL_ADMIN_PRINCIPAL_NAME }} -SqlAdminPrincipalObjectId ${{ secrets.AOE_SQL_ADMIN_PRINCIPAL_ID }}
+          ./Deploy-AzureOptimizationEngine.ps1 -SilentDeploymentSettingsPath ./deploymentSettings.json -TemplateUri "https://raw.githubusercontent.com/helderpinto/AzureOptimizationEngine/dev/azuredeploy.bicep" -SqlAdminPrincipalType "Group" -SqlAdminPrincipalName ${{ secrets.AOE_SQL_ADMIN_PRINCIPAL_NAME }} -SqlAdminPrincipalObjectId ${{ secrets.AOE_SQL_ADMIN_PRINCIPAL_ID }}
       - run: echo "🍏 This job's status is ${{ job.status }}."

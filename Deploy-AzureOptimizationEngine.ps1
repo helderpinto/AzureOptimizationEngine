@@ -18,6 +18,9 @@ param (
     [hashtable] $ResourceTags = @{},
 
     [Parameter(Mandatory = $false)]
+    [string] $SqlAdminPrincipalType = "User",
+
+    [Parameter(Mandatory = $false)]
     [string] $SqlAdminPrincipalName,
 
     [Parameter(Mandatory = $false)]
@@ -213,7 +216,12 @@ else {
     }
 }
 
-try 
+if (-not([string]::IsNullOrEmpty($SqlAdminPrincipalName)) -and -not([string]::IsNullOrEmpty($SqlAdminPrincipalObjectId)))
+{
+    $userPrincipalName = $SqlAdminPrincipalName
+    $userObjectId = $SqlAdminPrincipalObjectId
+}
+elseif ($SqlAdminPrincipalType -eq "User")
 {
     $user = Get-AzADUser -SignedIn -Select UserType, UserPrincipalName, Id
     if (-not([string]::IsNullOrEmpty($user.UserPrincipalName)) -and -not([string]::IsNullOrEmpty($user.Id)))
@@ -224,21 +232,12 @@ try
     else
     {
         throw "Could not get the signed-in user details."
-    }
+    }            
 }
-catch
+else
 {
-    if (-not([string]::IsNullOrEmpty($SqlAdminPrincipalName)) -and -not([string]::IsNullOrEmpty($SqlAdminPrincipalObjectId)))
-    {
-        $userPrincipalName = $SqlAdminPrincipalName
-
-        $userObjectId = $SqlAdminPrincipalObjectId
-    }
-    else
-    {
-        throw "Could not get the principal user details."
-    }
-}
+    throw "You must provide the SQL Admin principal name and object Id for non-User principal types."
+}            
 
 $cloudDetails = Get-AzEnvironment -Name $AzureEnvironment
 
@@ -668,7 +667,7 @@ if ("Y", "y" -contains $continueInput) {
                     -logAnalyticsWorkspaceName $laWorkspaceName -logAnalyticsWorkspaceRG $laWorkspaceResourceGroup `
                     -storageAccountName $storageAccountName -automationAccountName $automationAccountName `
                     -sqlServerName $sqlServerName -sqlDatabaseName $sqlDatabaseName -cloudEnvironment $AzureEnvironment `
-                    -userPrincipalName $userPrincipalName -userObjectId $userObjectId -resourceTags $ResourceTags -WarningAction SilentlyContinue
+                    -userPrincipalName $userPrincipalName -userObjectId $userObjectId -sqlAdminPrincipalType $SqlAdminPrincipalType -resourceTags $ResourceTags -WarningAction SilentlyContinue
                 $deploymentSucceeded = $true
             }
             catch {

@@ -18,6 +18,7 @@ param logAnalyticsRetentionDays int = 120
 param sqlBackupRetentionDays int = 7
 param userPrincipalName string
 param userObjectId string
+param sqlAdminPrincipalType string = 'User'
 param cloudEnvironment string = 'AzureCloud'
 param authenticationOption string = 'ManagedIdentity'
 
@@ -56,6 +57,7 @@ module resourcesDeployment './azuredeploy-nested.bicep' = {
     resourceTags: resourceTags
     userPrincipalName: userPrincipalName
     userObjectId: userObjectId
+    sqlAdminPrincipalType: sqlAdminPrincipalType
   }
   dependsOn: [
     rg
